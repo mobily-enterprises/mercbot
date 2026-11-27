@@ -40,7 +40,7 @@ async function toggle(event) {
   }
 }
 
-onMounted(() => load());
+onMounted(load);
 </script>
 
 <template>

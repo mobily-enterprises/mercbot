@@ -1,5 +1,5 @@
 // Follows a pointer from pointerdown until release, reporting each clientX.
-export function trackPointerDrag(event, onMove) {
+function trackPointerDrag(event, onMove) {
   const handle = event.currentTarget;
   handle.setPointerCapture(event.pointerId);
   const move = (moveEvent) => onMove(moveEvent.clientX);

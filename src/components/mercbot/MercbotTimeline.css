@@ -209,10 +209,6 @@
   margin-left: -8px;
 }
 
-.mb-message--user + .mb-message__failed {
-  text-align: right;
-}
-
 /* A message's actions stay beside its bubble at every width, and only "Not sent." takes a line of its own, under the
    bubble. A person's wide bubble gives the actions room, even with a long quoted line; when they wrapped under it
    instead, a phone showed an empty band below it, where they hide until hovered. */

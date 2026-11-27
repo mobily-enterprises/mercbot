@@ -56,6 +56,9 @@ const guideOpen = computed({
   set: (value) => (value ? app.openGuide() : app.closeGuide())
 });
 
+/** A failure in the person's words, for the shell's message. */
+const said = (words) => Object.assign(new Error(words), { said: words });
+
 // The shortcuts and sharing arrive as ?go=…; each is done once, then the address is left as it was.
 const shared = ref(null);
 const sharedFilter = ref("");
@@ -72,9 +75,6 @@ watch(() => route.query.go, (go) => {
     takeShared(key).catch(() => emit("failure", said("What you shared couldn't be read. Share it again from the other app.")));
   }
 }, { immediate: true });
-
-/** A failure in the person's words, for the shell's message. */
-const said = (words) => Object.assign(new Error(words), { said: words });
 
 /** What another app shared under `key`: the chat picker opens with it, or the person hears it's gone. */
 async function takeShared(key) {

@@ -9,8 +9,8 @@ import { ConnectionError, isLocal } from "./oauth.js";
 // <ENV>_APP_PRIVATE_KEY (PEM) beside <ENV>_CLIENT_ID and <ENV>_CLIENT_SECRET, its own client, or the <ENV>_TEST_ ones
 // while this copy's public address is a local one (oauth.js credentials).
 
-export const GITHUB_API = "https://api.github.com";
-export const GITHUB_WEB = "https://github.com";
+const GITHUB_API = "https://api.github.com";
+const GITHUB_WEB = "https://github.com";
 
 /** What a command's key may do in a repository the person can push to: no Workflows, nothing of the account's. */
 export const WRITE_PERMISSIONS = Object.freeze({
@@ -119,7 +119,7 @@ function decodeAfter(after) {
 /**
  * GitHub's side of the app. Requests with a person's key go through that key's own `fetch` (its Request pace, D-96);
  * the app's own requests (installations, keys, withdrawing a key) aren't paced, as making a key isn't (appRequests.js).
- * `api` and `web` are GitHub's addresses, a stand-in's in tests and a Test Preview (IntegrationsFeature standInGithub).
+ * `api` and `web` are GitHub's addresses, a stand-in's in tests.
  * @param {object} options
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} options.env
  * @param {string} [options.api]

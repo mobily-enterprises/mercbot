@@ -24,10 +24,13 @@ const REDIRECTS = 3;
 // Who this copy is, as each conversation with an app starts.
 const INITIALIZE = Object.freeze({ protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "Mercbot", version: "1" } });
 
-/** The app refused the key it was sent (401 or 403): connections.js renews it once, or signs the account out. */
+/** The app refused the key it was sent (401 or 403): connectorAccounts.js renews it once, or signs the account out. */
 export class ConnectorAuthError extends Error {}
 
 const plain = (url) => String(url || "").replace(/\/+$/u, "");
+
+/** An address's path without its trailing slash, "" for the root. */
+const pathOf = (url) => (url.pathname === "/" ? "" : url.pathname.replace(/\/+$/u, ""));
 
 /**
  * Whether an address the app's sign-in names is as safe as the app's own: https for an https app, so nothing between
@@ -45,7 +48,7 @@ function safe(url, resource) {
 /** The well-known addresses a sign-in server's description may be at, for an issuer with or without a path. */
 function metadataUrls(issuer) {
   const url = new URL(issuer);
-  const path = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/u, "");
+  const path = pathOf(url);
   if (!path) return [`${url.origin}/.well-known/oauth-authorization-server`, `${url.origin}/.well-known/openid-configuration`];
   return [
     `${url.origin}/.well-known/oauth-authorization-server${path}`,
@@ -135,7 +138,7 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
     if (!probe) throw unavailable(plugin, "no answer");
     const challenge = probe.headers.get("www-authenticate") || "";
     await probe.body?.cancel().catch(() => {});
-    const path = resource.pathname === "/" ? "" : resource.pathname.replace(/\/+$/u, "");
+    const path = pathOf(resource);
     const candidates = [
       challengeParam(challenge, "resource_metadata"),
       `${resource.origin}/.well-known/oauth-protected-resource${path}`,

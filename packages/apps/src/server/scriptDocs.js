@@ -7,7 +7,7 @@ import { refused } from "./scriptConnected.js";
 // {{lines:table:link:field,field}} for a table of the records of `table` whose `link` points at it (an invoice's lines),
 // shown the same way. Values are escaped; the page is made in the office apps' sandbox, which has no network, so it
 // loads nothing from outside. A draft's preview makes none.
-export const DOC_LIMITS = Object.freeze({ templateChars: 20000, perRun: 3, lines: 200 });
+const DOC_LIMITS = Object.freeze({ templateChars: 20000, perRun: 3, lines: 200 });
 
 const PAGE_STYLE =
   "body{font-family:sans-serif;font-size:11pt;color:#1c1c1c;margin:32px}" +
@@ -37,7 +37,7 @@ function fieldOf(table, key) {
 export function templatePlaces(template) {
   return [...String(template).matchAll(PLACE)].map(([, inside]) => {
     if (!inside.startsWith("lines:")) return { kind: "field", key: inside };
-    const [, table, link, fields = ""] = inside.split(":");
+    const [, table, link, fields = ""] = inside.split(":").map((part) => part.trim());
     const keys = fields.split(",").map((key) => key.trim()).filter(Boolean);
     if (!table || !link || !keys.length) throw refused(`{{${inside}}} is {{lines:table:link:field,field}}, e.g. {{lines:invoice_lines:invoice:item,quantity,price}}`);
     return { kind: "lines", table, link, fields: keys };

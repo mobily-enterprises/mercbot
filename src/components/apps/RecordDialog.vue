@@ -4,7 +4,7 @@ import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import { calculate, formulaRecord, isCalculated, isFileField, isRollup, isWorkedOut, limitProblem, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
-import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
+import { EMAIL, SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
 import RecordFileField from "./RecordFileField.vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 
@@ -67,7 +67,6 @@ const workedOutFields = computed(() => (props.table?.fields || []).filter((field
 const workedOut = (field) => (isRollup(field) ? (props.record?.[field.id] ?? null) : worked.value[field.key]);
 const workedHint = (field) =>
   isRollup(field) ? `The ${field.options.rollup.measure} of the ${field.options.rollup.from} records linked to this one` : `Calculated: ${field.options.formula}`;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const labelOf = (field) => field.label + (field.options?.required ? " *" : "");
 
 const toInput = (field, value) => {

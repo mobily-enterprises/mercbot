@@ -18,7 +18,7 @@ import { compileWhere } from "./where.js";
 // holds public screens to it (checkVisitorAccess below), and the data gate enforces it on every
 // call (server/visitorAccess.js).
 export const OPERATIONS = ["list", "get", "create", "update", "delete"];
-export const SETTINGS = ["can", "rows", "owner", "read", "write"];
+const SETTINGS = ["can", "rows", "owner", "read", "write"];
 const DATA_REFERENCE = /^=data\.(\w+)$/u;
 // Settings of a part that hold other parts, steps or columns, walked on their own below.
 const STRUCTURE = new Set(["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick", "onSubmit"]);
@@ -33,7 +33,7 @@ export const isListed = (settings) => Object.values(isObject(settings?.tables) ?
  * operation or field name to the first place that uses it. Data scripts aren't counted: the gate
  * holds what they read to the same list.
  */
-export function screenUses(definition, tables) {
+function screenUses(definition, tables) {
   const known = new Set(tables.filter((table) => !table.obsolete).map((table) => table.key));
   const uses = new Map();
   const note = (kind, key, name, path) => {
@@ -374,10 +374,10 @@ function checkRule(definition, tables, table, rule, at, report) {
     if (missing.length) report(`${at}.read`, `${name} is worked out from ${missing.join(", ")}: list ${missing.length === 1 ? "it" : "them"} in read too, or leave ${name} out.`);
   }
   for (const name of listOf(rule.write)) {
-    if (isCalculated(fieldNamed(name))) report(`${at}.write`, `${name} is a calculated field, worked out from the record's other fields: leave it out of write.`);
-    if (isRollup(fieldNamed(name))) report(`${at}.write`, `${name} is a roll-up, which adds up the records linked to this one: leave it out of write.`);
-    if (name === rule.owner) report(`${at}.write`, `${name} is the owner, which the server fills in with the visitor's email: leave it out of write.`);
     const field = fieldNamed(name);
+    if (isCalculated(field)) report(`${at}.write`, `${name} is a calculated field, worked out from the record's other fields: leave it out of write.`);
+    if (isRollup(field)) report(`${at}.write`, `${name} is a roll-up, which adds up the records linked to this one: leave it out of write.`);
+    if (name === rule.owner) report(`${at}.write`, `${name} is the owner, which the server fills in with the visitor's email: leave it out of write.`);
     const target = field?.type === "link" && tables.find((entry) => entry.id === field.options?.target && !entry.obsolete);
     if (target && !definition.public.tables[target.key]) report(`${at}.write`, `${name} links to ${target.key}: list ${target.key} in public.tables too.`);
   }

@@ -22,7 +22,6 @@ const emit = defineEmits(["close", "done", "taught", "take-over", "hand-back", "
 const active = ref(true);
 const target = computed(() => ({ id: String(props.bot.id), chat: props.chatId }));
 const { state } = useComputerStream(target, active);
-const inControl = computed(() => props.inControl);
 
 // If the computer stops while the view is open (it slept, or its server went), wake it again. A wake the copy refused is
 // counted (accountApi.js refusedWork).
@@ -80,7 +79,7 @@ function onKey(event) {
   event.preventDefault();
   event.stopPropagation();
   // While the screen isn't showing, there's nothing to hand back: Escape closes the view.
-  if (inControl.value && !props.handover && !props.teach && connected.value) emit("hand-back");
+  if (props.inControl && !props.handover && !props.teach && connected.value) emit("hand-back");
   else emit("close");
 }
 

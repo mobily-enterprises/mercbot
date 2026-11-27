@@ -11,14 +11,12 @@ const client = createHttpClient({ credentials: "include", csrf: { sessionPath: A
 const query = (path) => `path=${encodeURIComponent(path)}`;
 const filesBase = () => homePath("/files");
 const placeParts = (botId, chat) => [placeQuery({ chat }), botId ? `bot=${encodeURIComponent(botId)}` : ""].filter(Boolean).join("&");
-const and = (botId, chat) => {
-  const part = placeParts(botId, chat);
-  return part ? `&${part}` : "";
-};
-const first = (botId, chat) => {
-  const part = placeParts(botId, chat);
-  return part ? `?${part}` : "";
-};
+/** A query's part after its separator ("?" first, "&" after another), or "" when there's none. */
+const joined = (separator, part) => (part ? `${separator}${part}` : "");
+const and = (botId, chat) => joined("&", placeParts(botId, chat));
+const first = (botId, chat) => joined("?", placeParts(botId, chat));
+/** The chat a page's or a computer's address names, as its whole query. */
+const inChat = (chat) => joined("?", placeQuery({ chat }));
 export const fileUrl = (botId, path, { download = true, chat } = {}) =>
   `${filesBase()}/content?${query(path)}${download ? "&download=1" : ""}${and(botId, chat)}`;
 export const previewUrl = (botId, path, chat = undefined) => `${filesBase()}/preview?${query(path)}${and(botId, chat)}`;
@@ -44,10 +42,7 @@ export const filesApi = {
 // a chat's folder (/files/chat/…) names the chat (`chat`, else the open one); one in the bot's own folder needs none.
 // Old Markdown pages (.md) tick by line.
 const pagesBase = (botId) => homePath(`/bots/${botId}/pages`);
-const pageQuery = (path, chat) => `${query(path)}${(() => {
-  const part = placeQuery({ chat });
-  return part ? `&${part}` : "";
-})()}`;
+const pageQuery = (path, chat) => `${query(path)}${joined("&", placeQuery({ chat }))}`;
 export const isHtmlPage = (path) => /\.html$/u.test(String(path));
 /**
  * A page the home can share beyond its viewer (D-74, pageDocument.js isPagePath): an .html file in a Pages folder of a
@@ -57,25 +52,19 @@ export const isHomePage = (path) => /^\/files\/(bot|shared)\/(.+\/)?Pages\/[^/]+
 export const pageCopyUrl = (botId, path, chat = undefined) => `${pagesBase(botId)}/copy?${pageQuery(path, chat)}`;
 export const pagesApi = {
   frame: (botId, path, chat = undefined) => client.request(`${pagesBase(botId)}/frame?${pageQuery(path, chat)}`),
-  tick: (botId, path, items, chat = undefined) => {
-    const where = placeQuery({ chat });
-    return client.request(`${pagesBase(botId)}/ticks${where ? `?${where}` : ""}`, { method: "POST", body: { path, items } });
-  },
+  tick: (botId, path, items, chat = undefined) =>
+    client.request(`${pagesBase(botId)}/ticks${inChat(chat)}`, { method: "POST", body: { path, items } }),
   versions: (botId, path, chat = undefined) => client.request(`${pagesBase(botId)}/versions?${pageQuery(path, chat)}`),
-  restore: (botId, path, versionId, chat = undefined) => {
-    const where = placeQuery({ chat });
-    return client.request(`${pagesBase(botId)}/restore${where ? `?${where}` : ""}`, { method: "POST", body: { path, versionId } });
-  }
+  restore: (botId, path, versionId, chat = undefined) =>
+    client.request(`${pagesBase(botId)}/restore${inChat(chat)}`, { method: "POST", body: { path, versionId } })
 };
 
 // Ticks or unticks an old Markdown page's checklist item.
 export const checkPageItem = (botId, path, line, checked, chat = undefined) => client.request(`${filesBase()}/check${first(botId, chat)}`, { method: "POST", body: { path, line, checked } });
 
 // Opens the file in its app on the bot's desktop (D-23): its computer in the chat the file is in (D14).
-export const openOnComputer = (botId, path, chat = undefined) => {
-  const where = placeQuery({ chat });
-  return client.request(homePath(`/bots/${botId}/computer/open${where ? `?${where}` : ""}`), { method: "POST", body: { path } });
-};
+export const openOnComputer = (botId, path, chat = undefined) =>
+  client.request(homePath(`/bots/${botId}/computer/open${inChat(chat)}`), { method: "POST", body: { path } });
 
 // Kinds the desktop's apps open.
 export const EDITABLE = new Set(["docx", "doc", "odt", "rtf", "xlsx", "xls", "xlsm", "ods", "pptx", "pdf"]);

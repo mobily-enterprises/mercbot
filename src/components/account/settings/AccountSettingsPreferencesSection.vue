@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from "vue";
 import { shellPreferences } from "@/components/mercbot/shellPreferences.js";
 
 // Accent is kept per device (shellPreferences).
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const preferences = props.runtime.preferences;
+const busy = computed(() => preferences.isSaving.value || preferences.isRefreshing.value);
 </script>
 
 <template>
@@ -35,7 +37,7 @@ const preferences = props.runtime.preferences;
               item-value="value"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.theme"
             />
           </v-col>
@@ -65,7 +67,7 @@ const preferences = props.runtime.preferences;
               item-value="value"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.locale"
             />
           </v-col>
@@ -78,7 +80,7 @@ const preferences = props.runtime.preferences;
               :items="preferences.options.timeZone"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.timeZone"
             />
           </v-col>
@@ -93,7 +95,7 @@ const preferences = props.runtime.preferences;
               item-value="value"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.dateFormat"
             />
           </v-col>
@@ -108,7 +110,7 @@ const preferences = props.runtime.preferences;
               item-value="value"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.numberFormat"
             />
           </v-col>
@@ -121,7 +123,7 @@ const preferences = props.runtime.preferences;
               :items="preferences.options.currency"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.currencyCode"
             />
           </v-col>
@@ -134,7 +136,7 @@ const preferences = props.runtime.preferences;
               :items="preferences.options.avatarSize"
               variant="outlined"
               density="comfortable"
-              :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+              :disabled="busy"
               :error-messages="preferences.fieldErrors.avatarSize"
             />
           </v-col>
@@ -144,7 +146,7 @@ const preferences = props.runtime.preferences;
           type="submit"
           color="primary"
           size="large"
-          :disabled="preferences.isSaving.value || preferences.isRefreshing.value"
+          :disabled="busy"
         >
           {{ preferences.isSaving.value ? "Saving preferences…" : "Save preferences" }}
         </v-btn>

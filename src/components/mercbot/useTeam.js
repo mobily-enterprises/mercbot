@@ -3,7 +3,7 @@ import { botsApi } from "./botsApi.js";
 import { peopleApi, roleLabel } from "./homesApi.js";
 
 /** A person of the home as People, Invite and Chat details show them. */
-export const toPerson = (member) => ({
+const toPerson = (member) => ({
   id: String(member.userId),
   name: member.displayName || String(member.email || "").split("@")[0] || "Someone",
   role: member.roleSid || "member",

@@ -14,7 +14,9 @@ import { shellPreferences } from "./shellPreferences.js";
  * @param {import("vue").Ref<Array<import("../../types.js").ChatSection>>} options.sections The sidebar's sections.
  */
 export function useSidebarCommands({ sections, editingSectionId, store, team, dropChat, open, copy, reportFailure, homeName, homeSlug, more }) {
-  const place = (chatId, changes) => chatsApi.changePlace(chatId, changes).then(({ chat }) => store.updateChat(chat));
+  /** A chat change the server answers with the chat: its new fields go into the list. */
+  const updated = ({ chat }) => store.updateChat(chat);
+  const place = (chatId, changes) => chatsApi.changePlace(chatId, changes).then(updated);
   const takeList = (result) => {
     store.mergeChats(result.chats);
     sections.value = result.sections;
@@ -47,17 +49,17 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     unmute: ({ chatId }) => place(chatId, { muted: false }),
     moveChat: ({ chatId, sectionId }) => place(chatId, { sectionId }),
     copyId: ({ chatId }) => copy(`mbc-${chatId}`, "Chat ID copied"),
-    renameChat: ({ chatId, title }) => chatsApi.rename(chatId, title).then(({ chat }) => store.updateChat(chat)),
-    setJoinIn: ({ chatId, on }) => chatsApi.setJoinIn(chatId, on).then(({ chat }) => store.updateChat(chat)),
-    archiveChat: ({ chatId }) => chatsApi.archive(chatId).then(({ chat }) => store.updateChat(chat)),
-    unarchiveChat: ({ chatId }) => chatsApi.unarchive(chatId).then(({ chat }) => store.updateChat(chat)),
+    renameChat: ({ chatId, title }) => chatsApi.rename(chatId, title).then(updated),
+    setJoinIn: ({ chatId, on }) => chatsApi.setJoinIn(chatId, on).then(updated),
+    archiveChat: ({ chatId }) => chatsApi.archive(chatId).then(updated),
+    unarchiveChat: ({ chatId }) => chatsApi.unarchive(chatId).then(updated),
     // Leaving a private chat, or the last person leaving it (which deletes it), takes it off the list.
     leaveChat: ({ chatId }) => chatsApi.leave(chatId).then((result) => changed(result, chatId)),
     deleteChat: ({ chatId }) => chatsApi.remove(chatId).then(() => dropChat(chatId)),
-    addPerson: ({ chatId, userId }) => chatsApi.addPerson(chatId, userId).then(({ chat }) => store.updateChat(chat)),
+    addPerson: ({ chatId, userId }) => chatsApi.addPerson(chatId, userId).then(updated),
     removePerson: ({ chatId, userId }) => chatsApi.removePerson(chatId, userId).then((result) => changed(result, chatId)),
-    addBot: ({ chatId, botId }) => chatsApi.addBot(chatId, botId).then(({ chat }) => store.updateChat(chat)),
-    removeBot: ({ chatId, botId }) => chatsApi.removeBot(chatId, botId).then(({ chat }) => store.updateChat(chat)),
+    addBot: ({ chatId, botId }) => chatsApi.addBot(chatId, botId).then(updated),
+    removeBot: ({ chatId, botId }) => chatsApi.removeBot(chatId, botId).then(updated),
     reorderPins: ({ chatIds }) => chatsApi.reorderPins(chatIds).then(takeList),
     createSection: async ({ chatId }) => {
       const result = await chatsApi.createSection("New section", chatId);

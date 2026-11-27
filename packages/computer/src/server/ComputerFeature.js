@@ -12,12 +12,12 @@ import {
   mercbotSettingResource
 } from "./tableResources.js";
 
-/** The tables the computer feature owns, with their search entries. */
 /** The bots' chat rule over a row's bot in a chat (`field`). @param {string} field */
 const chatBotRow = (field) => function chatBotRow({ requires, ...args }) {
   return requires.records.rules.chatBotRule(args, field);
 };
 
+/** The tables the computer feature owns, with their search entries. */
 export const COMPUTER_OWNS = Object.freeze([
   // A chat's computers, their saved browsers and screen tickets are read by whoever may read that chat (D-112, D14).
   { resource: botComputerResource, searchSchema: BOT_COMPUTER_FILTERS, rowPolicy: chatBotRow("id") },
@@ -91,6 +91,8 @@ const ComputerFeature = defineFeature({
    * @param {(reason: string) => object} capabilities.systemContext
    */
   async setup({ records, http, fastify, notices, files, meter, env, placement, events, resources, systemContext }) {
+    // The Test Preview's computers pretend (standInDesktops.js); everywhere else they're real.
+    const standIn = standInDesktops(env);
     const computers = createComputers({
       resources,
       systemContext,
@@ -103,8 +105,7 @@ const ComputerFeature = defineFeature({
       meter,
       placement: placement ?? PLACE_HERE,
       events: events ?? LOG_COMPUTER_EVENTS,
-      // The Test Preview's computers pretend (standInDesktops.js); everywhere else they're real.
-      ...(standInDesktops(env) ? { createManager: standInDesktops(env) } : {})
+      ...(standIn ? { createManager: standIn } : {})
     });
     fastify.addHook("onListen", () => {
       computers.register(fastify.server.address()).catch((error) => {

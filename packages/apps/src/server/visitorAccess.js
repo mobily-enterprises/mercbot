@@ -1,8 +1,8 @@
-import { exprFields } from "../shared/where.js";
 import { VISITOR, celSchema } from "../shared/formulas.js";
 import { OPERATIONS, listedAccess, visitorReads } from "../shared/visitorAccess.js";
 import { storedFieldIds } from "../shared/calculated.js";
-import { compileWhere, planToIds } from "../shared/where.js";
+import { compileWhere, exprFields, planToIds } from "../shared/where.js";
+import { bothWhere } from "./sqlPlan.js";
 import { GateError } from "./validate.js";
 
 // The one fence (D-66): a visitor reaches a home's records only through the data gate, and only what
@@ -106,15 +106,7 @@ export function checkFields(entry, table, fieldIds) {
 }
 
 /** A `where` ANDed with the records the visitor reaches. */
-export function rowsWhere(entry, where) {
-  if (!entry.rows) return where;
-  if (!where) return entry.rows;
-  return {
-    plan: { kind: "and", items: [where.plan, entry.rows.plan] },
-    variables: { ...where.variables, ...entry.rows.variables },
-    values: { ...where.values, ...entry.rows.values }
-  };
-}
+export const rowsWhere = (entry, where) => bothWhere(where, entry.rows);
 
 /** Whether a stored row is the signed-in visitor's own: its owner field holds their email. */
 export function ownsRecord(entry, ctx, row) {

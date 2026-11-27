@@ -20,7 +20,7 @@ import { ConnectedAppError, appBusy } from "./connectedApps.js";
 const authorization = (token) => (String(token).startsWith("Basic ") ? String(token) : `Bearer ${token}`);
 
 /** Sedna refused the key (401): integrations makes a new one once, and then it's reported. */
-export class SednaAuthError extends ConnectedAppError {}
+class SednaAuthError extends ConnectedAppError {}
 
 /** A change Sedna may or may not have made (no answer, or its own failure): never tried again by itself. */
 export class SednaUncertainError extends ConnectedAppError {}
@@ -30,8 +30,8 @@ const EVENT_PAGES = 5;
 const MESSAGES_OPENED = 40;
 const TEXT_MAX = 20000;
 // A routine's run reads this much of the events feed at most; what's left waits for its next run (feedSince).
-export const FEED_PAGES = 10;
-export const FEED_OPENED = 30;
+const FEED_PAGES = 10;
+const FEED_OPENED = 30;
 export const FEED_MESSAGES = 10;
 // An attachment saved from Sedna, and one added to a message.
 export const DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024;
@@ -186,15 +186,18 @@ export async function ownMessage(access, person, id) {
   return { ...message, relationships: { ...message.relationships, team: { data: teams.map((teamId) => ({ id: teamId, type: "team" })) } } };
 }
 
+/** A read Sedna turned down, as null; a refused key, a busy Sedna or anything else goes on up (D-96). */
+function unlessTurnedDown(error) {
+  if (error instanceof SednaAuthError || !(error instanceof ConnectedAppError)) throw error;
+  return null;
+}
+
 /**
  * One message of a list, as ownMessage gives it, or null when it can't be shown (gone, not in the person's teams, or a
  * read Sedna turned down): the list goes on without it. A refused key, or a busy Sedna, stops the list (D-96).
  */
 async function listedMessage(access, person, id) {
-  return ownMessage(access, person, id).catch((error) => {
-    if (error instanceof SednaAuthError || !(error instanceof ConnectedAppError)) throw error;
-    return null;
-  });
+  return ownMessage(access, person, id).catch(unlessTurnedDown);
 }
 
 /**
@@ -289,15 +292,11 @@ export async function readMessage(access, person, id) {
     const data = message.relationships?.[relationship]?.data;
     return Array.isArray(data) && !data.length ? [] : listed(`/${relationship}`);
   };
-  const unless = (error) => {
-    if (error instanceof SednaAuthError || !(error instanceof ConnectedAppError)) throw error;
-    return null;
-  };
   const tags = await related("category-tag");
   const jobs = await related("job-reference");
   const documents = await related("document");
-  const comments = await listed("/comment").catch(unless);
-  const assigned = await listed("/assignment").catch(unless);
+  const comments = await listed("/comment").catch(unlessTurnedDown);
+  const assigned = await listed("/assignment").catch(unlessTurnedDown);
   return {
     ...summary(message, person),
     to: attributes.to || [],

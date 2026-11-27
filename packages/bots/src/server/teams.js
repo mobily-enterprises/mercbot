@@ -8,7 +8,7 @@ import { GALLERY } from "./templates.js";
 
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 // What a team is for (D-109): Add bots lists the teams for home and life, then those for work.
-export const TEAM_FOR = Object.freeze(["home", "work"]);
+const TEAM_FOR = Object.freeze(["home", "work"]);
 const LIMITS = Object.freeze({ id: 40, name: 40, description: 160 });
 
 /** One line of text, trimmed, of 1 to `max` characters. */

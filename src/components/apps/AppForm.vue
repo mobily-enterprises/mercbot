@@ -4,7 +4,7 @@ import { calculate, celSchema, isFileField, isRollup, isWorkedOut, limitProblem 
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
-import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
+import { EMAIL, SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import RecordFileField from "./RecordFileField.vue";
 import { appsApi, errorText } from "./appsApi.js";
@@ -33,7 +33,6 @@ const draft = reactive({});
 // The file field being uploaded or taken away, and what went wrong.
 // `round` remounts the file inputs after each try, so the same file can be chosen again.
 const attaching = reactive({ field: "", failed: "", problem: "", round: 0 });
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))

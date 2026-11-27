@@ -1,8 +1,8 @@
 // When an app's job runs, in words, for the Logic tab and the home's recurring tasks (D-132, D-140).
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** What a job watching a table runs on, in words: its records "are added", "change", or both. */
-const changesOn = (on) => ({ create: "are added", update: "change" })[on] || "are added or change";
+/** What a watch, or a job watching a table, runs on, in words: its records "are added", "change", or both. */
+export const changesOn = (on) => ({ create: "are added", update: "change" })[on] || "are added or change";
 
 /** When an app's job runs, in words: on its timetable, or when its table's records change. */
 export function jobSchedule(settings = {}) {

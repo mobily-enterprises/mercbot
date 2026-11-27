@@ -71,6 +71,11 @@ const dbProtected = () => new FilesError(
   { code: "files_db_protected" }
 );
 
+/** The refusal for a home's own storage that doesn't answer (WebDAV offline, a Drive that turned its key down). */
+const notAnswering = () => new FilesError(503, "This home's storage isn't answering right now. Try again in a few minutes.", {
+  code: "files_storage_not_answering"
+});
+
 /** A place's folders (`folders`) as [prefix, real folder, name], each it has. */
 const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"], [DB, dirs.db, "db"]]
   .filter(([, dir]) => dir);
@@ -152,6 +157,17 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
+   * Where a home's files are on this server: its own storage's folder (`own`, with the synced tree that keeps it) when
+   * it connected one (D-26), else its folder on Mercbot's own storage, refused while that isn't available.
+   */
+  async function homeFolder(homeId, { reading }) {
+    const given = await ownStorage(homeId, { reading });
+    const own = typeof given === "string" ? { dir: given, tree: null } : given;
+    if (!own && !(await available())) throw unavailable();
+    return { own, home: own?.dir || path.join(base, "homes", String(homeId)) };
+  }
+
+  /**
    * The real folders of a place: `chat`, `bot` and `shared`, each null when the place has none, and `readOnly`, the
    * ones the place may only read (a private chat's bot and home folders, unless widened, D13). Only `reading` gets them
    * while the home's files are being moved to other storage (D-80): every other call is refused then, so whatever writes
@@ -164,10 +180,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     if (!named(homeId) || (!homeOnly && !named(chatId) && !named(botId)) || malformed(chatId) || malformed(botId)) {
       throw new Error("A file place needs a home, and a chat, a bot or the home's own folder.");
     }
-    const given = await ownStorage(homeId, { reading });
-    const own = typeof given === "string" ? { dir: given, tree: null } : given;
-    if (!own && !(await available())) throw unavailable();
-    const home = own?.dir || path.join(base, "homes", String(homeId));
+    const { own, home } = await homeFolder(homeId, { reading });
     const dirs = {
       chat: !homeOnly && chatId != null ? path.join(home, "chats", String(chatId)) : null,
       bot: !homeOnly && botId != null ? path.join(home, "bots", String(botId), "everyone") : null,
@@ -202,7 +215,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
         throw unavailable();
       }
       await explain(homeId);
-      throw new FilesError(503, "This home's storage isn't answering right now. Try again in a few minutes.", { code: "files_storage_not_answering" });
+      throw notAnswering();
     }
   }
 
@@ -243,7 +256,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
       // renewed at once, so it says "Sign in again" if Google refused that (D-80).
       if (error?.code !== "EIO" && error?.code !== "ENOTCONN") throw error;
       await explain(place.homeId);
-      throw new FilesError(503, "This home's storage isn't answering right now. Try again in a few minutes.", { code: "files_storage_not_answering" });
+      throw notAnswering();
     }
     return dirs;
   }
@@ -321,10 +334,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
    */
   async function removeChatFolder(homeId, chatId) {
     if (!/^\d+$/u.test(String(homeId)) || !/^\d+$/u.test(String(chatId))) throw new Error("A chat's folder needs its home and chat.");
-    const given = await ownStorage(homeId, { reading: false });
-    const own = typeof given === "string" ? { dir: given, tree: null } : given;
-    if (!own && !(await available())) throw unavailable();
-    const home = own?.dir || path.join(base, "homes", String(homeId));
+    const { own, home } = await homeFolder(homeId, { reading: false });
     const dir = path.join(home, "chats", String(chatId));
     if (!own && bucket?.tree) return bucket.tree.removeTree(inBucket(dir));
     await fs.rm(dir, { recursive: true, force: true });
@@ -605,12 +615,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
         code: "files_file_destination_invalid"
       });
     }
-    if (
-      await fs.lstat(target).then(
-        () => true,
-        () => false
-      )
-    ) {
+    if (await fs.lstat(target).then(() => true, () => false)) {
       throw new FilesError(409, "There's already a file there.", { code: "files_destination_taken" });
     }
     if (source.stat.isDirectory() && (target + path.sep).startsWith(source.real + path.sep)) {
@@ -644,15 +649,15 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   // Copy to… and Move to… between places (fileCopies.js, D-120).
   const transfer = placeTransfer({ prepare, existingEntry, existingFolder, makeFolder });
 
-  /**
-   * Waits until what changed in the home's files here has reached where they're kept: the files bucket (D-91) and the
-   * home's own storage (`settle`, D-26).
-   */
   /** Sends what changed in a private folder (privateFolder) here to the bucket. */
   function settlePrivate(name) {
     return pushFolder(name);
   }
 
+  /**
+   * Waits until what changed in the home's files here has reached where they're kept: the files bucket (D-91) and the
+   * home's own storage (`settle`, D-26).
+   */
   async function settleHome(homeId) {
     await pushFolder(`homes/${homeId}`);
     await settle(homeId);

@@ -5,7 +5,7 @@ import { uploadFile } from "./filesApi.js";
 const TEXT_TYPES = /^(text\/|application\/(json|xml|csv|x-yaml|javascript))/u;
 
 /** Where a file attached in a chat is kept: the chat's folder (D-112 R6), which everyone who can open the chat can. */
-export const CHAT_UPLOADS = "/files/chat/Uploads";
+const CHAT_UPLOADS = "/files/chat/Uploads";
 
 /** One file into a chat's folder, through the chat's first bot when it has one: its path there. */
 async function uploadTo(chat, file) {

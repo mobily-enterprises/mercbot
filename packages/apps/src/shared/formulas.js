@@ -242,9 +242,9 @@ export function checkFormula(variables, source, functions = null) {
   return result.valid ? { type: result.type } : { error: String(result.error?.message || result.error).split("\n")[0] };
 }
 
-// CEL ints are BigInts; pages show plain values.
 export { formatDate, formatMoney };
 
+/** CEL ints are BigInts; pages show plain values. */
 export function plainValue(value) {
   if (typeof value === "bigint") return Number(value);
   return value;

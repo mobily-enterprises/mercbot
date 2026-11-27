@@ -8,7 +8,7 @@ import { GateError } from "./validate.js";
 // they choose 1 to 500) counted in the database, so every server counts the same (`app_send_counts`); a public form's
 // emails reach one address at most VISITOR_DAILY times a day, so a visitor can't use it to mail someone over and over.
 // Each send is in the app's activity. The bots make them (mercbot.app-connected: appMessages.js).
-export const SEND_DAILY = Object.freeze({ standard: 50, max: 500 });
+const SEND_DAILY = Object.freeze({ standard: 50, max: 500 });
 const VISITOR_DAILY = 3;
 const TO_MAX = 10;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;

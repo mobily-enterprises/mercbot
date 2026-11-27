@@ -78,6 +78,9 @@ export function previewNotice(result) {
 export const whenText = (at) => (at ? new Date(at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "");
 export const actorName = (actor, fallback = "Someone") => (actor?.type === "bot" ? `${actor.name} (bot)` : actor?.name || fallback);
 
+// A script's kind, as an app's Logic tab and the home's Scripts tab name it.
+export const SCRIPT_KIND = Object.freeze({ action: "Button", source: "Screen data", rule: "Rule on saving", function: "Formula function", job: "Job" });
+
 // An app screen's address: `<base>/<screen>/<first parameter>`, other parameters as query values.
 export function screenParams(screens, key, pathParts, query) {
   const names = Object.keys(screens?.[key]?.params || {});
@@ -161,7 +164,7 @@ export function createScreenRuntime({
   function rowScope(rowsReference, record) {
     const table = queryTable(referenced(rowsReference));
     if (!table) return { variables: { row: "map" }, values: { row: record || {} }, record, table: null };
-    return { variables: { row: table ? celSchema(table) : {} }, values: { row: formulaRecord(table, record) }, record, table };
+    return { variables: { row: celSchema(table) }, values: { row: formulaRecord(table, record) }, record, table };
   }
 
   // stop() ends the screen's reads once the page no longer needs them: one still on its way is dropped, unanswered,

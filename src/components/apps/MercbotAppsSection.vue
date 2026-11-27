@@ -4,8 +4,10 @@ import { appsApi } from "./appsApi.js";
 
 // The Apps section of a bot's Details (D-35): the bot's watches, which anyone who can open their chat can pause or
 // remove, and only whoever set one up resumes (`canResume`: it runs as them). Shown only when it has some. Which bot
-// builds the home's apps is chosen in Settings → Main bot and Builder (D-119); the card shows a Builder chip.
+// builds the home's apps is chosen in Settings → Main bot and Builder (D-119); the card shows a Builder chip. A pause,
+// resume or remove the server refuses goes to the card as a failure, which the shell reports.
 const props = defineProps({ bot: { type: Object, required: true } });
+const emit = defineEmits(["failure"]);
 const watches = ref([]);
 const WHEN = { create: "new records", update: "changes", any: "new records and changes" };
 
@@ -14,13 +16,21 @@ onMounted(async () => {
 });
 
 async function toggle(watch) {
-  const { enabled } = await appsApi.setWatch(watch.id, !watch.enabled);
-  watch.enabled = enabled;
+  try {
+    const { enabled } = await appsApi.setWatch(watch.id, !watch.enabled);
+    watch.enabled = enabled;
+  } catch (error) {
+    emit("failure", error);
+  }
 }
 
 async function remove(watch) {
-  await appsApi.removeWatch(watch.id);
-  watches.value = watches.value.filter((entry) => entry.id !== watch.id);
+  try {
+    await appsApi.removeWatch(watch.id);
+    watches.value = watches.value.filter((entry) => entry.id !== watch.id);
+  } catch (error) {
+    emit("failure", error);
+  }
 }
 </script>
 

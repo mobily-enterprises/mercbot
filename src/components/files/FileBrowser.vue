@@ -193,11 +193,11 @@ function startDrag(event, entry) {
   event.dataTransfer.setData("text/plain", nameOf(entry.path));
 }
 // A file dragged out of Database files is copied, never moved; nothing is dropped into them.
-const dragMode = (event) => (dragging.value?.from?.locked ? "copy" : dropMode(event, mac));
+const dragMode = (event, from) => (from?.locked ? "copy" : dropMode(event, mac));
 function dragOver(event, item) {
   if (!dragging.value || item.archived || item.locked) return;
   event.preventDefault();
-  const mode = dragMode(event);
+  const mode = dragMode(event, dragging.value.from);
   event.dataTransfer.dropEffect = mode;
   over.value = { key: item.key, mode };
 }
@@ -210,7 +210,7 @@ function drop(event, item) {
   over.value = null;
   if (!dragged || item.archived || item.locked) return;
   event.preventDefault();
-  send({ mode: dragged.from?.locked ? "copy" : dropMode(event, mac), from: dragged.from, path: dragged.path, to: item, folder: item.root });
+  send({ mode: dragMode(event, dragged.from), from: dragged.from, path: dragged.path, to: item, folder: item.root });
 }
 function endDrag() {
   dragging.value = null;

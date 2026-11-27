@@ -77,7 +77,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
   const { homePlugins, userSkills, appInterest, pluginActionsOff } = resources;
 
   function plugin(pluginId) {
-    const found = catalogue.find((entry) => entry.id === pluginId);
+    const found = app(pluginId);
     if (!found) throw new IntegrationsError(404, "That app isn't in the catalogue.", { code: "integrations_app_not_found" });
     return found;
   }
@@ -362,9 +362,10 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    */
   async function skillNames(options, { limit = 0 } = {}) {
     const params = { sort: ["id"], fields: ["name", "description"] };
+    const mine = own(options);
     const records = limit
-      ? (await userSkills.query({ ...params, page: { size: limit } }, own(options))).records
-      : await userSkills.queryAll(params, own(options));
+      ? (await userSkills.query({ ...params, page: { size: limit } }, mine)).records
+      : await userSkills.queryAll(params, mine);
     return records.map((record) => ({ id: String(record.id), name: record.name, description: record.description }));
   }
 

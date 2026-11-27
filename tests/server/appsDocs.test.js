@@ -16,6 +16,12 @@ test("a template's places: fields and line items; anything else is refused with 
   assert.throws(() => templatePlaces("{{lines:invoice_lines}}"), /\{\{lines:table:link:field,field\}\}/u);
 });
 
+test("a lines place's table and link are read whatever their spaces, as its key is", () => {
+  assert.deepEqual(templatePlaces("{{lines: invoice_lines : invoice :item}}"), [
+    { kind: "lines", table: "invoice_lines", link: "invoice", fields: ["item"] }
+  ]);
+});
+
 test("filled from the record as screens show it, escaped, with its lines as a table, in a whole page", () => {
   const record = { id: "1", f_no: "INV-7", f_total: 125050, f_due: "2026-12-01", f_to: "Bolt & <Sons>" };
   const rows = new Map([["lines:invoice_lines:invoice:item,price", { table: lines, records: [{ id: "9", f_item: "Desk", f_price: 120000 }, { id: "10", f_item: "Lamp", f_price: 5050 }] }]]);

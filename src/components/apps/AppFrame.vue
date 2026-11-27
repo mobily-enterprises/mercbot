@@ -105,6 +105,9 @@ function onEffects(result) {
 }
 const onError = (error) => notify(errorText(error, "That didn't work. Try again."), "error");
 
+// After a restore or a saved change: the app is read again and its screen opens afresh.
+const reopenApp = () => loadApp().then(openScreen);
+
 async function loadApp() {
   problem.value = "";
   loaded.value = null;
@@ -273,7 +276,7 @@ async function publish() {
             v-if="isView"
             :loaded="loaded"
             :full-page-link="false"
-            @restored="loadApp().then(openScreen)"
+            @restored="reopenApp"
             @retired="router.push(paths.page('/apps'))"
           />
           <template v-else>
@@ -356,7 +359,7 @@ async function publish() {
     </AppTheme>
 
     <v-navigation-drawer v-if="loaded?.app" v-model="details" location="right" temporary width="440">
-      <AppDetailsPanel :loaded="loaded" :home="home" @restored="(result) => { notify(`Restored as version ${result.number}.`); loadApp().then(openScreen); }" @narrowed="(result) => { notify(`Saved as version ${result.number}.`); loadApp().then(openScreen); }" @failed="(message) => notify(message, 'error')" @themed="() => { notify('Saved.'); loadApp().then(openScreen); }" @ask="(about) => askBuilder(null, about)" />
+      <AppDetailsPanel :loaded="loaded" :home="home" @restored="(result) => { notify(`Restored as version ${result.number}.`); reopenApp(); }" @narrowed="(result) => { notify(`Saved as version ${result.number}.`); reopenApp(); }" @failed="(message) => notify(message, 'error')" @themed="() => { notify('Saved.'); reopenApp(); }" @ask="(about) => askBuilder(null, about)" />
     </v-navigation-drawer>
 
     <MercbotConfirmDialog

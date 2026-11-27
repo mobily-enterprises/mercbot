@@ -46,6 +46,10 @@ export async function fileText(files, place, wanted, file) {
   return (await files.apps.textOf(place, wanted)) ?? plainText(file);
 }
 
+/** A title as the start of a file's name: its words in lowercase joined by "-", at most `max` characters, or `fallback`. */
+const slugOf = (title, max, fallback) =>
+  title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, max) || fallback;
+
 // What a reply says about a page it saved: one line, with the page as a link, as people read it.
 const PAGE_NOTE =
   "The page card is shown under your message. In your text, name the page as a link, [its title](its path), and say in a sentence or two what's on it.";
@@ -253,8 +257,7 @@ export function buildFileTools({
   /** Charts as pictures in the chat, saved in the bot's Charts folder. */
   async function makeChart({ title, type, categories, series, caption }) {
     try {
-      const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "chart";
-      const chartPath = `/files/chat/Charts/${slug}-${Date.now().toString(36)}.png`;
+      const chartPath = `/files/chat/Charts/${slugOf(title, 50, "chart")}-${Date.now().toString(36)}.png`;
       await files.apps.chartImage(place, { title, type, categories, series }, chartPath);
       charts.push({ path: chartPath, title: title.trim(), caption: caption.trim() });
       return {
@@ -311,7 +314,7 @@ export function buildFileTools({
         if (!type) return { error: `${wanted} isn't a picture.` };
         sources.push({ type, data: await readFile((await files.store.existingFile(place, wanted)).real) });
       }
-      const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "picture";
+      const slug = slugOf(title, 50, "picture");
       const made = await inTime(Promise.all(Array.from({ length: variants }, () => makePicture(env, prompt, sources))), "Making the picture");
       const stamp = Date.now().toString(36);
       const pathOf = (index) => `/files/chat/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
@@ -377,7 +380,7 @@ export function buildFileTools({
   async function savePage({ title, content, path: given }) {
     try {
       if (given && given.endsWith(".md") && !content.trim().startsWith("<")) return await saveMarkdownPage({ title, content, path: given });
-      const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 60) || "page";
+      const slug = slugOf(title, 60, "page");
       const page = await files.pages.save({ place, title: title.trim(), content, given: given?.endsWith(".html") ? given : null, slug })
         .catch((error) => (error?.code === WIDER_NEEDS_CARD ? null : Promise.reject(error)));
       // D13: in a private chat a page goes to /files/bot or /files/shared only when a person puts it there.
@@ -528,7 +531,7 @@ export function buildFileTools({
       body: {
         purpose: "share-file",
         question: `Make "${title}" a page in this bot's files?`,
-        subline: `This chat is private. ${SHARE_TARGETS.bot.reach}`,
+        subline: `This chat is private. ${SHARE_REACH}`,
         options: SHARE_OPTIONS,
         multi: false,
         chosen: null,
@@ -544,9 +547,8 @@ export function buildFileTools({
   return tools;
 }
 
-const SHARE_TARGETS = Object.freeze({
-  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in the home will be able to open it." }
-});
+// Who opens a page made from a private chat's card, in the bot's files for every chat.
+const SHARE_REACH = "Everyone in the home will be able to open it.";
 const SHARE_OPTIONS = Object.freeze(["Share it", "Keep it in this chat"]);
 
 /** Which of the bot's folders a path is in: "chat", "bot" or "shared", or null outside them. */

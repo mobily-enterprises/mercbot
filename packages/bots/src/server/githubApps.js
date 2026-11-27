@@ -7,16 +7,18 @@ import { ConnectedAppError } from "./connectedApps.js";
 
 const API = "https://api.github.com";
 
+/** What every request to GitHub's API sends: the account's key, and the API version Mercbot reads. */
+const headersFor = (key) => ({
+  authorization: `Bearer ${key.token}`,
+  accept: "application/vnd.github+json",
+  "x-github-api-version": "2022-11-28",
+  "user-agent": "Mercbot"
+});
+
 async function call(key, path, options = {}) {
   const response = await key.fetch(`${API}${path}`, {
     ...options,
-    headers: {
-      authorization: `Bearer ${key.token}`,
-      accept: "application/vnd.github+json",
-      "x-github-api-version": "2022-11-28",
-      "user-agent": "Mercbot",
-      ...(options.body ? { "content-type": "application/json" } : {})
-    },
+    headers: { ...headersFor(key), ...(options.body ? { "content-type": "application/json" } : {}) },
     signal: AbortSignal.timeout(30000)
   });
   const body = await response.json().catch(() => ({}));
@@ -186,12 +188,7 @@ export async function graphql(key, query, variables = {}) {
 
 export async function githubText(key, path) {
   const response = await key.fetch(`${API}${path}`, {
-    headers: {
-      authorization: `Bearer ${key.token}`,
-      accept: "application/vnd.github+json",
-      "x-github-api-version": "2022-11-28",
-      "user-agent": "Mercbot"
-    },
+    headers: headersFor(key),
     signal: AbortSignal.timeout(60000)
   });
   if (!response.ok) await call(key, path);

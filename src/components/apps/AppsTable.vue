@@ -69,7 +69,7 @@ async function saveAccess() {
 const fields = computed(() => (table.value?.fields || []).filter((field) => !field.obsolete));
 // What this table links to, what links to it and what extends it (D-130), each opening that table.
 const links = computed(() => {
-  const found = linksOf(tables.value.find((entry) => entry.key === key.value), tables.value);
+  const found = linksOf(tableEntry.value, tables.value);
   return [["Links to", found.linksTo], ["Linked from", found.linkedFrom], ["Extended by", found.extendedBy]].filter(([, list]) => list.length);
 });
 // Calculated fields (D-78) are worked out on every read, not stored: the database can't search, sort, filter or

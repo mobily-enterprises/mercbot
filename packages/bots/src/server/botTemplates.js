@@ -9,7 +9,7 @@ import { CATEGORIES, GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, TAG, TEAM, details
 import { checkedDraft, manageRefusal, managesTemplates, takenTags } from "./templateDrafts.js";
 import { templateBody } from "../shared/templateBody.js";
 import { TEAMS, teamSummary } from "./teams.js";
-import { cleanName } from "./botRows.js";
+import { cleanName, isId } from "./botRows.js";
 import { lookOf } from "./botList.js";
 import { createCallerReaders } from "./records/recordRows.js";
 
@@ -353,9 +353,8 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
 
   /** One of the home's templates by its id from a request, or 404: another home's is none. */
   async function ownTemplate(templateId, options, { lock = false } = {}) {
-    const id = String(templateId ?? "");
     const read = lock ? records.homeTemplates.lock : records.homeTemplates.find;
-    const template = /^[1-9]\d{0,18}$/u.test(id) ? await read(id, options) : null;
+    const template = isId(templateId) ? await read(String(templateId), options) : null;
     if (!template) throw noTemplate();
     return template;
   }

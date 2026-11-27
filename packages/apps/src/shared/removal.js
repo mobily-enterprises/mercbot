@@ -1,4 +1,5 @@
 import { Environment } from "@marcbachmann/cel-js";
+import { balanced } from "./where.js";
 
 // Removing a field from an app (D-35). Definitions are stored by ids, so every use of the field is
 // found exactly. Columns, form fields and any part whose formulas use the field are removed; in a
@@ -6,29 +7,6 @@ import { Environment } from "@marcbachmann/cel-js";
 // `widened`); sort, group and measure settings on it are dropped. Returns the new definition and
 // what changed, by screen, in the order found.
 const parser = new Environment({ unlistedVariablesAreDyn: true });
-
-function balanced(expression, start, end) {
-  let depth = 0;
-  let quote = null;
-  let index = start;
-  const step = (char, previous) => {
-    if (quote) {
-      if (char === quote && previous !== "\\") quote = null;
-    } else if (char === '"' || char === "'") {
-      quote = char;
-    } else if (char === "(" || char === "[") {
-      depth += 1;
-    } else if (char === ")" || char === "]") {
-      depth -= 1;
-    }
-  };
-  for (; index < end; index += 1) step(expression[index], expression[index - 1]);
-  while (depth > 0 && index < expression.length) {
-    step(expression[index], expression[index - 1]);
-    index += 1;
-  }
-  return expression.slice(start, index);
-}
 
 /** The formula without the conditions that use the field, or null when nothing is left. */
 function withoutCondition(source, fieldId) {

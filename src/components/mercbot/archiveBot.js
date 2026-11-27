@@ -1,7 +1,7 @@
 import { currentLanguage } from "./shellPreferences.js";
 
 // Archiving a whole bot (D-108, plan 5.1): a member of the home that has left, for everyone in it. It's listed under
-// Under Archived bots in Bots, stays in its chats without answering, its routines and watches paused, until someone resumes it.
+// Archived bots in Bots, stays in its chats without answering, its routines and watches paused, until someone resumes it.
 // Who may, the question asked first, and the lines an archived bot shows.
 
 /**

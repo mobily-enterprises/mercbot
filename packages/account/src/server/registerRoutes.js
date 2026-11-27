@@ -12,6 +12,12 @@ import { PHOTO_LIMIT } from "./vaultPhoto.js";
 const IN_HOME = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
 const SIGNED_IN = Object.freeze({ auth: "required", visibility: checkRouteVisibility("user") });
 
+/** Sends an account refusal with its status, message and code; any other error is thrown on. */
+function refuse(reply, error) {
+  if (!(error instanceof AccountError)) throw error;
+  reply.code(error.statusCode).send({ error: error.message, code: error.code, params: error.params });
+}
+
 /**
  * A route handler that sends what `work` answers for the request.
  * @param {(request: import("fastify").FastifyRequest) => Promise<unknown>} work
@@ -21,8 +27,7 @@ function answering(work) {
     try {
       reply.send(await work(request));
     } catch (error) {
-      if (!(error instanceof AccountError)) throw error;
-      reply.code(error.statusCode).send({ error: error.message, code: error.code, params: error.params });
+      refuse(reply, error);
     }
   };
 }
@@ -53,8 +58,7 @@ export function registerRoutes(http, { account, spending, uploads, track, media,
       const { fileName, stream } = await spending.exportCsv(homeId(request), readerOf(request));
       reply.header("content-type", "text/csv; charset=utf-8").header("content-disposition", `attachment; filename="${fileName}"`).send(stream);
     } catch (error) {
-      if (!(error instanceof AccountError)) throw error;
-      reply.code(error.statusCode).send({ error: error.message, code: error.code, params: error.params });
+      refuse(reply, error);
     }
   }
 

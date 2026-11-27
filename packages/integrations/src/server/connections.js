@@ -123,6 +123,8 @@ export function createConnections({
   const sealed = (value) => seal(value, key());
   const opened = (value) => unseal(value, key());
   const pluginOf = (pluginId) => catalogue.find((entry) => entry.id === pluginId) || null;
+  /** The sign-in in progress with this state, or null. */
+  const signInRow = async (state, options) => (state ? oauthStates.get(String(state), {}, { ...passedOn(options), missing: "skip" }) : null);
   const connector = createConnector({ connectorApps: resources.connectorApps, env, sealed, opened, fetch: fetchImpl });
   // Every request to a connected account's app waits its turn in the account's Request pace (D-96).
   const requests = createAppRequests({ turns: resources.pluginAccountTurns, systemContext });
@@ -276,8 +278,9 @@ export function createConnections({
    */
   async function accessToken(accountId, options, { refused = "" } = {}) {
     const account = await accounts.reachableAccount(accountId, options, { tokens: true });
-    const paced = requests.fetchFor(account, pluginOf(account.pluginId));
-    if (pluginOf(account.pluginId)?.credentials) return { ...await credentialToken(account, options, refused), fetch: paced };
+    const plugin = pluginOf(account.pluginId);
+    const paced = requests.fetchFor(account, plugin);
+    if (plugin?.credentials) return { ...await credentialToken(account, options, refused), fetch: paced };
     const { provider } = await signInFor(account.pluginId, options);
     if (account.tokens) {
       const stored = opened(account.tokens);
@@ -410,8 +413,7 @@ export function createConnections({
    * @param {object} options
    */
   async function callback(query, cookies, options) {
-    const state = String(query.state || "");
-    const row = state ? await oauthStates.get(state, {}, { ...passedOn(options), missing: "skip" }) : null;
+    const row = await signInRow(String(query.state || ""), options);
     if (row && !sameBrowser(row, cookies)) {
       throw new ConnectionError(
         400,
@@ -469,7 +471,7 @@ export function createConnections({
     if (row.provider === CONNECTOR && !connecting) throw linkExpired();
     const provider = connecting ? (await signInFor(connecting.id, options)).provider : providers[row.provider];
     if (query.error) {
-      const pluginId = row.accountId ? await signInPluginId(row, options) : null;
+      const pluginId = await signInPluginId(row, options);
       if (needsAdmin(provider, query)) {
         throw new ConnectionError(
           400,
@@ -572,8 +574,7 @@ export function createConnections({
       });
     }
     const query = Object.fromEntries(url.searchParams);
-    const state = String(query.state || "");
-    const signIn = state ? await oauthStates.get(state, {}, { ...passedOn(options), missing: "skip" }) : null;
+    const signIn = await signInRow(String(query.state || ""), options);
     // A sign-in of an account of this home the person may change (accounts.mayChange).
     const [account] = signIn?.accountId ? await accounts.reachable(options, { filters: { id: String(signIn.accountId) } }) : [];
     if (!account || !accounts.mayChange(account, options)) {
@@ -618,7 +619,7 @@ export function createConnections({
    * @param {object} options
    */
   async function beginLentSignIn(state, options) {
-    const row = state ? await oauthStates.get(String(state), {}, { ...passedOn(options), missing: "skip" }) : null;
+    const row = await signInRow(state, options);
     if (!row?.lentTo || new Date(row.createdAt) < olderThan(SIGN_IN_MINUTES)) throw linkExpired();
     if (String(row.lentTo) !== String(resolveActorId(options.context) ?? "")) {
       throw new ConnectionError(

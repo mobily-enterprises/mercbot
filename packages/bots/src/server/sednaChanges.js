@@ -32,7 +32,7 @@ const teamNames = (person) => person.teams.map((team) => team.name).join(", ");
  * and the quoted text, and may land outside the conversation's thread in Sedna. When Sedna adds one, its attribute's
  * name goes here and replies carry the answered message's id in it.
  */
-export const SEDNA_REPLY_FIELD = "";
+const SEDNA_REPLY_FIELD = "";
 
 /** The person's team a message goes out from: the one named (id or name), else the one the work suggests or their only one. */
 export function ownTeam(person, wanted = "", suggested = []) {
@@ -120,6 +120,11 @@ async function upload(access, messageId, file) {
   await sednaCall(access, "POST", `/message/${messageId}/document`, { body });
 }
 
+/** A message saved as a draft in the person's Sedna Drafts: its id, "" when Sedna's answer doesn't say. */
+async function saveDraft(access, person, team, message) {
+  return idOf(await sednaCall(access, "POST", "/message", { body: { data: { type: "message", attributes: outgoing(person, team, message) } } }));
+}
+
 /** Attachments as Sedna takes them: 10 MB each at most, else nothing is done. */
 function checkedFiles(files) {
   for (const file of files) {
@@ -149,7 +154,7 @@ const messageEffect = (kind, team, message, files) => ({
 export async function createDraft(access, person, team, message, files = [], commit = direct) {
   checkedFiles(files);
   const done = await commit(messageEffect("Sedna draft", team, message, files), async () => {
-    const id = idOf(await sednaCall(access, "POST", "/message", { body: { data: { type: "message", attributes: outgoing(person, team, message) } } }));
+    const id = await saveDraft(access, person, team, message);
     if (files.length && !id) {
       throw new SednaUncertainError("Sedna saved the draft but didn't say its id, so its attachments weren't added. It's in the person's Sedna Drafts: they add them there.");
     }
@@ -171,7 +176,7 @@ export async function sendMessage(access, person, team, message, files = [], com
       const body = { data: { type: "message", attributes: outgoing(person, team, message) } };
       return { id: idOf(await sednaCall(access, "POST", "/message/send", { params, body })) };
     }
-    const id = idOf(await sednaCall(access, "POST", "/message", { body: { data: { type: "message", attributes: outgoing(person, team, message) } } }));
+    const id = await saveDraft(access, person, team, message);
     if (!id) {
       throw new SednaUncertainError("Sedna saved a draft but didn't say its id, so the attachments weren't added and it wasn't sent. It's in the person's Sedna Drafts: they finish it there.");
     }

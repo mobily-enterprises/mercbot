@@ -9,7 +9,7 @@ import { AwsV4Signer } from "aws4fetch";
 // comes down as a stream, never whole in memory. Objects are addressed by path (`<endpoint>/<bucket>/<key>`), which
 // AWS, MinIO, Garage and R2 all answer. Payloads are sent unsigned (UNSIGNED-PAYLOAD, which S3 takes), since their
 // contents are already sealed (filesCipher.js) and a stream can't be hashed before it's sent.
-export const S3_SETTINGS = Object.freeze({
+const S3_SETTINGS = Object.freeze({
   bucket: "MERCBOT_FILES_S3_BUCKET",
   region: "MERCBOT_FILES_S3_REGION",
   endpoint: "MERCBOT_FILES_S3_ENDPOINT",

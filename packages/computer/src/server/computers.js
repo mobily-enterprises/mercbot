@@ -13,6 +13,7 @@ import { createComputerManager } from "./computerManager.js";
 import { createComputerRecords } from "./computerRecords.js";
 import { createComputerDays } from "./computerDays.js";
 import { APPS, appFor, appIcon } from "@local/files/office-apps";
+import { toolsDir } from "@local/files/gvisor";
 import { desktopSandboxAvailable, startDesktopSandbox } from "./desktopSandbox.js";
 import { TERMINAL_ICON, program } from "./desktop.js";
 
@@ -76,7 +77,7 @@ function asHostUser(env) {
 function xtermCommand(env, title, argv, display = null) {
   const xterm = program(env, "xterm");
   if (!xterm || !argv) return null;
-  const libraries = path.join(path.resolve(env.MERCBOT_TOOLS_DIR || ".tools"), "desktop", "usr", "lib", "x86_64-linux-gnu");
+  const libraries = path.join(toolsDir(env), "desktop", "usr", "lib", "x86_64-linux-gnu");
   return [...asHostUser(env), "env", `LD_LIBRARY_PATH=${libraries}`, "LANG=C.UTF-8", "LC_ALL=C.UTF-8",
     xterm, ...(display === null ? [] : ["-display", `:${display}`]), "-u8", "-T", title, "-fa", "DejaVu Sans Mono", "-fs", "11", "-geometry", "118x34",
     "-bg", "#16181D", "-fg", "#E8EAED", "-xrm", "XTerm*selectToClipboard: true", "-e", ...argv];
@@ -92,7 +93,7 @@ function terminalLauncher(env, attach) {
 }
 
 /** The coding tools (scripts/install-tools.sh), shown to each coding sandbox as /opt/coding (codingSandbox.js). */
-const codingInstalled = (env) => existsSync(path.join(path.resolve(env.MERCBOT_TOOLS_DIR || ".tools"), "coding", "node_modules", ".bin"));
+const codingInstalled = (env) => existsSync(path.join(toolsDir(env), "coding", "node_modules", ".bin"));
 
 /** A Craft app on the desktop, run in the computer's desktop sandbox. */
 function craftCommand(box, app, file = "") {
@@ -118,7 +119,7 @@ function desktopApps(placeOf, env, files, boxes) {
       const found = await placeOf(computerId);
       const place = filePlace(files, found);
       const box = boxes.get(String(computerId));
-      const office = box && existsSync(path.join(path.resolve(env.MERCBOT_TOOLS_DIR || ".tools"), "apps"))
+      const office = box && existsSync(path.join(toolsDir(env), "apps"))
         ? Object.entries(APPS).map(([app, { label }]) => ({ id: app, label, icon: appIcon(env, app), argv: craftCommand(box, app) }))
         : [];
       let terminal = null;
@@ -419,7 +420,6 @@ export function createComputers({
    * people, queued once its turn is over (botTools.js), so a screenshot is kept here unqueued.
    */
   async function storeScreenshot(computerId, data) {
-    if (!folderOf) throw new Error("Screenshots need the files volume.");
     const name = `${computerId}-${randomBytes(8).toString("hex")}.jpg`;
     const dir = path.join(await folderOf(computerId), "screenshots");
     await fs.mkdir(dir, { recursive: true });
@@ -427,9 +427,6 @@ export function createComputers({
     await files.store.settleComputer(computerId);
     return name;
   }
-
-  /** The bot's computer record, if the server holding it is alive. */
-  const owner = (computerId) => records.owner(computerId);
 
   async function gone(serverId) {
     console.warn(`Server ${serverId} didn't answer; it counts as gone, and its computers start again where they're needed next.`);
@@ -445,7 +442,7 @@ export function createComputers({
     const target = await placement.choose(computerId, { here: me, live: records.liveServers });
     if (!target) throw refused(computerId);
     if ((await records.claim(computerId, target)) && target === me) return null;
-    const found = await owner(computerId);
+    const found = await records.owner(computerId);
     if (found?.serverId === me || (!found && target === me)) return null;
     if (!found) throw refused(computerId);
     return found;
@@ -482,7 +479,7 @@ export function createComputers({
    */
   async function run(operation, computerId, ...args) {
     const key = String(computerId);
-    let found = await owner(key);
+    let found = await records.owner(key);
     if (!found && me) found = await place(key);
     if (found && found.serverId !== me) {
       try {
@@ -504,7 +501,7 @@ export function createComputers({
    */
   async function runIfAwake(operation, computerId, args, asleep) {
     const key = String(computerId);
-    const found = await owner(key);
+    const found = await records.owner(key);
     if (found?.state !== "awake") return asleep;
     if (found.serverId === me) return runHere(operation, key, args);
     try {
@@ -544,7 +541,7 @@ export function createComputers({
    * signed in on it (`[{ label, kind, since }]`), as its panel shows them.
    */
   async function status(computerId) {
-    const [found, signIns] = await Promise.all([owner(String(computerId)), records.signIns(String(computerId))]);
+    const [found, signIns] = await Promise.all([records.owner(String(computerId)), records.signIns(String(computerId))]);
     const control = found?.control ? await takeOvers.named(found.control, system()).catch(() => ({ ...found.control, name: "Someone" })) : null;
     return { ...(found ? { state: found.state, url: found.url, error: found.error } : ASLEEP), control, signIns };
   }
@@ -577,7 +574,7 @@ export function createComputers({
   async function findScreen(ticket) {
     const row = await records.ticketFor(ticket);
     if (!row) return null;
-    const found = await owner(row.computerId);
+    const found = await records.owner(row.computerId);
     if (found && found.serverId !== me) {
       return { remote: found.serverUrl, headers: { "x-mercbot-internal": secret }, gone: () => gone(found.serverId) };
     }
@@ -723,7 +720,6 @@ export function createComputers({
     chatRemoved,
     takeOver: takeOvers.takeOver,
     handBack: takeOvers.handBack,
-    placeOf: takeOvers.placeOf,
     noteSignIn: takeOvers.noteSignIn,
     wake,
     sleep,

@@ -9,7 +9,7 @@ export const PATTERN_TYPES = new Set(["text", "phone"]);
 export const UNIQUE_TYPES = new Set(["text", "email", "phone", "url", "number"]);
 // Unique values that compare without case.
 export const CASELESS_TYPES = new Set(["text", "email", "url"]);
-export const PATTERN_MAX = 200;
+const PATTERN_MAX = 200;
 
 const shown = (field, value) => (field.type === "money" ? formatMoney(value) : String(value));
 const compiled = new Map();

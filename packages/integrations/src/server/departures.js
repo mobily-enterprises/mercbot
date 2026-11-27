@@ -8,7 +8,7 @@
  * @param {string} app the app's name
  * @param {string} person who connected it
  */
-export function departedEntry(account, app, person) {
+function departedEntry(account, app, person) {
   return {
     actor: { type: "mercbot", name: "Mercbot" },
     via: { kind: "settings" },

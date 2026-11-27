@@ -125,6 +125,16 @@ export function createOfficeApps({ store, env }) {
     return checked;
   }
 
+  /** Runs `work` with a scratch folder the sandbox may also write in (its /out), removed afterwards. */
+  async function inScratch(prefix, work) {
+    const out = await sharedScratch(env, prefix);
+    try {
+      return await work(out);
+    } finally {
+      await fs.rm(out, { recursive: true, force: true });
+    }
+  }
+
   /**
    * One reply's apps for one bot: each app starts on first use and keeps its open documents
    * until the reply ends.
@@ -178,7 +188,6 @@ export function createOfficeApps({ store, env }) {
     const converter = CONVERTS[ext];
     if ((!converter && ext !== "pdf") || !await available()) return null;
     const dirs = await store.prepare(place, { reading: true });
-    const out = await sharedScratch(env, "mercbot-preview-");
     const script = [
       "set -e",
       converter ? `${cli(converter)} convert "$1" /out/file.pdf >/dev/null` : "cp \"$1\" /out/file.pdf",
@@ -186,7 +195,7 @@ export function createOfficeApps({ store, env }) {
       `while [ $n -le ${PREVIEW_PAGES + 1} ] && ${cli("pdf")} render /out/file.pdf --page $n --dpi 110` +
         " --out /out/page-$n.png >/dev/null 2>&1; do n=$((n+1)); done"
     ].join("\n");
-    try {
+    return inScratch("mercbot-preview-", async (out) => {
       await runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "preview", virtualPath], { out, readOnly: READ_ONLY, timeout: 90000 });
       const pages = [];
       for (let n = 1; n <= PREVIEW_PAGES; n += 1) {
@@ -196,9 +205,7 @@ export function createOfficeApps({ store, env }) {
       }
       const more = await fs.access(path.join(out, `page-${PREVIEW_PAGES + 1}.png`)).then(() => true, () => false);
       return { pages, more };
-    } finally {
-      await fs.rm(out, { recursive: true, force: true });
-    }
+    });
   }
 
   /**
@@ -215,12 +222,8 @@ export function createOfficeApps({ store, env }) {
     }[READS[ext]];
     if (!script || !await available()) return null;
     const dirs = await store.prepare(place, { reading: true });
-    const out = await sharedScratch(env, "mercbot-read-");
-    try {
-      return await runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "read", virtualPath], { out, readOnly: READ_ONLY, timeout: 60000 });
-    } finally {
-      await fs.rm(out, { recursive: true, force: true });
-    }
+    return inScratch("mercbot-read-", (out) =>
+      runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "read", virtualPath], { out, readOnly: READ_ONLY, timeout: 60000 }));
   }
 
   /**
@@ -233,7 +236,6 @@ export function createOfficeApps({ store, env }) {
     const target = await store.resolve(place, virtualPath);
     if (!target) throw new Error("Charts go in /files/chat, /files/bot or /files/shared.");
     await fs.mkdir(path.dirname(target), { recursive: true });
-    const out = await sharedScratch(env, "mercbot-chart-");
     // One series of columns: the highest stands out in a second colour, as its own stacked series.
     let drawn = { type, series };
     if (type === "column" && series.length === 1) {
@@ -255,11 +257,8 @@ export function createOfficeApps({ store, env }) {
     const deck = cli("slides");
     const script = `${deck} run --cmd "$2" --cmd "$3" --cmd "$4" --save /out/chart.deckcraft >/dev/null` +
       ` && ${deck} render /out/chart.deckcraft --scale 1.5 "$1" >/dev/null`;
-    try {
-      await runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "chart", virtualPath, ...commands], { out, timeout: 90000 });
-    } finally {
-      await fs.rm(out, { recursive: true, force: true });
-    }
+    await inScratch("mercbot-chart-", (out) =>
+      runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "chart", virtualPath, ...commands], { out, timeout: 90000 }));
     return virtualPath;
   }
 
@@ -270,15 +269,12 @@ export function createOfficeApps({ store, env }) {
   async function htmlToPdf(place, html, target) {
     if (!await available()) throw new Error("Documents can't be made on this server: its office apps aren't installed.");
     const dirs = await store.prepare(place, { reading: true });
-    const out = await sharedScratch(env, "mercbot-document-");
-    try {
+    await inScratch("mercbot-document-", async (out) => {
       await fs.writeFile(path.join(out, "document.html"), html);
       const script = `${cli("word")} convert /out/document.html /out/document.pdf >/dev/null`;
       await runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "document"], { out, readOnly: READ_ONLY, timeout: 90000 });
       await fs.copyFile(path.join(out, "document.pdf"), target);
-    } finally {
-      await fs.rm(out, { recursive: true, force: true });
-    }
+    });
   }
 
   /**

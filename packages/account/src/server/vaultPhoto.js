@@ -68,7 +68,7 @@ export async function readContactPhoto(env, photo, send = aiFetch(env, "photos")
   try {
     answer = JSON.parse(read.text.replace(/^\s*```(?:json)?|```\s*$/gu, ""));
   } catch {
-    answer = {};
+    // An answer that isn't JSON reads as no details.
   }
   const fields = Object.fromEntries(
     READ_FIELDS.map((field) => [field, typeof answer?.[field] === "string" ? vaultText(answer[field]) : ""]).filter(([, value]) => value)

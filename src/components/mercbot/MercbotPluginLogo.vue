@@ -29,13 +29,16 @@ const ICONS = {
 };
 const icon = computed(() => ICONS[props.plugin.icon] || "$extension");
 // A maker's own icon is full colour, so it sits on a white tile with a thin border (D-34).
-const style = computed(() => ({
-  width: `${props.size}px`,
-  height: `${props.size}px`,
-  borderRadius: `${Math.round(props.size / 4)}px`,
-  background: !props.plugin.logo && props.plugin.logoImage ? PAPER : props.plugin.color,
-  ...(!props.plugin.logo && props.plugin.logoImage ? { boxShadow: "inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.08)" } : {})
-}));
+const style = computed(() => {
+  const makersIcon = !props.plugin.logo && props.plugin.logoImage;
+  return {
+    width: `${props.size}px`,
+    height: `${props.size}px`,
+    borderRadius: `${Math.round(props.size / 4)}px`,
+    background: makersIcon ? PAPER : props.plugin.color,
+    ...(makersIcon ? { boxShadow: "inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.08)" } : {})
+  };
+});
 </script>
 
 <template>

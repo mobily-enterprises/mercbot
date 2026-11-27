@@ -4,7 +4,7 @@ import { jobSchedule } from "@local/apps/shared";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import MercbotSwitch from "@/components/mercbot/MercbotSwitch.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
-import { whenText } from "@/components/apps/appRuntime.js";
+import { SCRIPT_KIND, whenText } from "@/components/apps/appRuntime.js";
 
 // The Logic tab of an app's details (D-35, scripts): what each script does in plain words, when it
 // runs, its code and tests (read-only: only the Builder changes scripts), recent runs and errors,
@@ -39,7 +39,6 @@ const connectedRows = computed(() => [
   { id: "ai", label: "AI: bots and pictures", description: "Hand items to the home's bot and make pictures, from buttons and jobs." }
 ]);
 
-const KIND = { action: "Button", source: "Screen data", rule: "Rule on saving", function: "Formula function", job: "Job" };
 function when(script) {
   const settings = script.settings || {};
   if (script.kind === "rule") return `Before ${settings.tableLabel || settings.table} records are ${(settings.on || ["create", "update"]).map((action) => (action === "create" ? "added" : "changed")).join(" or ")}`;
@@ -134,7 +133,7 @@ onMounted(() => {
               <v-chip v-if="!script.enabled" size="x-small" variant="tonal" class="flex-shrink-0">Off</v-chip>
               <v-chip v-else-if="lastError(script) && !script.runs[0]?.ok" size="x-small" color="error" variant="tonal" class="flex-shrink-0">Failing</v-chip>
             </div>
-            <span class="text-caption text-medium-emphasis">{{ KIND[script.kind] }} · {{ script.key }} · {{ when(script) }} · version {{ script.version }}</span>
+            <span class="text-caption text-medium-emphasis">{{ SCRIPT_KIND[script.kind] }} · {{ script.key }} · {{ when(script) }} · version {{ script.version }}</span>
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>

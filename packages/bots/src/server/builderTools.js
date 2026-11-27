@@ -278,11 +278,16 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       return failed(error);
     }
   }
+  /** A table's field by its name, and the table, as the field tools change it; or the error they answer. */
+  async function liveField(table, field) {
+    const { table: info } = await gate.tableFor(table, call);
+    const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
+    return target ? { info, target } : { error: `${info.key} has no field "${field}".` };
+  }
   async function fieldRemove({ table, field }) {
     try {
-      const { table: info } = await gate.tableFor(table, call);
-      const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
-      if (!target) return { error: `${info.key} has no field "${field}".` };
+      const { info, target, error } = await liveField(table, field);
+      if (error) return { error };
       if (!after.some((message) => message.kind === "field_removal" && message.body.fieldId === target.id)) {
         after.push({ kind: "field_removal", role: "bot", body: { fieldId: target.id, field: target.label, table: info.label } });
       }
@@ -296,9 +301,8 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
   }
   async function fieldFormula({ table, field, formula }) {
     try {
-      const { table: info } = await gate.tableFor(table, call);
-      const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
-      if (!target) return { error: `${info.key} has no field "${field}".` };
+      const { target, error } = await liveField(table, field);
+      if (error) return { error };
       await registry.changeFormula(await actor(), target.id, formula, call);
       return { status: "changed", field: target.key, formula, note: "Every record shows the new value the next time it's read." };
     } catch (error) {
@@ -307,9 +311,8 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
   }
   async function fieldChecks({ table, field, ...checks }) {
     try {
-      const { table: info } = await gate.tableFor(table, call);
-      const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
-      if (!target) return { error: `${info.key} has no field "${field}".` };
+      const { target, error } = await liveField(table, field);
+      if (error) return { error };
       const changed = await registry.changeChecks(await actor(), target.id, checks, call);
       return { status: "changed", field: changed.key, checks: changed.options, note: "Records already saved keep their values; each is checked when it's next saved." };
     } catch (error) {
@@ -318,9 +321,8 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
   }
   async function fieldRename({ table, field, key, label }) {
     try {
-      const { table: info } = await gate.tableFor(table, call);
-      const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
-      if (!target) return { error: `${info.key} has no field "${field}".` };
+      const { target, error } = await liveField(table, field);
+      if (error) return { error };
       const renamed = await registry.renameField(await actor(), target.id, {
         ...(key ? { key } : {}),
         ...(label ? { label } : {})

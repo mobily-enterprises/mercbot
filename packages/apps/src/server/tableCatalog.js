@@ -12,13 +12,13 @@ const folder = new URL("../../catalog/", import.meta.url);
 export const knownType = (type) => Object.hasOwn(STORAGE_TYPES, String(type));
 
 /** A name as the catalog compares names: lower case, words joined by _ ("To-do list" → "to_do_list"). */
-export const plainName = (name) => String(name ?? "").trim().toLowerCase().replace(/[\s\-']+/gu, "_").replace(/[^a-z0-9_]/gu, "");
+const plainName = (name) => String(name ?? "").trim().toLowerCase().replace(/[\s\-']+/gu, "_").replace(/[^a-z0-9_]/gu, "");
 
 /** The catalog tables a table's links point to, itself aside, in its fields' order. */
 export const needsOf = (entry) => [...new Set(entry.fields.filter((field) => field.type === "link" && field.target !== entry.key).map((field) => field.target))];
 
 /** The link field an extension has to the table it extends, as a template field: required and one-to-one. */
-export const extensionLink = (entry) => entry.fields.find((field) => field.type === "link" && field.target === entry.extends && field.unique === true && field.required === true);
+const extensionLink = (entry) => entry.fields.find((field) => field.type === "link" && field.target === entry.extends && field.unique === true && field.required === true);
 
 /**
  * The problems of a catalog, each a sentence naming its table: keys, field types, links that point at no catalog table,

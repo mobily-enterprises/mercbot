@@ -15,7 +15,7 @@ import { templateBody, templateProblems } from "../shared/templateBody.js";
 // Add, which check it whole again (checkedDraft).
 
 /** The most each thing sent to the drafting call may hold. */
-export const DRAFT_INPUT_LIMITS = Object.freeze({ describe: 600, request: 2000, summary: 1500, draft: 60000 });
+const DRAFT_INPUT_LIMITS = Object.freeze({ describe: 600, request: 2000, summary: 1500, draft: 60000 });
 
 /** The library template the system prompt shows as an example of how Mercbot's own are written. */
 const EXAMPLE = "blog-article-desk";
@@ -36,7 +36,7 @@ export const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
  * How every one of Mercbot's own templates says, in so many words, that nothing goes out unasked (D-43): a suggested
  * bot's template must too (D-109), since the person adds it without reading it all first.
  */
-export const ASKS_FIRST = /\b(?:ask before anything leaves this chat|nothing leaves this chat without (?:the person's|a) yes)\b/iu;
+const ASKS_FIRST = /\b(?:ask before anything leaves this chat|nothing leaves this chat without (?:the person's|a) yes)\b/iu;
 
 /**
  * The drafting call's system prompt: the same for every call in a home while its tags stay the same, so the provider
@@ -98,7 +98,7 @@ export function fromBotPrompt({ name, template, summary, routines, additions = "
  * and what the other bots suggested with it do, so it doesn't do their jobs.
  * @param {{ describe: string, bot: { name: string, tag: string, description: string }, team: Array<{ name: string, description: string }> }} input
  */
-export function planBotPrompt({ describe, bot, team }) {
+function planBotPrompt({ describe, bot, team }) {
   return [
     `Write a template for a bot named ${bot.name}, tag ${bot.tag}, whose job is: ${bot.description}`,
     `It is one of the bots suggested for what the person asked: ${describe}`,

@@ -14,7 +14,7 @@ const moving = () =>
 
 // Settings → Files warns that a home's Google Drive is nearly full once less than this is free (D-80): a fifteenth of
 // Google's free 15 GB, and room for forty of the biggest files the bots keep (25 MB).
-export const NEARLY_FULL_BYTES = 1024 ** 3;
+const NEARLY_FULL_BYTES = 1024 ** 3;
 
 /**
  * Each home's choice of where its files live (D-26, D-36, D-80): Mercbot's own storage, its own
@@ -52,6 +52,9 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
     }
     return { kind: found.kind, ...unseal(found.settings, key) };
   }
+
+  /** Where a running move takes the home's files (fileMoves.js), unsealed, or null. */
+  const moveTarget = (found) => (found?.moveStatus === "running" && found.move?.target ? unseal(found.move.target, vaultKey(env)) : null);
 
   /**
    * The home's settings, unsealed, in the call's home; null for Mercbot's storage, or kind "mercbot" when it only
@@ -117,7 +120,7 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
     const found = await row(inHome(homeId), ["kind", "settings", "moveStatus", "move"]);
     const settings = found ? opened(found) : null;
     // A move's destination gets keys too, while the home's files are copied there (fileMoves.js).
-    const target = found?.moveStatus === "running" && found.move?.target ? unseal(found.move.target, vaultKey(env)) : null;
+    const target = moveTarget(found);
     const same = (chosen) => chosen?.kind === "drive" && chosen.accountId === mounted.accountId && chosen.folderId === mounted.folderId;
     const chosen = same(settings) ? settings : same(target) ? target : null;
     if (!chosen) {
@@ -326,7 +329,7 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
     const found = await row(inHome(homeId), ["kind", "settings", "moveStatus", "move"]);
     if (!found) return null;
     const settings = opened(found);
-    const target = found.moveStatus === "running" && found.move?.target ? unseal(found.move.target, vaultKey(env)) : null;
+    const target = moveTarget(found);
     for (const place of [settings, target]) {
       if (place?.kind !== "drive" || String(place.userId) !== String(userId)) continue;
       const account = await drive.account(homeId, place);

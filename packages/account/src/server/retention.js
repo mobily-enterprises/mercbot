@@ -53,14 +53,14 @@ const ADDED_COLUMN = /^[a-z][a-z0-9_]{0,62}$/u;
 const KEY = Object.freeze(["workspace_id", "day", "bot_id", "user_id", "kind"]);
 
 /** One CSV field: quoted when it holds a comma, a quote or a line break. */
-function csvField(value) {
+export function csvField(value) {
   if (value === null || value === undefined) return "";
   const text = String(value);
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 /** The month `months` before the one a moment is in, "YYYY-MM". */
-const monthsBefore = (at, months) => new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() - months, 1)).toISOString().slice(0, 7);
+export const monthsBefore = (at, months) => new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() - months, 1)).toISOString().slice(0, 7);
 
 /**
  * @param {object} dependencies

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { toolsDir } from "@local/files/gvisor";
 import { quote } from "./shellQuote.js";
 
 // The bot's computer as a small desktop the person can use (D-23): our wallpaper, a translucent
@@ -18,8 +19,7 @@ const FONT = "Nimbus Sans";
  * @param {string} name
  */
 export function program(env, name) {
-  const tools = path.resolve(env.MERCBOT_TOOLS_DIR || ".tools");
-  const unpacked = path.join(tools, "desktop", "usr", "bin", name);
+  const unpacked = path.join(toolsDir(env), "desktop", "usr", "bin", name);
   if (existsSync(unpacked)) return unpacked;
   return (env.PATH || "").split(":").map((dir) => path.join(dir, name)).find((candidate) => existsSync(candidate)) || null;
 }

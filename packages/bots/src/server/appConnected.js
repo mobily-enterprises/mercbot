@@ -72,6 +72,10 @@ function inputLine(tool) {
 const forApps = (appId, actionId) =>
   !NOT_FOR_APPS.has(actionId) && !NOT_FOR_APPS.has(toolOf(actionId)) && !(appId === "onedrive" && actionId === "create_drive_document");
 
+/** Whether an app's action takes files of its records (`attach`, D-140): a Gmail or Outlook mail draft made or changed. */
+const takesAttach = (appId, actionId) =>
+  ["gmail", "outlook"].includes(appId) && ["mail_drafts.create", "mail_drafts.update"].includes(actionId);
+
 /**
  * @param {object} dependencies
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
@@ -101,10 +105,6 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
     return connected.filter(usable).map((id) => ({ id, name: integrations.appName(id) }));
   }
 
-  /**
-   * The tools of one person's call, kept to one app: they see that app's accounts only, so a call for Gmail never reads
-   * or changes an Outlook mailbox, though both are mail. `mode` decides what a change does.
-   */
   /** Integrations as the tools see them, kept to one app's accounts. */
   const oneAppOf = (appId) => Object.freeze({
     ...integrations,
@@ -128,6 +128,8 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
   });
 
   /**
+   * The tools of one person's call, kept to one app: they see that app's accounts only, so a call for Gmail never reads
+   * or changes an Outlook mailbox, though both are mail. `mode` decides what a change does.
    * @param {Record<string, object>} [extra] what a change of an action id takes besides the tool's own input: an app's
    *   mail draft's files of its records (`attach`, D-140), which a bot's tool doesn't offer
    */
@@ -260,7 +262,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
    */
   function attachOf(appId, action, attach) {
     if (attach === undefined || attach === null) return {};
-    if (!["gmail", "outlook"].includes(appId) || !["mail_drafts.create", "mail_drafts.update"].includes(action)) {
+    if (!takesAttach(appId, action)) {
       throw new AppConnectedError("attach goes with mail_drafts.create or mail_drafts.update of Gmail or Outlook.", "apps_connected_attach_invalid");
     }
     const ok = Array.isArray(attach) && attach.length <= ATTACH_MAX && attach.every((ref) => ref?.table && ref?.id && ref?.field);
@@ -285,8 +287,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
         if (!forApps(appId, action.id) || (switches.skip[action.id] || []).includes(appId)) continue;
         const tool = tools.find((candidate) => candidate.id === toolOf(action.id));
         // An app's mail draft may carry files of its records (D-140), which a bot's tool doesn't offer.
-        const attach = ["gmail", "outlook"].includes(appId) && ["mail_drafts.create", "mail_drafts.update"].includes(action.id)
-          ? `, attach?: { table, id, field }[] (up to ${ATTACH_MAX} record files, 3 MB each)` : "";
+        const attach = takesAttach(appId, action.id) ? `, attach?: { table, id, field }[] (up to ${ATTACH_MAX} record files, 3 MB each)` : "";
         if (tool) lines.push(`  - ${action.id} (${action.name}): { ${inputLine(tool)}${attach} }`);
       }
       if (entry.mcp) lines.push(`  - its own actions: connected.actions() lists them; connected.run("${appId}", name, input)`);

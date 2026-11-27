@@ -75,6 +75,11 @@ test("formulas that can't become SQL are refused with the offending part", () =>
   assert.equal(compileWhere(variables, "=name == email").kind, "compareExpr");
 });
 
+test("a method named like an object's inherited names (constructor, toString) is refused, not run as a text method", () => {
+  assert.throws(() => compileWhere(variables, '=name.constructor("a")'), /can't be turned into a database query/u);
+  assert.throws(() => compileWhere(variables, '=name.toString("a")'), /can't be turned into a database query/u);
+});
+
 test("the type checker catches unknown fields and wrong types", () => {
   assert.match(checkFormula(variables, '=stauts == "Won"').error, /stauts/u);
   assert.match(checkFormula(variables, "=name + 1").error, /no such overload/u);

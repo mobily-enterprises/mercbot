@@ -9,7 +9,7 @@ import { FilesError } from "./fileStore.js";
 // Mercbot's own requests to Drive go through the account's own fetch, in its Request pace (D-96); rclone's mount keeps
 // to rclone's Drive pacer (a request every 100 ms at most, backing off when Drive says it's busy).
 
-export const DRIVE_PLUGIN = "google-drive";
+const DRIVE_PLUGIN = "google-drive";
 const FOLDER = "application/vnd.google-apps.folder";
 const DRIVE = "https://www.googleapis.com";
 

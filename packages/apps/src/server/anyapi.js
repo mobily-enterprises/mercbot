@@ -1,6 +1,6 @@
 // readable-check: allow no-direct-knex - infrastructure: AnyAPI keeps each home's runtime tables (the ones people define while the app runs, which no table resource describes) on the app's Knex
 // readable-check: allow no-transaction-reader - infrastructure: a draft's practice copy (D-71) is written and cleared in the transaction that holds its app_practices row, which AnyAPI takes as its own Knex transaction
-import { AnyapiRegistry, JsonRestApi, RestApiAnyapiKnexPlugin, RestApiPlugin, RowPolicyPlugin } from "json-rest-api";
+import { AnyapiRegistry, JsonRestApi, RestApiAnyapiKnexPlugin, RestApiPlugin, RowPolicyPlugin } from "@jskit-ai/resource-runtime/server/anyapi";
 import { PAGE_MAX, isCalculated } from "../shared/index.js";
 import { applyPlan, exprSql } from "./sqlPlan.js";
 
@@ -80,12 +80,12 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
    */
   const rowPolicy = ({ query, context, column }) => {
     if (context?.ids) query.whereIn(column("id"), context.ids);
-    if (context?.where) query.where((builder) => applyPlan(builder, context.where.plan, context.where, (field) => column(field), knex));
+    if (context?.where) query.where((builder) => applyPlan(builder, context.where.plan, context.where, column, knex));
     if (!context?.includeObsolete) query.whereNull(column(OBSOLETE));
     // A list ordered by a calculated number (D-140), worked out in the database, before AnyAPI's own order; records
     // where it's empty come last either way.
     if (context?.order) {
-      const expr = exprSql(context.order.expr, (field) => column(field), knex);
+      const expr = exprSql(context.order.expr, column, knex);
       if (context.order.desc) query.orderByRaw("? desc nulls last", [expr]);
       else query.orderByRaw("? asc nulls last", [expr]);
     }

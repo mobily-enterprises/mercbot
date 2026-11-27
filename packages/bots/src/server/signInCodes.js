@@ -4,7 +4,7 @@ import { z } from "zod";
 import { ConnectedAppError, connectedKeys } from "./connectedApps.js";
 import { eventMessage } from "./eventMessage.js";
 import { MAIL } from "./mailTools.js";
-import { CODE } from "./signInSecrets.js";
+import { CODE, PREFIXED } from "./signInSecrets.js";
 
 // Sign-in codes a site sends by email: a code sent to an inbox the bot can read, it fetches
 // itself. The bot never sees a security code: Mercbot finds
@@ -21,7 +21,7 @@ import { CODE } from "./signInSecrets.js";
 // a card showing the page's full address and who sent the code, and nothing is typed until they say yes.
 
 /** How far back a code can have come, and how long the bot waits for one still on its way. */
-export const CODE_MAIL = Object.freeze({ minutes: 10, tries: 12, everyMs: 5000 });
+const CODE_MAIL = Object.freeze({ minutes: 10, tries: 12, everyMs: 5000 });
 // D14's one line at a sign-in on a chat's computer: what it signs in to is the chat's.
 export const SIGN_IN_LINE = "Everyone who can open this chat can use this sign-in.";
 
@@ -36,7 +36,7 @@ const CODE_WORDS = /\b(codes?|passcode|otp|one[- ]time|verification|verify|secur
  */
 export function signInCodeIn({ subject = "", text = "" }) {
   const lines = [subject, ...String(text).split(/\r?\n/u)]
-    .map((line) => String(line).replace(/\b[A-Z]-(?=\d{4,8}\b)/gu, " ").trim())
+    .map((line) => String(line).replace(PREFIXED, " ").trim())
     .filter(Boolean);
   for (const [index, line] of lines.entries()) {
     if (!CODE_WORDS.test(line)) continue;

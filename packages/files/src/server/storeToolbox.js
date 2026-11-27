@@ -94,7 +94,7 @@ const isProgram = (file) => {
  * @param {string} store
  * @returns {Map<string, string>}
  */
-export function storePrograms(searchPath, store) {
+function storePrograms(searchPath, store) {
   const programs = new Map();
   for (const dir of searchPath.split(":").filter(Boolean)) {
     let names = [];
@@ -121,7 +121,7 @@ export function storePrograms(searchPath, store) {
  * @param {string} store
  * @returns {[string, string][]}
  */
-export function mesaManifests(dir, store) {
+function mesaManifests(dir, store) {
   if (!dir) return [];
   const real = realOrNull(dir);
   if (!real || !isFolder(real) || !inside(real, store)) throw new Error(`MERCBOT_TOOLBOX_MESA names ${dir}, which isn't a folder in the store (${store}).`);
@@ -140,7 +140,7 @@ export function mesaManifests(dir, store) {
  * @param {string} store
  * @returns {string | null}
  */
-export function storeCertificates(file, store) {
+function storeCertificates(file, store) {
   if (!file) return null;
   const real = realOrNull(file);
   if (!real || !inside(real, store) || !statSync(real).isFile()) {
@@ -157,7 +157,7 @@ export function storeCertificates(file, store) {
  * @param {string} store
  * @returns {Map<string, string>}
  */
-export function storeLibraries(folders, store) {
+function storeLibraries(folders, store) {
   const libraries = new Map();
   for (const dir of folders.split(":").filter(Boolean)) {
     const real = realOrNull(dir);

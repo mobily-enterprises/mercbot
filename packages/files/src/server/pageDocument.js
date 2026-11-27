@@ -12,7 +12,7 @@ import { defaultTreeAdapter as tree, parse, serialize } from "parse5";
 // finds those addresses and rewrites them.
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
-export const PAGE_KEY_META = "mercbot-page";
+const PAGE_KEY_META = "mercbot-page";
 // Never kept in a page: frames and plugins (a page shows no other page), a base address, and meta
 // http-equiv, which can reload the page elsewhere or set its own policy. Their absence is also what
 // the frame's content policy enforces; removing them keeps a page from relying on what can't run.
@@ -42,9 +42,6 @@ export function isPagePath(virtualPath) {
   const value = String(virtualPath || "");
   return /^\/files\/(bot|shared)\/(.+\/)?Pages\/[^/]+\.html$/u.test(value) && path.posix.normalize(value) === value;
 }
-
-/** An older Markdown page, still opened as it was. */
-export const isMarkdownPage = (virtualPath) => /^\/files\/.+\.md$/u.test(String(virtualPath || ""));
 
 /** The page's file name and the folder of its own files: "party.html" and "party.files". */
 export function pageNames(virtualPath) {
@@ -362,7 +359,7 @@ export function withShell(document, { css, helper }) {
 }
 
 /** A standalone copy's own policy, which works as a file too: nothing from outside, ever. */
-export const STANDALONE_POLICY =
+const STANDALONE_POLICY =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline' data:; " +
   "script-src 'unsafe-inline' 'unsafe-eval' data:; connect-src 'none'; form-action 'none'; base-uri 'none'";
 
@@ -377,11 +374,11 @@ export function withStandalonePolicy(document) {
  * server sends none of Mercbot's headers: its own site's files and inline styles, no scripts, no requests, forms,
  * frames or workers. A meta policy can't hold `sandbox` or `frame-ancestors`; the scripts are taken out anyway.
  */
-export const PUBLISHED_POLICY =
+const PUBLISHED_POLICY =
   "default-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
   "script-src 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; " +
   "manifest-src 'none'; base-uri 'none'";
-export const PUBLISHED_META = "mercbot-published";
+const PUBLISHED_META = "mercbot-published";
 
 /**
  * A page as a website shows it: the published policy and no referrer before everything else, and `stamp` in place of

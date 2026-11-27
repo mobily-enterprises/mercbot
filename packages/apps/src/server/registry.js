@@ -82,6 +82,12 @@ function cleanKey(key, what) {
   return value;
 }
 
+/** The refusal of a required file or picture field: its file goes on once the record exists (D-130). */
+const fileRequired = (type) =>
+  new RegistryError(400, `A ${type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, {
+    code: "apps_file_required"
+  });
+
 /** A key like "work_phone" reads as "Work phone" when no label is given. */
 const humanize = (key) => String(key).replace(/_+/gu, " ").replace(/^./u, (first) => first.toUpperCase());
 const cleanLabel = (label, key) => String(label || humanize(key)).trim().slice(0, 120) || humanize(key);
@@ -196,21 +202,16 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       }
       return { type, options: { formula: String(formula) } };
     }
-    if (input.required && isFileField({ type })) {
-      // A record's file goes on once the record exists (D-130), so a new record could never have one.
-      throw new RegistryError(400, `A ${type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, {
-        code: "apps_file_required"
-      });
-    }
+    // A record's file goes on once the record exists (D-130), so a new record could never have one.
+    if (input.required && isFileField({ type })) throw fileRequired(type);
     if (input.required) options.required = true;
     Object.assign(options, fieldChecks(type, input));
+    const choices = type === "tags" || type === "choice"
+      ? [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))]
+      : [];
     // A tags field may name the tags it takes; without a list, any tag.
-    if (type === "tags") {
-      const allowed = [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))];
-      if (allowed.length) options.choices = allowed;
-    }
+    if (type === "tags" && choices.length) options.choices = choices;
     if (type === "choice") {
-      const choices = [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))];
       if (!choices.length) {
         throw new RegistryError(400, "A choice field needs at least one choice.", { code: "apps_choice_field_choices_missing" });
       }
@@ -253,7 +254,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       try {
         out[key] = cleanValueOf({ type, label: key, options: {} }, value);
       } catch (error) {
-        fail(`${error.message}`);
+        fail(error.message);
       }
     }
     if (out.min !== undefined && out.max !== undefined && out.min > out.max) fail("has its min above its max.");
@@ -548,9 +549,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
         if (input[key] === null || input[key] === false) delete asked[key];
         else asked[key] = input[key];
       }
-      if (asked.required && isFileField(record)) {
-        throw new RegistryError(400, `A ${record.type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, { code: "apps_file_required" });
-      }
+      if (asked.required && isFileField(record)) throw fileRequired(record.type);
       const kept = Object.fromEntries(Object.entries(record.options).filter(([key]) => !keys.includes(key)));
       const next = { ...kept, ...(asked.required ? { required: true } : {}), ...fieldChecks(record.type, asked) };
       if (next.unique && !record.options.unique) {

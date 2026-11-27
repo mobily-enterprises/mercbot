@@ -111,7 +111,7 @@ export const ARCHIVED_NOTE = "This chat is archived: nothing new can go in it.";
 export const LOCKED_NOTE = "These files belong to their table's records: open one or copy it out, but nothing here is moved, renamed or deleted.";
 
 /** Why the picker can't copy or move anything into Database files. */
-export const LOCKED_REFUSAL = "Database files belong to their table's records: nothing can be copied or moved in. Choose another place.";
+const LOCKED_REFUSAL = "Database files belong to their table's records: nothing can be copied or moved in. Choose another place.";
 
 /**
  * Why the place picker's folder open can't take what's being copied or moved there, or "": an archived chat, itself or

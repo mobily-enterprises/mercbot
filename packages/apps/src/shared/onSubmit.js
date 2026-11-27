@@ -5,7 +5,7 @@ import { celSchema } from "./formulas.js";
 //   { "notify": { "to": "owners", "text": "=\"New sign-up: \" + record.name" } }
 // whose formulas see the record as it was saved (`record`, by field names) besides the screen's values. It goes only when
 // the app's owners and admins switched that kind of sending on, within its daily limits (appSending.js).
-export const SUBMIT_SENDS = { email: ["to", "subject", "text"], notify: ["to", "text"] };
+const SUBMIT_SENDS = { email: ["to", "subject", "text"], notify: ["to", "text"] };
 
 /**
  * The save check of a create form's `onSubmit` at `path`: `table` is the form's table (null for an edit form, which has

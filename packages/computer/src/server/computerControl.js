@@ -1,17 +1,9 @@
 import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
+import { hostOf } from "./webPage.js";
 
 // What a computer's sign-ins are (D16): a website's, a coding tool's, or Sedna's (D-93).
 const SIGN_IN_KINDS = new Set(["site", "coding", "sedna"]);
-
-/** A page address's host, or "" for one that isn't an address. */
-function hostOf(url) {
-  try {
-    return new URL(String(url)).hostname.replace(/^www\./u, "");
-  } catch {
-    return "";
-  }
-}
 
 // Taking over a chat's computer (D16). A bot's computer in a chat is the chat's (D14), so anyone who can open the chat
 // can take it over, from the bot or from another person, and anyone who can open it can hand it back. While a person
@@ -21,7 +13,7 @@ function hostOf(url) {
 // notice for its screens.
 
 /** What a computer the caller can't reach answers: the same 404 whether it's missing or in a chat they can't open. */
-export const computerNotFound = () => new AppError(404, "That computer isn't here.", { code: "computer_not_found" });
+const computerNotFound = () => new AppError(404, "That computer isn't here.", { code: "computer_not_found" });
 
 /** The person a call is for: the signed-in user, or the person work is done for. */
 function personOf(options) {

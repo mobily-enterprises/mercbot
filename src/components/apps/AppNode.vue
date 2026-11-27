@@ -70,11 +70,12 @@ const fieldSource = computed(() => {
 
 const rows = computed(() => (Array.isArray(runtime.data[queryName.value]) ? runtime.data[queryName.value] : []));
 const columns = computed(() => (props.node.columns || []).filter((column) => !refersToRemovedField(column.value)));
+// The query the part reads, as the screen defines it.
+const screenQuery = computed(() => runtime.screen.data?.[queryName.value]);
 // A list's paging, sorting and search (a table of a list query): a column that shows one stored field sorts by it.
-const listQuery = computed(() => runtime.screen.data?.[queryName.value]);
-const browsing = computed(() => props.node.type === "table" && Boolean(listQuery.value?.from) && !listQuery.value?.groupBy);
+const browsing = computed(() => props.node.type === "table" && Boolean(screenQuery.value?.from) && !screenQuery.value?.groupBy);
 const list = computed(() => runtime.lists?.[queryName.value] || { page: 1, sort: "", search: "", total: null });
-const pageSize = computed(() => listQuery.value?.limit ?? 100);
+const pageSize = computed(() => screenQuery.value?.limit ?? 100);
 const pages = computed(() => (list.value.total ? Math.ceil(list.value.total / pageSize.value) : 1));
 function sortKeyOf(column) {
   const key = FIELD_REFERENCE.exec(String(column.value || ""))?.[1];
@@ -99,9 +100,8 @@ function searchFor(text) {
 }
 const rowScope = (record) => runtime.rowScope(props.node.rows, record);
 const maxTotal = computed(() => Math.max(1, ...rows.value.map((item) => Math.abs(item.total ?? item.count ?? 0))));
-const totalsQuery = computed(() => runtime.screen.data?.[queryName.value]);
-const groupField = computed(() => runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === totalsQuery.value?.groupBy) || null);
-const measureField = computed(() => runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === (totalsQuery.value?.sum || totalsQuery.value?.avg)) || null);
+const groupField = computed(() => runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === screenQuery.value?.groupBy) || null);
+const measureField = computed(() => runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === (screenQuery.value?.sum || screenQuery.value?.avg)) || null);
 const totalText = (item) => (measureField.value ? showValue(measureField.value, item.total) : String(item.count));
 // One figure across every group, when the query asks for it.
 const grandTotalText = computed(() => {
@@ -127,7 +127,6 @@ function press(record = null) {
   return runtime.run(steps, { row: record?.id ?? props.scope.record?.id ?? null });
 }
 const openRow = (record) => props.node.onRowClick && runtime.run(`${props.path}/onRowClick`, { row: record.id });
-const tabKey = computed(() => props.path);
 </script>
 
 <template>
@@ -303,10 +302,10 @@ const tabKey = computed(() => props.path);
     <AppTimeline v-else-if="node.type === 'timeline'" :node="node" :path="path" />
 
     <div v-else-if="node.type === 'tabs'">
-      <v-tabs v-model="runtime.dialogs[tabKey]" color="primary" class="mb-4">
+      <v-tabs v-model="runtime.dialogs[path]" color="primary" class="mb-4">
         <v-tab v-for="(tab, index) in node.tabs" :key="tab.title" :value="index">{{ tab.title }}</v-tab>
       </v-tabs>
-      <v-window v-model="runtime.dialogs[tabKey]">
+      <v-window v-model="runtime.dialogs[path]">
         <v-window-item v-for="(tab, index) in node.tabs" :key="tab.title" :value="index">
           <div class="d-flex flex-column ga-4">
             <AppNode v-for="(child, childIndex) in tab.content" :key="childIndex" :node="child" :path="`${path}/tabs/${index}/content/${childIndex}`" :scope="scope" />

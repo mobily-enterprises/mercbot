@@ -35,7 +35,7 @@ export const sednaAccess = ({ integrations, call }, entry) => ({
  * The home's Sedna for the person an action is for, found when it runs: refused for a person who is no one in Sedna.
  * @param {{ integrations: object, call: object, skip?: string[] }} context
  */
-export async function sednaFor(context) {
+async function sednaFor(context) {
   const entry = await connectedKey(context, "sedna", "Sedna");
   const who = await context.integrations.connections.appPerson(entry.id, context.call);
   if (!who.person) throw new ConnectedAppError(nobodyInSedna(who));
@@ -68,7 +68,7 @@ const NOT_THREADED =
  * A message as the person sends it: from their own user and team, to the recipients given, its text as HTML, and for a
  * reply the answered message (read again, in their teams) quoted below.
  */
-export async function sednaOutgoing(access, person, { team, to, cc, subject, text, replyTo }) {
+async function sednaOutgoing(access, person, { team, to, cc, subject, text, replyTo }) {
   const basis = replyTo ? await sedna.replyBasis(access, person, replyTo) : null;
   const chosen = sedna.ownTeam(person, team, basis?.teams || []);
   const message = {

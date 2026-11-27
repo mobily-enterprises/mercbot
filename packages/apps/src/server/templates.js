@@ -13,7 +13,7 @@ const TEMPLATES = readdirSync(folder)
 const templateNamed = (key) => TEMPLATES.find((template) => template.key === key) || null;
 
 /** A template's version: a short hash of what an app gets from it, its screens and the tables they need (D-130). */
-export const templateVersionOf = (template) =>
+const templateVersionOf = (template) =>
   createHash("sha256").update(JSON.stringify([template.definition, template.tables, template.uses || []])).digest("hex").slice(0, 16);
 
 /** The tables a template needs, made or completed with the fields they lack: nothing removed or renamed. */

@@ -39,6 +39,10 @@ export const SERVER_FILTERS = Object.freeze({
     }
   }
 });
+export const TICKET_FILTERS = Object.freeze({
+  expiredBy: { type: "dateTime", actualField: "expires_at", filterOperator: "<" }
+});
+
 // Nobody has control: the bot's own (D16).
 const NO_CONTROL = Object.freeze({ controlledBy: null, controlledAt: null });
 
@@ -46,10 +50,6 @@ const NO_CONTROL = Object.freeze({ controlledBy: null, controlledAt: null });
 const controlOf = (row) => (row?.controlledBy == null
   ? null
   : { userId: String(row.controlledBy), since: new Date(row.controlledAt).toISOString() });
-
-export const TICKET_FILTERS = Object.freeze({
-  expiredBy: { type: "dateTime", actualField: "expires_at", filterOperator: "<" }
-});
 
 /**
  * @param {object} dependencies
@@ -97,9 +97,8 @@ export function createComputerRecords({ resources, system, homeOf }) {
   }
 
   /**
-   * The computer's row, locked, then changed by `work(current, txOptions)`; a missing row is
-   * created in its chat's home first when `create` gives its fields.
-   * A missing row is created under retryLostInsertRace, so two first uses at once make it once.
+   * The computer's row, locked (null when it has none), then changed by `work(current, txOptions)`.
+   * It runs under retryLostInsertRace, so two first uses at once creating a missing row make it once.
    */
   function withComputer(computerId, work) {
     const options = system();

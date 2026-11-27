@@ -28,10 +28,10 @@ const skip = !shellAvailable(process.env)
   ? "gVisor and the toolbox aren't installed (npm run tools:install)"
   : !has("git") || !has("openssl") ? "the stand-in repository needs git and openssl" : false;
 
-// Production's TMPDIR, /var/lib/mercbot-online-work/tmp, has 32 characters: under it, a sandbox's folder, and so its
+// A long TMPDIR, /var/lib/mercbot-server-work/tmp, has 32 characters: under it, a sandbox's folder, and so its
 // gateway's socket, passes the 107 bytes a socket's path may have. This file's sandboxes are made under a TMPDIR as long
 // (longer, where this machine's own already is).
-const PRODUCTION_TMPDIR = "/var/lib/mercbot-online-work/tmp";
+const PRODUCTION_TMPDIR = "/var/lib/mercbot-server-work/tmp";
 const longTmp = await fs.mkdtemp(path.join(os.tmpdir(), "m".repeat(Math.max(1, PRODUCTION_TMPDIR.length - os.tmpdir().length - 7))));
 process.env.TMPDIR = longTmp;
 

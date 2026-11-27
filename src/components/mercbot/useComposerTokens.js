@@ -1,4 +1,5 @@
 import { computed, nextTick, ref, toValue, watch } from "vue";
+import { working } from "./appsCatalogue.js";
 import { botsApi } from "./botsApi.js";
 import { botFace } from "./chatView.js";
 import { pluginsApi } from "./pluginsApi.js";
@@ -26,6 +27,9 @@ export function soleBotOf(chat) {
   const answering = (chat?.bots || []).filter((bot) => !bot.archived);
   return answering.length === 1 ? answering[0] : null;
 }
+
+// The kinds of token sent as a marker naming them (<@bot:ID>, mentions.js); any other is everyone.
+const MARKED = new Set(["bot", "person", "app", "skill"]);
 
 /**
  * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
@@ -127,7 +131,7 @@ export function useComposerTokens({ draft, input, several, mentionBots, mentionP
       apps.value = plugins.filter((plugin) => plugin.installed && !plugin.soon).map((plugin) => ({
         id: plugin.id,
         name: plugin.name,
-        status: plugin.accounts?.some((account) => ["connected", "more-access"].includes(account.status)) ? "connected" : "needs sign-in"
+        status: plugin.accounts?.some(working) ? "connected" : "needs sign-in"
       }));
     } catch {
       apps.value = [];
@@ -204,9 +208,8 @@ export function useComposerTokens({ draft, input, several, mentionBots, mentionP
 
   function withMarkers(text) {
     let result = text;
-    const MARKERS = { bot: "bot", person: "person", app: "app", skill: "skill" };
     for (const token of [...tokens.value].sort((a, b) => b.label.length - a.label.length)) {
-      const marker = MARKERS[token.kind] ? `<@${MARKERS[token.kind]}:${token.id}>` : "<@everyone>";
+      const marker = MARKED.has(token.kind) ? `<@${token.kind}:${token.id}>` : "<@everyone>";
       result = result.split(tokenText(token)).join(marker);
     }
     return result;

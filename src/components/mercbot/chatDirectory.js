@@ -10,6 +10,9 @@ const RECENT_MS = 14 * 24 * 60 * 60 * 1000;
 // Unjoined public rooms show at once when there are this many or fewer; more go under "N more public rooms".
 const FADED_SHOWN = 3;
 
+/** Whether a row or an entry needs the person, so it shows even folded: unread, mentioning them, or the one open. */
+const needsYou = (item, openId) => item.unread || item.mentioned || item.id === openId;
+
 /**
  * A chat as the server answers it (ChatView), with the person's own place in it brought up to the row, and the
  * latest message's preview, as the sidebar reads them. A public room the person reads without being in it has no
@@ -49,7 +52,7 @@ export const isRoom = (chat) => !chat.directBotId && !chat.directPerson;
  * counted.
  */
 function splitEntries(entries, { folded, moreOpen, openId, now }) {
-  const needs = (entry) => entry.unread || entry.mentioned || entry.id === openId;
+  const needs = (entry) => needsYou(entry, openId);
   const lately = (at) => Boolean(at) && now - Date.parse(at) <= RECENT_MS;
   const recent = (entry) => lately(entry.addedAt) || lately(entry.chat?.lastActivityAt);
   if (folded) {
@@ -66,7 +69,7 @@ function splitEntries(entries, { folded, moreOpen, openId, now }) {
  * hover, "" for both while it has no template (D-98, the chip's source).
  * @param {{ template?: { tag: string, description: string } | null }} bot
  */
-export function templateOfRow(bot) {
+function templateOfRow(bot) {
   const template = bot.template || null;
   if (!template) return { templateName: "", templateLine: "" };
   return { templateName: template.tag, templateLine: `Template ${template.tag}: ${template.description}` };
@@ -117,7 +120,7 @@ export function buildSidebarModel({
   // Rooms: the everyone chat, then the person's own, by section, then the faded ones. Folded, each shows only while it
   // needs the person.
   const rooms = live.filter(isRoom);
-  const needs = (chat) => chat.unread || chat.mentioned || chat.id === openId;
+  const needs = (chat) => needsYou(chat, openId);
   const everyoneChat = rooms.find((chat) => chat.everyone && !chat.hidden);
   const everyone = everyoneChat && (!folded.rooms || needs(everyoneChat)) ? [everyoneChat] : [];
   const unpinned = rooms.filter((chat) => !chat.hidden && !chat.pinned).sort(byActivity);

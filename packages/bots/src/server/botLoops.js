@@ -73,7 +73,7 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
   /** Starts every loop, once the server is listening. */
   function start() {
     loops = [
-      // Due routines and the tasks Apps queues for bots, each claimed once across servers.
+      // Due routines, each claimed once across servers.
       startRoutineRunner({ work: records.work, systemContext, notices, run: bots.runRoutine }),
       // Apps' tasks for bots, and the AI work their scripts queue (D-136).
       startAppJobRunner({

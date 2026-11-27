@@ -5,7 +5,8 @@
   line-height: 22px;
 }
 
-.mb-choice--answered .mb-choice__question {
+.mb-choice--answered .mb-choice__question,
+.mb-choice--answered .mb-choice__subline {
   color: rgb(var(--v-theme-on-surface-variant));
 }
 
@@ -103,10 +104,6 @@
 
 .mb-choice__change-text--none,
 .mb-choice--answered .mb-choice__change-text {
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-choice--answered .mb-choice__subline {
   color: rgb(var(--v-theme-on-surface-variant));
 }
 

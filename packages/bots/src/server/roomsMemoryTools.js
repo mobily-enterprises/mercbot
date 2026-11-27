@@ -7,7 +7,7 @@ import { z } from "zod";
 // a room with a long history. Telling every bot something is the home's common knowledge (commonKnowledge.js).
 
 // How many earlier messages read_further_back adds when it isn't told, and the most one call adds.
-export const FURTHER_BACK = Object.freeze({ messages: 100, most: 200 });
+const FURTHER_BACK = Object.freeze({ messages: 100, most: 200 });
 
 /**
  * @param {object} shared

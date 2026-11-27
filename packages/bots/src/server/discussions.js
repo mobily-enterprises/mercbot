@@ -39,7 +39,7 @@ import { validTimeZone } from "./routineSchedule.js";
 // sees it interrupted.
 
 /** What a stopping server says of each round it handed over, and every server listens to (startCarryingOn). */
-export const DISCUSSIONS_HANDED_OVER = "discussions";
+const DISCUSSIONS_HANDED_OVER = "discussions";
 
 export const DISCUSSION_LIMITS = Object.freeze({
   // The most rounds one discussion has, and what a new card offers first.
@@ -263,7 +263,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
       .catch((error) => console.warn("Releasing a bot's run after a discussion failed; its lease runs out instead.", error))));
   }
 
-  /** The chat as a press finds it, with the caller, the card's body and what the page sends. */
+  /** The chat as a press finds it, and the caller, one of its people. */
   async function pressed(chatId, options) {
     const chat = await records.chats.get(String(chatId), options);
     return { chat, me: await person(chat, options) };

@@ -8,8 +8,10 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { promisify } from "node:util";
+import { dataFolder } from "@local/account/data-folder";
 import { driveStandIn } from "./driveStorage.js";
 import { FilesError } from "./fileStore.js";
+import { toolsDir } from "./gvisor.js";
 import { createSyncedTree } from "./syncedTree.js";
 import { ownOrigin } from "./ownMachine.js";
 
@@ -50,8 +52,7 @@ const REFUSED = Object.freeze(["files_storage_sign_in_again", "integrations_acco
 const KEY_TURNED_DOWN = /googleapi: (?:Error 401\b|got HTTP response code 401\b)/u;
 
 function rcloneBinary(env) {
-  const tools = path.resolve(env.MERCBOT_TOOLS_DIR || ".tools");
-  const unpacked = path.join(tools, "bin", "rclone");
+  const unpacked = path.join(toolsDir(env), "bin", "rclone");
   return existsSync(unpacked) ? unpacked : "rclone";
 }
 
@@ -245,7 +246,7 @@ export class DriveKeyError extends Error {
  *   down (storageSettings.js)
  * @param {number} [dependencies.keySeconds] how long a key handed to rclone lasts (tests make it short)
  */
-export function createRemoteMounts({ env, dataDir = path.resolve(env.MERCBOT_DATA_DIR || ".data"), driveKey, keySeconds = KEY_SECONDS }) {
+export function createRemoteMounts({ env, dataDir = dataFolder(env), driveKey, keySeconds = KEY_SECONDS }) {
   // Sockets live in a short private folder of this process.
   const sockets = mkdtempSync(path.join(os.tmpdir(), "mbrc-"));
   const mounts = new Map();

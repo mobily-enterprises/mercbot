@@ -7,7 +7,7 @@
  *   D-85): it answers its health and the work other servers pass to the computers it runs, keeps their files in the
  *   files bucket, and claims none of that work.
  */
-export const SERVER_ROLES = Object.freeze({
+const SERVER_ROLES = Object.freeze({
   web: "pages, the API and the bots' work",
   computers: "only bots' computers, for the other servers"
 });

@@ -200,7 +200,6 @@ watch(openItem, (item) => {
   emit("open-page", { path: item.path, botId: String(bot.value.id), chatId: itemChatId(item) });
 });
 
-
 // Its routines: in this chat, or, beside another chat, in every chat the person can open, each naming its chat.
 const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMenu, pendingRoutineDelete, openRoutineMenu, deleteRoutine } =
   useBotRoutines({
@@ -231,7 +230,9 @@ const {
   onFailure: (error) => emit("failure", error)
 });
 const template = computed(() => instructions.value?.template || null);
-const article = computed(() => (/^[aeiou]/u.test(bot.value?.template?.tag || "") ? "an" : "a"));
+// "a" or "an" before a template's tag.
+const articleFor = (tag) => (/^[aeiou]/u.test(tag || "") ? "an" : "a");
+const article = computed(() => articleFor(bot.value?.template?.tag));
 const templateSource = computed(() => {
   if (!template.value) return "";
   if (template.value.source === "home") return "Your home's template";
@@ -250,7 +251,7 @@ const additionsNote = computed(() =>
 const changeOpen = ref(false);
 function templateChanged(changed) {
   emit("changed", changed);
-  emit("notify", `${changed.name} is now ${/^[aeiou]/u.test(changed.template?.tag || "") ? "an" : "a"} ${changed.template?.tag || ""} bot`);
+  emit("notify", `${changed.name} is now ${articleFor(changed.template?.tag)} ${changed.template?.tag || ""} bot`);
   allShown.value = false;
   loadInstructions();
 }
@@ -438,7 +439,7 @@ async function openInstructions() {
           <MercbotRoomsMemorySection :bot="bot" :tab="tab" @failure="emit('failure', $event)" @open-settings="emit('open-settings', $event)" />
           <!-- The GitHub repositories the person let it use in its commands (D-128), each with Remove. -->
           <MercbotGithubReposSection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
-          <MercbotAppsSection :bot="bot" />
+          <MercbotAppsSection :bot="bot" @failure="emit('failure', $event)" />
 
           <template v-if="routinesLoaded && routines.length">
             <p class="mb-card__section">Routines</p>

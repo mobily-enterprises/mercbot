@@ -105,14 +105,7 @@ function named(entry, wanted) {
   return saysApp && (!address || String(entry.label || "").toLowerCase() === address);
 }
 
-/**
- * The connected accounts a tool should use, from one or more plugins (Gmail and Outlook for mail):
- * the one the bot named, by address or label, or else all of them, each with its id and title, and
- * `mine`: whether the person whose turn it is connected it (turnPerson). Every account is the home's (D-111).
- * `skip` lists apps the person has switched this action off for in Connect apps.
- * An action the person switched off for an app is never blamed on the account.
- * `own` keeps only the accounts the person whose turn it is connected.
- */
+/** An action the person switched off for an app is never blamed on the account. */
 const switchedOff = (apps) =>
   new ConnectedAppError(
     `The person has switched this action off for ${apps.join(" and ")} in Connect apps, so don't do it there, nor on its ` +
@@ -120,6 +113,13 @@ const switchedOff = (apps) =>
       `account and don't ask which account.`
   );
 
+/**
+ * The connected accounts a tool should use, from one or more plugins (Gmail and Outlook for mail):
+ * the one the bot named, by address or label, or else all of them, each with its id and title, and
+ * `mine`: whether the person whose turn it is connected it (turnPerson). Every account is the home's (D-111).
+ * `skip` lists apps the person has switched this action off for in Connect apps.
+ * `own` keeps only the accounts the person whose turn it is connected.
+ */
 export async function connectedAccounts({ integrations, skip = [], call, own = false }, pluginIds, name, wanted = "") {
   const all = [].concat(pluginIds);
   const allowed = all.filter((id) => !skip.includes(id));

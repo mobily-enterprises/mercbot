@@ -4101,8 +4101,8 @@ Decided:
   connection's tools read repositories and manage issues, pull requests and branches but write no commits, and coding
   runs are told not to push. A bot clones a public repository, changes and tests it, and gives the person the changed
   files or a patch.
-- **A socket's path (found here).** A socket's path has at most 107 bytes; under Production's TMPDIR
-  (`/var/lib/mercbot-online-work/tmp`) a sandbox's folder makes its gateway's about 115 to 122, and Node's `listen` fails
+- **A socket's path (found here).** A socket's path has at most 107 bytes; under a long TMPDIR
+  (32 characters, such as `/var/lib/mercbot-server-work/tmp`) a sandbox's folder makes its gateway's about 115 to 122, and Node's `listen` fails
   with EINVAL. Coding runs' gateways were made the same way, so they very likely failed to start there. `sandboxGateway`
   now makes the socket through the folder's open handle (`/proc/self/fd/N/gateway.sock`) for commands, sessions and
   coding runs alike.

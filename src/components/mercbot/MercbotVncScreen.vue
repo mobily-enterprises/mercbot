@@ -41,6 +41,9 @@ let connecting = false;
 let retryTimer = null;
 let handshakeTimer = null;
 let attempts = 0;
+// Bumped by every disconnect (a change of bot or of awake, or leaving): a connect still waiting for its ticket or for
+// noVNC when it changes stops there, and never opens the screen it was started for.
+let generation = 0;
 
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((_resolve, reject) => setTimeout(() => reject(new Error("timed out")), ms))]);
@@ -84,9 +87,11 @@ function retry() {
 async function connect() {
   if (rfb || connecting || failed.value || !props.awake || !target.value) return;
   connecting = true;
+  const started = generation;
   try {
     // noVNC (about 180 KB) loads with the first screen shown, not with every page of the home.
     const [{ ticket }, { default: RFB }] = await Promise.all([withTimeout(computerApi.ticket(props.botId), TICKET_MS), import("@novnc/novnc")]);
+    if (started !== generation) return;
     const scheme = window.location.protocol === "https:" ? "wss" : "ws";
     rfb = new RFB(target.value, socketChannel(`${scheme}://${window.location.host}/api/computer-vnc?ticket=${ticket}`));
     rfb.scaleViewport = true;
@@ -115,13 +120,15 @@ async function connect() {
       else tryAgainLater(1500);
     });
   } catch {
-    tryAgainLater(2000);
+    if (started === generation) tryAgainLater(2000);
   } finally {
-    connecting = false;
+    if (started === generation) connecting = false;
   }
 }
 
 function disconnect() {
+  generation += 1;
+  connecting = false;
   clearTimeout(retryTimer);
   clearTimeout(handshakeTimer);
   const current = rfb;

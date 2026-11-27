@@ -52,11 +52,11 @@ watch(
 );
 const sections = computed(() => listedSections(extensions.settingsSections, shown.value));
 
+const section = defineModel("section", { type: String, default: "general" });
 function choose(value) {
   section.value = value;
   listing.value = false;
 }
-const section = defineModel("section", { type: String, default: "general" });
 defineProps({
   theme: { type: String, default: "system" },
   displayName: { type: String, default: "" },

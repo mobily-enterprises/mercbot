@@ -3,6 +3,7 @@ import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContr
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 import { isCalculated } from "../shared/calculated.js";
+import { isFileField } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
@@ -60,12 +61,9 @@ function scriptRecord(table, record) {
 function scriptValue(field, value) {
   if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value;
-  if (field.type === "file" || field.type === "image") return { name: value.name ?? null, size: value.size ?? null, type: value.type ?? null };
+  if (isFileField(field)) return { name: value.name ?? null, size: value.size ?? null, type: value.type ?? null };
   return value.id ?? null;
 }
-
-
-
 
 /**
  * A button's, a job's or a screen's data script's run in one transaction (D-140), which its reads see and its queued AI
@@ -126,24 +124,12 @@ export function createScripts({
 
   /** A rule's or watching job's table by name (as the Builder writes it), with its label for people. */
   const withTableNames = (settings, tables) => {
-    const named = (id) => tables.find((table) => table.id === id);
-    if (settings.table) {
-      return {
-        ...settings,
-        table: named(settings.table)?.key ?? settings.table,
-        tableLabel: named(settings.table)?.label ?? settings.table
-      };
-    }
-    if (settings.watch?.table) {
-      return {
-        ...settings,
-        watch: {
-          ...settings.watch,
-          table: named(settings.watch.table)?.key ?? settings.watch.table,
-          tableLabel: named(settings.watch.table)?.label ?? settings.watch.table
-        }
-      };
-    }
+    const named = (id) => {
+      const table = tables.find((entry) => entry.id === id);
+      return { table: table?.key ?? id, tableLabel: table?.label ?? id };
+    };
+    if (settings.table) return { ...settings, ...named(settings.table) };
+    if (settings.watch?.table) return { ...settings, watch: { ...settings.watch, ...named(settings.watch.table) } };
     return settings;
   };
   const show = (row, tables = []) => ({
@@ -380,17 +366,18 @@ export function createScripts({
       const table = await tableFor(key);
       if (name === "list") {
         const options = rest[0] || {};
-        const sortField = table.fields.find((field) => !field.obsolete && field.key === String(options.sort || "").replace(/^-/u, ""));
+        const sort = String(options.sort || "");
+        const sortField = table.fields.find((field) => !field.obsolete && field.key === sort.replace(/^-/u, ""));
         if (isCalculated(sortField)) throw new Error(`"${sortField.key}" is calculated, so records can't be sorted by it`);
         const size = Math.min(Math.max(Number(options.limit) || PAGE, 1), PAGE);
         const result = await gate.read(ctx, table.id, {
           where: whereFor(table, options.where, options.params),
-          sort: sortField ? [{ field: sortField.id, desc: options.sort.startsWith("-") }] : [],
+          sort: sortField ? [{ field: sortField.id, desc: sort.startsWith("-") }] : [],
           page: { size, number: Number(options.page) || 1 }
         });
         return result.records.map((record) => scriptRecord(table, record));
       }
-      if (name === "get") return (gate.get(ctx, table.id, String(rest[0]))).then((record) => scriptRecord(table, record), () => null);
+      if (name === "get") return gate.get(ctx, table.id, String(rest[0])).then((record) => scriptRecord(table, record), () => null);
       if (name === "totals") {
         const options = rest[0] || {};
         const id = (fieldKey) => table.fields.find((field) => !field.obsolete && field.key === fieldKey)?.id;
@@ -404,7 +391,7 @@ export function createScripts({
           field: measureKey ? id(measureKey) : null
         });
       }
-      if (name === "create") return (gate.create(ctx, table.id, rest[0] || {})).then((record) => scriptRecord(table, record));
+      if (name === "create") return gate.create(ctx, table.id, rest[0] || {}).then((record) => scriptRecord(table, record));
       if (name === "update") {
         return gate.update(ctx, table.id, String(rest[0]), rest[1] || {}).then((record) => scriptRecord(table, record));
       }
@@ -531,8 +518,10 @@ export function createScripts({
     };
   }
 
-  /** Every enabled rule of the home for this table and action, in key order. */
-  // The live rules; in a draft's preview, its app's draft's rules in place of that app's live ones (D-139).
+  /**
+   * Every enabled rule of the home for this table and action, in key order: the live rules; in a draft's preview, its
+   * app's draft's rules in place of that app's live ones (D-139).
+   */
   const rulesFor = (ctx, table, action) => apps.scriptDrafts.rules(ctx, { kind: "rule", enabled: true, ruleTable: table.id, ruleOn: action });
 
   async function applyRules(rules, ctx, table, action, values, previous, clean, runs = null) {

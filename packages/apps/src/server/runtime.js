@@ -17,6 +17,7 @@ import { isBoard, movedValues } from "../shared/boards.js";
 import { sendOnSubmit } from "./submitSends.js";
 import { calculate, calculatedFormulas, dataOnly, isCalculated, isWorkedOut, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "../shared/where.js";
+import { bothWhere } from "./sqlPlan.js";
 import { GateError } from "./validate.js";
 
 // Running screens (D-35). The server is in charge: the browser names a screen and a query or a
@@ -198,13 +199,9 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         const groupBy = keyToId.get(query.groupBy);
         const measureField = query.sum || query.avg;
         if (!groupBy || (measureField && !measured.get(measureField))) throw new NeedsAttention();
-        const totals = await gate.totals(ctx, table.id, {
-          where,
-          groupBy,
-          by: query.by ?? null,
-          measure: query.sum ? "sum" : query.avg ? "avg" : "count",
-          field: measureField ? measured.get(measureField) : null
-        });
+        const measure = query.sum ? "sum" : query.avg ? "avg" : "count";
+        const field = measureField ? measured.get(measureField) : null;
+        const totals = await gate.totals(ctx, table.id, { where, groupBy, by: query.by ?? null, measure, field });
         // Grouped by a period, each group is named by it, in key order (the first day of each).
         if (query.by) {
           totals.sort((a, b) => String(a.key ?? "").localeCompare(String(b.key ?? "")));
@@ -226,8 +223,6 @@ export function createRuntime({ apps, gate, scripts, practices }) {
           }
         }
         if (!query.grandTotal) return { totals };
-        const measure = query.sum ? "sum" : query.avg ? "avg" : "count";
-        const field = measureField ? measured.get(measureField) : null;
         return { totals, grandTotal: await gate.grandTotal(ctx, table.id, { where, measure, field }) };
       }
     } catch (error) {
@@ -248,14 +243,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     const sortBy = asked && orderOf(asked.replace(/^-/u, "")) ? asked : query.sort || "";
     const order = sortBy ? orderOf(sortBy.replace(/^-/u, "")) : null;
     const sort = order ? [{ ...order, desc: sortBy.startsWith("-") }] : [];
-    const searched = listSearch(table, search);
-    const filter = searched && where
-      ? {
-          plan: { kind: "and", items: [where.plan, searched.plan] },
-          variables: { ...where.variables, ...searched.variables },
-          values: { ...where.values, ...searched.values }
-        }
-      : searched || where;
+    const filter = bothWhere(where, listSearch(table, search));
     const result = await gate.read(ctx, table.id, { where: filter, sort, page: { size: query.limit ?? PAGE_SIZE, number: pageNumber } });
     return { records: result.records.map((record) => screenRecord(table, record)), page: result.page, total: result.total };
   }

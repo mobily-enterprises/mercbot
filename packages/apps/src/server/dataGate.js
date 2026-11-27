@@ -6,8 +6,8 @@ import { homeIdOf } from "./callOptions.js";
 import { periodTotals } from "./periodTotals.js";
 import { followRollups, rollupTables } from "./rollups.js";
 import { exprFields } from "../shared/where.js";
+import { bothWhere } from "./sqlPlan.js";
 import { GateError, cleanRecord } from "./validate.js";
-
 import { fromSheet } from "./sheetInput.js";
 import { createRecordChecks } from "./recordChecks.js";
 import { createAuditReads } from "./auditReads.js";
@@ -432,6 +432,11 @@ export function createDataGate({
     const { table } = await guard.tableAs(ctx, tableIdOrKey);
     return newestAudits({ tableId: table.id, recordId: String(id) }, 200, ctx.options);
   }
+
+  /** The aggregate's measures for totals: how many records, and the sum or average of `field` as `total`. */
+  const measuresOf = (measure, field) =>
+    ({ count: { count: "*" }, ...(measure === "sum" || measure === "avg" ? { total: { [measure]: field } } : {}) });
+
   /**
    * Grouped totals through json-rest-api's aggregate (2.2), so the same row policy applies as for
    * lists: the home's tenant, the page's filter, and obsolete records hidden. A visitor needs `list`,
@@ -452,10 +457,9 @@ export function createDataGate({
       return (await calculatedMeasure(api, table, where, measure, field, groupBy)).slice(0, 100);
     }
     if (by && grouping?.type === "date") return periodTotals(api, table, where, { groupBy, by, measure, field });
-    const measures = { count: { count: "*" }, ...(measure === "sum" || measure === "avg" ? { total: { [measure]: field } } : {}) };
     const result = await api.resources[table.id].aggregate({
       groupBy: [groupBy],
-      measures,
+      measures: measuresOf(measure, field),
       queryParams: { sort: [measure === "count" ? "-count" : "-total"], page: { size: 100 } }
     }, { where });
     return (result.data || []).map((row) => ({
@@ -474,8 +478,7 @@ export function createDataGate({
       const [all = { count: 0 }] = await calculatedMeasure(api, table, where, measure, field, null);
       return { count: all.count, ...(all.total !== undefined ? { total: all.total } : {}) };
     }
-    const measures = { count: { count: "*" }, ...(measure === "sum" || measure === "avg" ? { total: { [measure]: field } } : {}) };
-    const row = (await api.resources[table.id].aggregate({ measures }, { where })).data?.[0];
+    const row = (await api.resources[table.id].aggregate({ measures: measuresOf(measure, field) }, { where })).data?.[0];
     return { count: Number(row?.count ?? 0), ...(row?.total !== undefined && row?.total !== null ? { total: Number(row.total) } : {}) };
   }
 
@@ -532,16 +535,6 @@ export function createDataGate({
     const result = await api.resources[table.id].aggregate({ measures: { count: { count: "*" } } }, {});
     return Number(result.data?.[0]?.count ?? 0);
   }
-
-  /** Two `where`s that must both hold; either may be null. */
-  const bothWhere = (first, second) =>
-    !first || !second
-      ? first || second
-      : {
-          plan: { kind: "and", items: [first.plan, second.plan] },
-          variables: { ...first.variables, ...second.variables },
-          values: { ...first.values, ...second.values }
-        };
 
   /**
    * A table's records, obsolete ones too, whose title (trimmed and lowercased) is one of `texts`

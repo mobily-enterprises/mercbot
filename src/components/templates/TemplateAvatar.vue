@@ -10,7 +10,6 @@ const props = defineProps({
   size: { type: Number, default: 72 },
   state: { type: String, default: "" }
 });
-const team = () => Boolean(props.template.team);
 const initial = () => (String(props.template.creator || "?").trim()[0] || "?").toUpperCase();
 </script>
 
@@ -18,7 +17,7 @@ const initial = () => (String(props.template.creator || "?").trim()[0] || "?").t
   <span class="mb-tavatar" :style="{ width: `${size}px`, height: `${size}px` }">
     <MercbotAvatar :bot="{ id: `template-${template.slug}`, name: template.name, color: template.color, shape: template.shape }" :size="size" :state="state || 'idle'" :still="!state" />
     <span class="mb-tavatar__creator" :style="{ width: `${Math.round(size * 0.36)}px`, height: `${Math.round(size * 0.36)}px` }" :title="`By ${template.creator}`">
-      <img v-if="team()" :src="iconUrl" alt="">
+      <img v-if="template.team" :src="iconUrl" alt="">
       <span v-else :style="{ fontSize: `${Math.round(size * 0.17)}px` }">{{ initial() }}</span>
     </span>
   </span>

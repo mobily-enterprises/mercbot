@@ -1,4 +1,4 @@
-import { jobSchedule } from "@local/apps/shared";
+import { changesOn, jobSchedule } from "@local/apps/shared";
 import { createCallerReaders } from "./records/recordRows.js";
 import { FAILURES_BEFORE_PAUSE } from "./runLease.js";
 
@@ -7,10 +7,6 @@ import { FAILURES_BEFORE_PAUSE } from "./runLease.js";
 // in the last 30 days, as far as the person may see it. Pausing, resuming and deleting stay with each kind's own routes
 // and rules; this only says which of them the person may use (`can`). Owners and admins also see how many tasks run in
 // chats they can't open, and what those cost, without their names.
-
-
-/** What a watch, or a job watching a table, runs on, in words: its records "are added", "change", or both. */
-const changesOn = (on) => ({ create: "are added", update: "change" })[on] || "are added or change";
 
 export { jobSchedule };
 

@@ -67,6 +67,16 @@ const DESCRIPTIONS = {
     "issue_create, issue_update (title, body, state open/closed, assignees), issue_labels (labels; remove takes them off), sub_issue_add (subIssue under number), pr_create (head into base, draft), pr_update (title, body, state, base), pr_draft (to draft; undo marks it ready), pr_update_branch, pr_merge (method merge, squash or rebase), review_create (event approve, request_changes or comment, with body and line comments; no event starts an unsent review), review_submit and review_delete (an unsent review by reviewId), branch_create (name, from a branch), label_create, label_update and label_delete (name, newName, color, description), release_create (tag, title, body, draft, prerelease, from), run_rerun (runId, failedOnly)."
 };
 
+// Each tool by its name among the turn's tools and its id, in the order they're offered.
+const TOOLS = Object.freeze([
+  ["githubCode", "github_code"],
+  ["githubPulls", "github_pulls"],
+  ["githubIssues", "github_issues"],
+  ["githubFind", "github_find"],
+  ["githubDiscussions", "github_discussions"],
+  ["githubChange", "github_change"]
+]);
+
 const sharedInput = {
   repo: z.string().min(3).max(140).optional().describe("owner/name"),
   number: z.number().int().positive().optional().describe("The issue's, pull request's or discussion's number"),
@@ -169,58 +179,14 @@ export function buildGithubTools({ appFor, attempt, attempted, removed, failed, 
     }
   }
 
-  const code = actionsOf("github_code");
-  if (code.length) {
-    tools.githubCode = createTool(Object.freeze({
-      id: "github_code",
-      description: DESCRIPTIONS.github_code,
-      inputSchema: inputFor("github_code", code),
-      execute: (input) => runGithubAction("github_code", input)
-    }));
-  }
-  const pulls = actionsOf("github_pulls");
-  if (pulls.length) {
-    tools.githubPulls = createTool(Object.freeze({
-      id: "github_pulls",
-      description: DESCRIPTIONS.github_pulls,
-      inputSchema: inputFor("github_pulls", pulls),
-      execute: (input) => runGithubAction("github_pulls", input)
-    }));
-  }
-  const issues = actionsOf("github_issues");
-  if (issues.length) {
-    tools.githubIssues = createTool(Object.freeze({
-      id: "github_issues",
-      description: DESCRIPTIONS.github_issues,
-      inputSchema: inputFor("github_issues", issues),
-      execute: (input) => runGithubAction("github_issues", input)
-    }));
-  }
-  const find = actionsOf("github_find");
-  if (find.length) {
-    tools.githubFind = createTool(Object.freeze({
-      id: "github_find",
-      description: DESCRIPTIONS.github_find,
-      inputSchema: inputFor("github_find", find),
-      execute: (input) => runGithubAction("github_find", input)
-    }));
-  }
-  const discussions = actionsOf("github_discussions");
-  if (discussions.length) {
-    tools.githubDiscussions = createTool(Object.freeze({
-      id: "github_discussions",
-      description: DESCRIPTIONS.github_discussions,
-      inputSchema: inputFor("github_discussions", discussions),
-      execute: (input) => runGithubAction("github_discussions", input)
-    }));
-  }
-  const change = actionsOf("github_change");
-  if (change.length) {
-    tools.githubChange = createTool(Object.freeze({
-      id: "github_change",
-      description: DESCRIPTIONS.github_change,
-      inputSchema: inputFor("github_change", change),
-      execute: (input) => runGithubAction("github_change", input)
+  for (const [name, toolId] of TOOLS) {
+    const actions = actionsOf(toolId);
+    if (!actions.length) continue;
+    tools[name] = createTool(Object.freeze({
+      id: toolId,
+      description: DESCRIPTIONS[toolId],
+      inputSchema: inputFor(toolId, actions),
+      execute: (input) => runGithubAction(toolId, input)
     }));
   }
   return tools;

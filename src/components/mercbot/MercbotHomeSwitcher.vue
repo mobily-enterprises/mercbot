@@ -8,9 +8,8 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_TILES, ON_IDENTITY } from "@/theme/palettes.js";
 
 // The home switcher (D-36), top left of the sidebar: which home you're in, the others you belong to, and Create a home,
-// which opens New home (MercbotNewHomeDialog.vue: what it's for, one of Mercbot's teams or Something else, D-105, and
-// who it's for, D-100). A home's tile is its initial in a colour picked from its name, so the same home always looks
-// the same.
+// which opens New home (MercbotNewHomeDialog.vue: only the home's name, D-109). A home's tile is its initial in a colour
+// picked from its name, so the same home always looks the same.
 const paths = usePaths();
 const props = defineProps({
   rail: { type: Boolean, default: false }

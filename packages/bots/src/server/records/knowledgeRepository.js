@@ -3,7 +3,7 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 
 // What a piece of knowledge answers without its text, which a book makes megabytes of: the list, a turn's catalogue.
-export const KNOWLEDGE_FIELDS = Object.freeze([
+const KNOWLEDGE_FIELDS = Object.freeze([
   "id", "botId", "title", "kind", "filePath", "chars", "state", "problem", "partsTotal", "partsDone", "createdBy", "createdAt", "updatedAt"
 ]);
 const PART_FIELDS = Object.freeze(["id", "knowledgeId", "position", "heading", "pages", "text"]);

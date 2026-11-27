@@ -35,7 +35,7 @@ const liveTables = computed(() => state.tables.filter((table) => !table.obsolete
 // Views (D-55) sit with the apps, and can be picked out once there are any.
 const showing = ref("all");
 const hasViews = computed(() => state.apps.some((app) => app.kind === "view") || state.retired.length > 0);
-const tiles = computed(() => state.apps.filter((app) => (showing.value === "all" ? true : (app.kind === "view") === (showing.value === "views"))));
+const tiles = computed(() => state.apps.filter((app) => showing.value === "all" || (app.kind === "view") === (showing.value === "views")));
 
 const changed = (at) => {
   const minutes = Math.round((Date.now() - new Date(at).getTime()) / 60000);

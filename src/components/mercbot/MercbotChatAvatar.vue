@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import { botFace, directBotOf } from "./chatView.js";
+import { initialsOf } from "./messageAuthors.js";
 import { useShellInitials } from "./shellInitials.js";
 
 // A chat's avatar in the sidebar, the chat's header, details and the palette (D-112): a direct chat's bot, or a chat
@@ -17,11 +18,6 @@ const props = defineProps({
 });
 // A chat of no one else yet shows the person's own initials.
 const myInitials = useShellInitials();
-
-const initialsOf = (name) => {
-  const words = String(name || "").trim().split(/\s+/u).filter(Boolean);
-  return (words.length > 1 ? `${words[0][0]}${words[1][0]}` : (words[0] || "?").slice(0, 2)).toUpperCase();
-};
 
 const faces = computed(() => {
   const direct = directBotOf(props.chat);

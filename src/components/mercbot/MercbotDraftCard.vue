@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { ref } from "vue";
 
 // A message the bot wrote for the person to send as themselves: an
 // editable card with From, In reply to, To and Cc, sent only by Send (or by telling the bot to).
@@ -23,11 +23,11 @@ const isMail = Boolean(body.from || body.subject !== undefined || body.inReplyTo
 const sedna = body.sedna || null;
 const kind = sedna ? "Sedna" : isMail ? "Mail" : "Message";
 const attached = (sedna?.files || []).map((path) => String(path).split("/").pop()).join(", ");
-const sentText = computed(() => ({
+const sentText = {
   sent: body.simulated ? `Logged, not sent (test copy) · ${body.to}` : `${sedna ? "Sent from Sedna" : "Sent email"} · ${body.to}`,
   send: `Sent on your OK · ${body.to}`,
   sending: `Sending · ${body.to}`
-}[body.status] || ""));
+}[body.status] || "";
 
 function send() {
   if (!text.value.trim() || sending.value) return;

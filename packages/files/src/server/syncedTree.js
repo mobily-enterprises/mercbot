@@ -139,8 +139,10 @@ export function createSyncedTree({ root, remote, now = Date.now, oneScope = fals
    *   only the files straight in the folder
    */
   function pull(prefix, { fresh = false, shallow = false } = {}) {
-    const state = pulls.get(`${shallow ? "1" : "0"}${prefix}`) ?? { at: -Infinity, running: null, queued: null };
-    pulls.set(`${shallow ? "1" : "0"}${prefix}`, state);
+    // A pull's key is its depth, then its folder (forget reads the folder back from it).
+    const key = `${shallow ? "1" : "0"}${prefix}`;
+    const state = pulls.get(key) ?? { at: -Infinity, running: null, queued: null };
+    pulls.set(key, state);
     if (state.running) {
       if (!fresh) return state.running;
       state.queued ??= state.running.catch(() => {}).then(() => {
@@ -163,7 +165,7 @@ export function createSyncedTree({ root, remote, now = Date.now, oneScope = fals
     }
   }
 
-  /** Every folder and file under `dir` here, as tree paths, links and the temporary folder left out. */
+  /** Every folder and file under the tree path `rel` here, as tree paths, links and the temporary folder left out. */
   async function walk(rel, found) {
     const entries = await fs.readdir(local(rel), { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {

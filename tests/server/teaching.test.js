@@ -36,3 +36,38 @@ test("passwords a bot read on a page are blanked in its reply, other slashes are
   assert.equal(blankPasswords("The password is hunter22 for this site."), "The password is ••• for this site.");
   assert.equal(blankPasswords("Lunch and/or dinner, 50 km/h on the road."), "Lunch and/or dinner, 50 km/h on the road.");
 });
+
+test("a recording with steps the bot can't make a skill of gets the too-short answer naming the bot", async () => {
+  const { createBotTeaching } = await import("../../packages/bots/src/server/botTeaching.js");
+  const posted = [];
+  const pending = [];
+  const teaching = createBotTeaching({
+    records: {
+      directory: {
+        chatBotOf: async () => ({ id: "9" }),
+        findBot: async () => ({ id: "3", name: "Tripbot" })
+      },
+      chats: { people: async () => [] },
+      messages: {
+        append: async (_chatId, messages) => {
+          posted.push(...messages);
+          return messages.map((message, index) => ({ ...message, id: String(posted.length + index) }));
+        },
+        messageById: async () => null
+      }
+    },
+    computer: {
+      takeOver: async () => ({ control: null }),
+      startRecording: async () => {},
+      stopRecording: async () => ({ events: demo }),
+      handBack: async () => ({ messages: [] })
+    },
+    integrations: { createSkill: async () => assert.fail("no skill is saved") },
+    notices: { publishEach: async () => {} },
+    background: { add: (work) => pending.push(work) },
+    writeSkill: async () => ({ name: "", steps: [] })
+  });
+  await teaching.stopTeaching("1", "3", {}, {});
+  await Promise.all(pending);
+  assert.match(posted.at(-1).body.text, /^That recording was too short to show me a task.*Teach Tripbot a task/u);
+});

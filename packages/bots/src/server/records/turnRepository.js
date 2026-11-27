@@ -18,7 +18,7 @@ const onBody = (type, compare) => Object.freeze({
 });
 
 // The message filters a turn reads by, beside the bots' own (searchSchemas.js MESSAGE_SEARCH:
-// afterId, kinds, bodyStatus); the notebook's removedAt is searchSchemas.js NOTEBOOK_SEARCH.
+// afterId, kinds, bodyStatus).
 export const TURN_MESSAGE_SEARCH = Object.freeze({
   // Anything but this kind: the last turn in a group is its last message that isn't an event line.
   notKind: Object.freeze({ type: "string", actualField: "kind", filterOperator: "!=" }),
@@ -47,10 +47,9 @@ export function createTurnRepository({ resources, work }) {
    */
   async function messages(conversationId, filters, { newestFirst = false, limit } = {}, options) {
     const query = { filters: { ...filters, conversationId: String(conversationId) }, sort: [newestFirst ? "-id" : "id"] };
-    const records = limit
+    return limit
       ? (await chatMessages.query({ ...query, page: { size: limit } }, passedOn(options))).records
-      : await chatMessages.queryAll(query, passedOn(options));
-    return records;
+      : chatMessages.queryAll(query, passedOn(options));
   }
 
   /**

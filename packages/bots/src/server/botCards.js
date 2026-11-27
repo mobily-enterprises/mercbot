@@ -11,6 +11,11 @@ import { SHARE_YES, shareFile } from "./fileTools.js";
 import { SIGN_IN_LINE } from "./signInCodes.js";
 import { GITHUB_ALWAYS, GITHUB_CARD, GITHUB_NO } from "./githubCommands.js";
 
+/** Every email address in a draft's To or Cc, as it's sent to. */
+const addresses = (value) => String(value || "").match(new RegExp(EMAIL_ADDRESS.source, "giu")) || [];
+/** A draft card answered already, or claimed by a press on another page or server. */
+const draftClosed = () => new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
+
 /**
  * A person's answers on the cards a bot posts in a chat (D-46, R4): a question or approval, a hand-over, a secure
  * form, a draft and a share (D13), and a request cancelled from its card. A card is answered only by the person its
@@ -30,7 +35,6 @@ import { GITHUB_ALWAYS, GITHUB_CARD, GITHUB_NO } from "./githubCommands.js";
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
  * @param {{ choiceAnswered: (chat: object, choice: object, picks: string[], txOptions: object) => Promise<object> }} dependencies.onboarding
  *   the welcome chat's steps (B), told of an answer in a chat with an onboarding step
- *   the welcome chat's steps (B), for its own cards
  * @param {(chatId: string, brief: { botId: string, by: string, userId: string }, options: object) => void} dependencies.answerBrief
  *   the bot a room's brief is for answers it there (botReplies.js), once start_room made the room (D-122)
  * @param {import("@local/apps/server/types").Apps} dependencies.apps the home's tables, which table_extend and
@@ -279,9 +283,7 @@ export function createBotCards({
    */
   async function settleDraft(chatId, messageId, input = {}, options) {
     const message = await messages.messageIn(String(chatId), String(messageId), options, { kind: "draft" });
-    if (!message || message.body.status !== "pending") {
-      throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
-    }
+    if (!message || message.body.status !== "pending") throw draftClosed();
     const me = answerer(message, options);
     const seat = await seatFor(String(chatId), message, me, options);
     const send = input.action === "send";
@@ -307,7 +309,6 @@ export function createBotCards({
     // copy logs it instead and marks the card sent (D-69). Anything else is sent by the bot on its
     // computer once it hears about the Send.
     if (send && message.body.from) {
-      const addresses = (value) => String(value || "").match(new RegExp(EMAIL_ADDRESS.source, "giu")) || [];
       const to = addresses(body.to);
       if (!to.length) {
         throw new BotsError(400, "This draft has no email address to send to. Ask the bot to add one.", {
@@ -315,7 +316,7 @@ export function createBotCards({
         });
       }
       // Claimed first, so a second press (or another server) can't send it twice.
-      if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
+      if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) throw draftClosed();
       try {
         const entry = await connectedKey(
           { integrations, call: options },
@@ -355,13 +356,10 @@ export function createBotCards({
    * where it isn't known whether it went says to check Sedna first, and nothing tries again by itself.
    */
   async function sendSednaCard(seat, message, body, options) {
-    const addresses = String(body.to || "").match(new RegExp(EMAIL_ADDRESS.source, "giu")) || [];
-    if (!addresses.length) {
+    if (!addresses(body.to).length) {
       throw new BotsError(400, "This draft has no email address to send to. Ask the bot to add one.", { code: "bots_draft_recipient_missing" });
     }
-    if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) {
-      throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
-    }
+    if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) throw draftClosed();
     let sent;
     try {
       sent = await sendSednaMessage(

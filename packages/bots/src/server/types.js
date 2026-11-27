@@ -26,7 +26,6 @@
 /** @typedef {{ homeId: string, botId: string, userId: string }} Place */
 /** @typedef {ReturnType<import("@local/files/server/types").Files["apps"]["session"]>} OfficeSession */
 /** @typedef {(text: string, once?: string) => Promise<void>} PostLead */
-/** @typedef {(bot: string, task: string) => Promise<{ error?: string, target?: { name: string } }>} HandOff */
 /** @typedef {(text: string) => Promise<object>} RequestReply */
 /**
  * What a turn may do about requests between bots (D-46); answer and askBack are null unless the
@@ -35,7 +34,6 @@
  *   answer: RequestReply | null, askBack: RequestReply | null, answerBot: RequestReply | null }} RequestTools
  */
 /** @typedef {(messageId: string, input: { action: string }) => Promise<{ messages: object[] }>} SettleDraft */
-/** @typedef {{ home: string, note: (text: string) => Promise<{ id?: string, error?: string }> }} Notebook */
 
 /** @typedef {ReturnType<typeof import("./records/directory.js").createBotDirectory>} BotDirectory */
 /** @typedef {ReturnType<typeof import("./records/workRepository.js").createWorkRepository>} WorkRepository */

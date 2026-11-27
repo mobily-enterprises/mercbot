@@ -28,7 +28,6 @@ const page = computed(() => PAGES.find((entry) => entry.slug === slug.value) || 
 const raw = ref("");
 const plain = ref(false);
 const copied = ref(false);
-const article = ref(null);
 
 // Headings get ids from their words, so the outline and links can point at them.
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
@@ -144,7 +143,7 @@ function open(entry) {
           </div>
           <pre v-if="plain" class="mb-help__plain">{{ raw }}</pre>
           <!-- eslint-disable-next-line vue/no-v-html -- the help centre's own Markdown, rendered without HTML -->
-          <article v-else ref="article" class="mb-help__article" @click="follow" v-html="html" />
+          <article v-else class="mb-help__article" @click="follow" v-html="html" />
         </template>
         <p v-else class="mb-help__missing">There's no help page here. <router-link :to="paths.page('/')">Start at the beginning</router-link>.</p>
       </main>

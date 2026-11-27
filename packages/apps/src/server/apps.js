@@ -74,8 +74,7 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
 
 /**
  * A home's apps: their versions, their look and the Builder (D-35). Everyone in the home uses every one (D-66).
- *
- * Apps of a home and their versions (D-35). Definitions are stored by ids and handed out by name.
+ * Definitions are stored by ids and handed out by name.
  * The Builder's changes go into one draft; a person publishes it as the next numbered version.
  * Published versions are kept and can be restored (as a new version). Every method takes the call's
  * options last: the handles keep each read and write in the home they name.

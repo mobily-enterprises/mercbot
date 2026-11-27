@@ -47,5 +47,8 @@ export function storedOf(field, value) {
   return value === "" || value === undefined ? null : value;
 }
 
+/** What both forms take as an email address. */
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+
 /** The input type of a text-like field, by its type. */
 export const TEXT_INPUT = Object.freeze({ email: "email", date: "date", number: "number", money: "number", phone: "tel", url: "url", datetime: "datetime-local" });

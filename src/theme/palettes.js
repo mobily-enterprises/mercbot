@@ -25,9 +25,8 @@ export const ONBOARDING_BLACK = "#1C1C1C";
 // Mercbot's own orange (D-44): the logo's, and its special cloud's.
 export const BRAND_ORANGE = "#FD690F";
 
-// Bots drawn without a colour of their own: a computer's grey and the new bot before it has one.
+// A computer, drawn without a colour of its own.
 export const COMPUTER_GREY = "#9A9A9A";
-export const NEW_BOT_GREY = "#C4C4C4";
 
 // White drawn on an identity colour: a bot's eye whites and initial, an app's glyph, a home tile's initial.
 export const ON_IDENTITY = "#FFFFFF";

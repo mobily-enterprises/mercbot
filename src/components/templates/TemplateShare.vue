@@ -20,7 +20,6 @@ onMounted(async () => {
     failed.value = error?.status === 404 ? "There's no bot at this link. It may have been removed." : "This bot couldn't be loaded. Try again in a moment.";
   }
 });
-const team = () => Boolean(template.value?.team);
 </script>
 
 <template>
@@ -36,7 +35,7 @@ const team = () => Boolean(template.value?.team);
         <h1 class="mb-share__name">{{ template.name }}</h1>
         <p class="mb-share__description">{{ template.description }}</p>
         <p class="mb-share__fine">
-          <template v-if="team()">Made by the Mercbot team.</template>
+          <template v-if="template.team">Made by the Mercbot team.</template>
           <template v-else>Made by {{ template.creator }}, not by Mercbot.</template>
           Once added, it may act on your behalf with the apps you connect, and it always asks before sending anything. You'll see everything it's told to do before you add it. Adding it follows Mercbot's terms of use.
         </p>

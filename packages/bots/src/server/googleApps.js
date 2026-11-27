@@ -227,7 +227,7 @@ export async function readEmail(key, id) {
  * A plain-text email as Gmail takes it: headers and a base64 body, the whole base64url-encoded; with `attachments`
  * ({ name, type, data }, an app's draft carrying a record's files, D-140), the text and each file as parts of one mail.
  */
-export function rawEmail({ to = [], cc = [], subject, text, inReplyTo, attachments = [] }) {
+function rawEmail({ to = [], cc = [], subject, text, inReplyTo, attachments = [] }) {
   const encode = (value) => (/[^\x20-\x7E]/u.test(value) ? `=?UTF-8?B?${Buffer.from(value).toString("base64")}?=` : value);
   const lines = (data) => Buffer.from(data).toString("base64").replace(/.{76}/gu, "$&\r\n");
   const body = ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", lines(text || "")];

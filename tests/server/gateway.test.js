@@ -96,7 +96,7 @@ test("a plain http request reaches its host by its path alone, and only that req
 });
 
 test("a sandbox's gateway starts in a folder whose path is longer than a socket's may be, and leaves nothing there", async (context) => {
-  // As a sandbox's folder is under Production's TMPDIR, /var/lib/mercbot-online-work/tmp: well past 107 bytes.
+  // As a sandbox's folder is under a long TMPDIR, /var/lib/mercbot-server-work/tmp: well past 107 bytes.
   const root = await mkdtemp(path.join(os.tmpdir(), "mb-gateway-long-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const dir = path.join(root, "a".repeat(60), "b".repeat(60), "gateway");

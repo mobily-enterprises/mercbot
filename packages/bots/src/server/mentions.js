@@ -8,7 +8,7 @@ export function mentionsIn(text) {
 }
 
 /** The people a message's text mentions, by id, each once. */
-export function peopleMentionedIn(text) {
+function peopleMentionedIn(text) {
   return [...new Set([...String(text || "").matchAll(/<@person:(\d+)>/gu)].map((match) => match[1]))];
 }
 

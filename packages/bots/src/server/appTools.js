@@ -109,7 +109,6 @@ export function buildAppTools({
   const failed = (error) => ({ error: error?.message || String(error) });
   const NO_SEAT = { error: "Watches belong to a bot in a chat, and you're working on a request from a chat you aren't in: say so in your answer." };
 
-
   /** A value as the bot reads it: a link or person by its label, a file by its path, tags as their list. */
   function botValue(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return value ?? null;
@@ -120,10 +119,7 @@ export function buildAppTools({
   function byName(table, record) {
     const out = { id: record.id };
     if (record.obsolete) out.obsolete = true;
-    for (const field of table.fields.filter((entry) => !entry.obsolete)) {
-      const value = record[field.id];
-      out[field.key] = botValue(value);
-    }
+    for (const field of table.fields.filter((entry) => !entry.obsolete)) out[field.key] = botValue(record[field.id]);
     return out;
   }
 

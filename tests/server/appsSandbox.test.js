@@ -103,3 +103,18 @@ test("more timetables: every 15 minutes, chosen weekdays, monthly on a day or th
   assert.match(JSON.stringify(job({ every: "month", dayOfMonth: 31 }).errors), /1 to 28, or \\"last\\"/u);
   assert.match(JSON.stringify(job({ every: "minute" }).errors), /every 15min, hour, day, week or month/u);
 });
+
+test("a script's saved tests sort a list as a live run does, a sort given as a list too", async (context) => {
+  const pool = createScriptPool({ warm: 1, size: 1 });
+  context.after(() => pool.close());
+  const { createScriptChecks } = await import("../../packages/apps/src/server/scriptChecks.js");
+  const { runTests } = createScriptChecks({ pool, ready: null });
+  const tables = [{ key: "deals", label: "Deals", obsolete: false, fields: [{ key: "amount", label: "Amount", type: "number", options: {}, obsolete: false }] }];
+  const code = "async function main(input) { return (await records.list('deals', { sort: input.sort })).map((deal) => deal.amount) }";
+  const records = { deals: [{ amount: 1 }, { amount: 3 }, { amount: 2 }] };
+  const results = await runTests({ kind: "action", code, tests: [
+    { name: "text", input: { sort: "-amount" }, records, expect: [3, 2, 1] },
+    { name: "list", input: { sort: ["-amount"] }, records, expect: [3, 2, 1] }
+  ] }, tables);
+  assert.deepEqual(results, [{ name: "text", passed: true }, { name: "list", passed: true }]);
+});

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
+import { isId } from "./recordRows.js";
 
 // The bots' queued work (D-15, D-46, D-112): requests between bots, routines, and the request cards in the asking
 // chat. A request is asked by a bot in a chat (from_chat_bot_id) of another bot of the home, its card and answer in
@@ -347,7 +348,7 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
    * @param {CallOptions} options
    */
   async function routine(routineId, options) {
-    if (!/^\d+$/u.test(String(routineId ?? ""))) return null;
+    if (!isId(routineId)) return null;
     const [found = null] = await botRoutines.queryAll({ filters: { id: String(routineId) } }, options);
     return found;
   }

@@ -1,4 +1,5 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
+import { isId } from "./recordRows.js";
 
 // The bots' read-only directory for the features that need a bot, a chat or a bot in a chat but not the rest of the
 // bots (apps, computer, files, account, integrations). Every method reads through the bots' handles in the caller's
@@ -87,7 +88,7 @@ export function createBotDirectory(resources) {
 
   /** One bot of the home, or null. @param {string} botId @param {CallOptions} options */
   async function findBot(botId, options) {
-    if (!/^\d+$/u.test(String(botId ?? ""))) return null;
+    if (!isId(botId)) return null;
     return asBot(await bots.get(String(botId), { fields: [...BOT_FIELDS] }, { ...passedOn(options), missing: "skip" }));
   }
 
@@ -119,7 +120,7 @@ export function createBotDirectory(resources) {
 
   /** A bot in a chat the caller may read, by the bot and the chat, or null. */
   async function chatBotOf(botId, chatId, options) {
-    if (![botId, chatId].every((id) => /^\d+$/u.test(String(id ?? "")))) return null;
+    if (![botId, chatId].every(isId)) return null;
     const { records: [found] } = await chatBots.query(
       { filters: { botId: String(botId), conversationId: String(chatId) }, fields: ["botId", "conversationId"], page: { size: 1 } },
       passedOn(options)
@@ -135,7 +136,7 @@ export function createBotDirectory(resources) {
    * @returns {Promise<ComputerPlace | null>}
    */
   async function computerOf(chatBotId, options) {
-    if (!/^\d+$/u.test(String(chatBotId ?? ""))) return null;
+    if (!isId(chatBotId)) return null;
     const seat = await chatBots.get(String(chatBotId), { fields: ["botId", "conversationId", "workspaceId"] }, { ...passedOn(options), missing: "skip" });
     if (!seat) return null;
     const [bot, chat] = await Promise.all([
@@ -178,7 +179,7 @@ export function createBotDirectory(resources) {
    * @returns {Promise<Array<{ id: string, botId: string, chatId: string }>>}
    */
   async function seats(chatBotIds, options) {
-    const wanted = [...new Set((chatBotIds ?? []).map(String))].filter((id) => /^\d+$/u.test(id));
+    const wanted = [...new Set((chatBotIds ?? []).map(String))].filter(isId);
     if (!wanted.length) return [];
     const records = await chatBots.queryAll({ filters: { id: wanted }, sort: ["id"], fields: ["botId", "conversationId"] }, passedOn(options));
     return records.map((record) => ({ id: String(record.id), botId: String(record.botId), chatId: String(record.conversationId) }));
@@ -192,7 +193,7 @@ export function createBotDirectory(resources) {
    * @returns {Promise<Array<{ id: string, chatId: string }>>}
    */
   async function seatsOfBot(botId, options) {
-    if (!/^\d+$/u.test(String(botId ?? ""))) return [];
+    if (!isId(botId)) return [];
     const records = await chatBots.queryAll({ filters: { botId: String(botId) }, sort: ["id"], fields: ["conversationId"] }, passedOn(options));
     return records.map((record) => ({ id: String(record.id), chatId: String(record.conversationId) }));
   }

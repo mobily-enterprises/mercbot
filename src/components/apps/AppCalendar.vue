@@ -21,7 +21,8 @@ const display = useDisplay();
 const today = homeDay(new Date().toISOString());
 const week = computed(() => props.node.span === "week" || display.smAndDown.value);
 // The first day shown: a week's Monday, or the first of the month.
-const cursor = ref(week.value ? mondayOf(today) : `${today.slice(0, 7)}-01`);
+const todayStart = () => (week.value ? mondayOf(today) : `${today.slice(0, 7)}-01`);
+const cursor = ref(todayStart());
 const days = computed(() => {
   if (week.value) return Array.from({ length: 7 }, (_, index) => addDay(mondayOf(cursor.value), index));
   const first = `${cursor.value.slice(0, 7)}-01`;
@@ -40,12 +41,14 @@ const weekdays = computed(() => days.value.slice(0, 7).map((day) => new Date(`${
 const dayLabel = (day) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
 
 function step(direction) {
-  cursor.value = week.value ? addDay(mondayOf(cursor.value), 7 * direction) : (() => {
-    const [year, monthNumber] = month.value.split("-").map(Number);
-    return new Date(Date.UTC(year, monthNumber - 1 + direction, 1)).toISOString().slice(0, 10);
-  })();
+  if (week.value) {
+    cursor.value = addDay(mondayOf(cursor.value), 7 * direction);
+    return;
+  }
+  const [year, monthNumber] = month.value.split("-").map(Number);
+  cursor.value = new Date(Date.UTC(year, monthNumber - 1 + direction, 1)).toISOString().slice(0, 10);
 }
-const goToday = () => (cursor.value = week.value ? mondayOf(today) : `${today.slice(0, 7)}-01`);
+const goToday = () => (cursor.value = todayStart());
 // A screen turned narrow (a week) or wide (a month) starts again from today.
 watch(week, goToday);
 const moveTo = (record, day) => move(record, daysApart(dayOf(record, "date"), day));

@@ -319,19 +319,25 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
   }
 
   /**
-   * After the switch the old copy goes: a person's Google Drive folder to that Drive's bin (Google keeps it 30 days),
-   * Mercbot's own copy deleted, a WebDAV copy kept. A step that fails is told in the log and the move still ends.
+   * A copy of the home's files that's no longer used goes: a Google Drive folder to that Drive's bin (Google keeps it
+   * 30 days), Mercbot's own copy deleted, a WebDAV copy kept. A bin that fails is told in the log as `binFailed`.
+   */
+  async function putAway(homeId, place, binFailed) {
+    if (place.kind === "drive") {
+      await drive.trash(homeId, place, true).catch((error) => console.warn(binFailed, error?.message));
+    } else if (place.kind === "mercbot") {
+      const [row] = await fileStorage.queryAll({ filters: { workspaceId: homeId }, fields: ["kind"] }, inHome(homeId));
+      // Never the folder the home uses now.
+      if (row && row.kind !== "mercbot") await store.removeOwnFolder(homeId);
+    }
+  }
+
+  /**
+   * After the switch the old copy goes (putAway). A step that fails is told in the log and the move still ends.
    */
   async function cleanUp(job) {
-    const key = vault();
-    const source = unseal(job.move.source, key);
-    if (source.kind === "drive") {
-      await drive.trash(job.homeId, source, true).catch((error) => console.warn("Putting a home's old Google Drive folder in the bin failed.", error?.message));
-    } else if (source.kind === "mercbot") {
-      const [row] = await fileStorage.queryAll({ filters: { workspaceId: job.homeId }, fields: ["kind"] }, inHome(job.homeId));
-      // Never the folder the home uses now.
-      if (row && row.kind !== "mercbot") await store.removeOwnFolder(job.homeId);
-    }
+    const source = unseal(job.move.source, vault());
+    await putAway(job.homeId, source, "Putting a home's old Google Drive folder in the bin failed.");
     await mounts.stop(job.homeId).catch(() => {});
     const { target: _target, source: _source, ...kept } = job.move;
     await fileStorage.patchWhere({ workspaceId: job.homeId, moveClaim: job.token }, {
@@ -365,13 +371,7 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
       moveLeaseUntil: null
     }, { ...inHome(job.homeId), returning: "count" });
     if (!ended) return;
-    const place = unseal(target, vault());
-    if (place.kind === "drive") {
-      await drive.trash(job.homeId, place, true).catch((binned) => console.warn("Putting a stopped move's copy in Google Drive's bin failed.", binned?.message));
-    } else if (place.kind === "mercbot") {
-      const [row] = await fileStorage.queryAll({ filters: { workspaceId: job.homeId }, fields: ["kind"] }, inHome(job.homeId));
-      if (row && row.kind !== "mercbot") await store.removeOwnFolder(job.homeId);
-    }
+    await putAway(job.homeId, unseal(target, vault()), "Putting a stopped move's copy in Google Drive's bin failed.");
   }
 
   /** Every server, every SWEEP_MS: moves whose server stopped (lease run out) are carried on here. */

@@ -23,6 +23,16 @@ export function applyPlan(builder, plan, context, column, knex) {
   build(builder, folded, value, column, knex);
 }
 
+/** Two `where`s (a plan with its variables and values) that must both hold; either may be null. */
+export function bothWhere(first, second) {
+  if (!first || !second) return first || second;
+  return {
+    plan: { kind: "and", items: [first.plan, second.plan] },
+    variables: { ...first.variables, ...second.variables },
+    values: { ...first.values, ...second.values }
+  };
+}
+
 // What JavaScript's trim() removes, so `trim` matches the titles a spreadsheet cell's trim() would.
 const BLANKS = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a" +
   "\u2028\u2029\u202f\u205f\u3000\ufeff";

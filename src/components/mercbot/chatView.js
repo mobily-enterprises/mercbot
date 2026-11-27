@@ -5,7 +5,7 @@
 export const isDirect = (chat) => Boolean(chat?.directBotId);
 
 /** Whether a chat is the private chat of two people, which a person's [Message] reopens: `directPerson` is the other. */
-export const isPersonDirect = (chat) => Boolean(chat?.directPerson);
+const isPersonDirect = (chat) => Boolean(chat?.directPerson);
 
 /**
  * A direct chat's tag in its header: "Private · only you and Chef". A direct chat, with a bot or with a person, is
@@ -80,18 +80,6 @@ export const KIND_MEANS = Object.freeze({
 
 /** What a chat's kind means for this chat, in one plain line. */
 export const kindMeaning = (chat, homeName) => (chat?.kind === "private" ? KIND_MEANS.private() : KIND_MEANS.public(homeName));
-
-/**
- * The faces a chat shows, at most `limit`: a direct chat its bot's; otherwise its people (by initials) and its bots.
- * Each is { key, person: { name } } or { key, bot }.
- */
-export function chatFaces(chat, limit = 3) {
-  const bot = directBotOf(chat);
-  if (bot) return [{ key: `bot-${bot.id}`, bot }];
-  const people = (chat?.people || []).map((person) => ({ key: `person-${person.userId}`, person: { name: person.name } }));
-  const bots = (chat?.bots || []).map((member) => ({ key: `bot-${member.botId}`, bot: botFace(member) }));
-  return [...people, ...bots].slice(0, limit);
-}
 
 /** The header's second line on a phone (plan 4.6): "Anna, Ben, Chef · Public". */
 export function chatSubtitle(chat, me = "") {

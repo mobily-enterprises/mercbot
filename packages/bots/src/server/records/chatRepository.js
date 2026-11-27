@@ -7,7 +7,7 @@ import { builderChanger } from "./builderSeats.js";
 import { createSeatWindows } from "./seatWindows.js";
 import { createSectionRecords } from "./sectionRepository.js";
 import { roomsToVisit } from "./publicRoomRepository.js";
-import { createSharedChatRepository } from "./sharedChatRepository.js";
+import { PLACE, createSharedChatRepository } from "./sharedChatRepository.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} ResourceHandle */
@@ -20,10 +20,7 @@ import { createSharedChatRepository } from "./sharedChatRepository.js";
 // everyone chat has every active member of the home. An app's chat is its Builder's.
 
 const KINDS = new Set(["public", "private"]);
-// A person's own place in a chat, as its chat_people row names it: since when someone mentioned them there unread too
-// (D-114), which only a message sets and only reading clears.
-const PLACE = Object.freeze(["readUpTo", "unread", "mentionedAt", "pinPosition", "sectionId", "hidden", "muted"]);
-// What a person may change of their place.
+// What a person may change of their place (sharedChatRepository.js PLACE).
 const PLACE_CHANGES = new Set(PLACE.filter((field) => field !== "mentionedAt"));
 // The most people or bots one call adds to a chat; a home's everyone chat adds its members in pages of this size.
 const ADD_LIMIT = 200;
@@ -185,13 +182,13 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /** Every active member of the home, by id. */
   const everyoneIn = (options) => memberships.activeMemberIds(homeOf(options), passedOn(options));
 
-  /** Someone's role in the home ("owner", "admin", "member" or another the home gives), or null when they aren't in it. */
   /** The home's owners and admins (user ids): whom an app's notice "to owners" reaches (D-137). */
   async function managersIn(options) {
     const members = await memberships.listActiveByWorkspaceId(homeOf(options), passedOn(options));
     return members.filter((member) => ["owner", "admin"].includes(member.roleSid)).map((member) => String(member.userId));
   }
 
+  /** Someone's role in the home ("owner", "admin", "member" or another the home gives), or null when they aren't in it. */
   async function roleIn(userId, options) {
     if (!isId(userId)) return null;
     return (await memberships.findActiveByWorkspaceIdAndUserId(homeOf(options), String(userId), passedOn(options)))?.roleSid ?? null;

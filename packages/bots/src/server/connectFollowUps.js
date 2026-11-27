@@ -7,7 +7,7 @@ import { CONNECT_WAITS } from "./cardTools.js";
 import { RUN_LEASE, followUpCheckpoint, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 
 /** What a stopping server says once it has handed its connect follow-ups over, and every server's sweeper listens to. */
-export const FOLLOW_UPS_HANDED_OVER = "connect-follow-ups";
+const FOLLOW_UPS_HANDED_OVER = "connect-follow-ups";
 
 /** How long after the person starts signing in from a connect card the bot still carries on by itself. */
 const CONNECT_WAIT_MINUTES = 30;

@@ -4,7 +4,7 @@
 // of each area's, or the team's or one area's in full. A picker gives the home's own templates too, which come first,
 // and is calmer (D-109): an area menu of All areas and the areas, without the Mercbot team (every template is the
 // team's) and without featured templates.
-export const SECTION_SIZE = 6;
+const SECTION_SIZE = 6;
 const FEATURED_SIZE = 4;
 
 /**

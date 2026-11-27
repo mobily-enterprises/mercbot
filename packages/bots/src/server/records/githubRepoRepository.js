@@ -1,4 +1,5 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
+import { isId } from "./recordRows.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
@@ -8,7 +9,7 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
  */
 
 /** How long Just this task lets a bot use a repository, in the chat it was asked in. */
-export const TASK_HOURS = 4;
+const TASK_HOURS = 4;
 
 /**
  * bot_github_repos filters beyond its `search: true` fields: the yeses still standing, by the database's clock, and the
@@ -114,7 +115,7 @@ export function createGithubRepoRepository({ botGithubRepos }) {
    * @param {CallOptions} options
    */
   async function remove(botId, grantId, options) {
-    if (!/^\d+$/u.test(String(grantId ?? ""))) return false;
+    if (!isId(grantId)) return false;
     const removed = await botGithubRepos.deleteWhere({ id: String(grantId), botId: String(botId) }, { ...passedOn(options), returning: "count" });
     return Number(removed) > 0;
   }

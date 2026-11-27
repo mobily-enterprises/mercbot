@@ -28,7 +28,7 @@ const skip = !shellAvailable(process.env)
   : !has("git") || !has("openssl") ? "the stand-in GitHub needs git and openssl" : false;
 
 // A sandbox's gateway socket lives under TMPDIR, as long here as production's (commandInternet.test.js).
-const PRODUCTION_TMPDIR = "/var/lib/mercbot-online-work/tmp";
+const PRODUCTION_TMPDIR = "/var/lib/mercbot-server-work/tmp";
 const longTmp = await fs.mkdtemp(path.join(os.tmpdir(), "g".repeat(Math.max(1, PRODUCTION_TMPDIR.length - os.tmpdir().length - 7))));
 process.env.TMPDIR = longTmp;
 

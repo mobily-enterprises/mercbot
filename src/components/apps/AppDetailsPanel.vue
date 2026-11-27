@@ -51,6 +51,7 @@ async function load() {
   }
 }
 async function olderVersions() {
+  problem.value = "";
   try {
     const older = await appsApi.versions(app.value.slug, versions.value.at(-1)?.id);
     versions.value = [...versions.value, ...older.versions];

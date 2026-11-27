@@ -79,6 +79,12 @@ const DISCUSSION_WRAP = "(Wrap up the discussion of ";
 /** A message's words, whether its content is a string or a list of parts. */
 const textOf = (content) => (typeof content === "string" ? content : (content || []).map((part) => part.text || "").join(""));
 
+/** A request's current state notes, and its conversation: its messages without them or the system's. */
+function conversationOf(request) {
+  const notes = request.messages.filter((message) => message.role === "user" && textOf(message.content).startsWith(STATE_NOTE));
+  return { notes, conversation: request.messages.filter((message) => message.role !== "system" && !notes.includes(message)) };
+}
+
 /** What a setup step asks, as a short question. */
 export function questionOf(step) {
   const asked = step
@@ -104,7 +110,7 @@ const call = (tool, args) => ({ tool, args });
 
 /** The bot's next step in its setup interview, from where the conversation is. */
 function botStep(template, request, misbehave) {
-  const conversation = request.messages.filter((message) => message.role !== "system" && !(message.role === "user" && textOf(message.content).startsWith(STATE_NOTE)));
+  const { conversation } = conversationOf(request);
   const lastPerson = conversation.findLastIndex((message) => message.role === "user");
   const stepsDone = conversation.slice(lastPerson + 1).filter((message) => message.role === "assistant" && message.tool_calls?.length).length;
   const answers = conversation.filter((message) => message.role === "user").length;
@@ -180,7 +186,7 @@ const OWN_ADDITIONS = /^Your additions, from the people you work for, for you al
 /** A bot asked about its own additions, or told to change them in so many words; null for anything else. */
 function ownAdditionsStep(system, request) {
   if (!request.tools?.length) return null;
-  const conversation = request.messages.filter((message) => message.role !== "system" && !(message.role === "user" && textOf(message.content).startsWith(STATE_NOTE)));
+  const { conversation } = conversationOf(request);
   const lastPerson = conversation.findLastIndex((message) => message.role === "user");
   const words = textOf(conversation[lastPerson]?.content);
   if (/What are your additions\?/u.test(words)) return say(`My additions: ${OWN_ADDITIONS.exec(system)?.[1] ?? "none yet."}`);
@@ -203,8 +209,7 @@ const BRIEF_FOR_YOU = /^\((.+?) started this room with the person, and its brief
  */
 function appsStep(request) {
   if (!request.tools?.length) return null;
-  const notes = request.messages.filter((message) => message.role === "user" && textOf(message.content).startsWith(STATE_NOTE));
-  const conversation = request.messages.filter((message) => message.role !== "system" && !notes.includes(message));
+  const { notes, conversation } = conversationOf(request);
   const lastPerson = conversation.findLastIndex((message) => message.role === "user");
   const words = textOf(conversation[lastPerson]?.content);
   // The bot a room's brief is for answers it by itself, once the room is made (botTalk.js briefPrompt).
@@ -243,8 +248,7 @@ const FOUND = /<<knowledge found>>\n([\s\S]*?)\n<<end of knowledge found>>/u;
  */
 function knowledgeStep(system, request) {
   if (!request.tools?.length) return null;
-  const notes = request.messages.filter((message) => message.role === "user" && textOf(message.content).startsWith(STATE_NOTE));
-  const conversation = request.messages.filter((message) => message.role !== "system" && !notes.includes(message));
+  const { notes, conversation } = conversationOf(request);
   const topic = /What do you know about (.+?)\?/u.exec(textOf(conversation.findLast((message) => message.role === "user")?.content))?.[1].trim();
   if (!topic) return null;
   const lineWith = (text) => text.split("\n").find((line) => line.toLowerCase().includes(topic.toLowerCase()))?.trim();
@@ -261,12 +265,6 @@ function knowledgeStep(system, request) {
   return say(`My knowledge doesn't say anything about ${topic}.`);
 }
 
-/**
- * A home's template, drafted (templateDrafts.js): its tag made free of the ones the instructions list as taken, a new
- * one's parts from its sentence, a bot's from its template, and a change as asked.
- * @param {string} system
- * @param {string} asked the user message
- */
 // Words a request is made of that name no job, which a new bot is never named after.
 const PLAIN_WORDS = new Set(["about", "also", "help", "have", "need", "want", "with", "that", "this", "them", "they", "their", "some", "from", "what", "when", "your", "like", "more", "each", "keep", "small", "make"]);
 
@@ -301,6 +299,12 @@ function botPlan(asked) {
   };
 }
 
+/**
+ * A home's template, drafted (templateDrafts.js): its tag made free of the ones the instructions list as taken, a new
+ * one's parts from its sentence, a bot's from its template, and a change as asked.
+ * @param {string} system
+ * @param {string} asked the user message
+ */
 function templateDraft(system, asked) {
   const taken = new Set((/Not one of: ([^\n]*)\.\n/u.exec(system)?.[1] || "").split(", "));
   const jsonAfter = (label) => {

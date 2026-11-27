@@ -19,11 +19,10 @@ const emit = defineEmits(["changed"]);
 const busy = ref(false);
 const problem = ref("");
 
-// The person who added it and the home's owners and admins (D-111), as the server says.
-const mayChange = (account) => Boolean(account.canChange);
-
+// Who may change an account's pace (`canChange`): the person who added it and the home's owners and admins (D-111), as
+// the server says.
 async function choose(account, pace) {
-  if (account.pace === pace || !mayChange(account)) return;
+  if (account.pace === pace || !account.canChange) return;
   busy.value = true;
   problem.value = "";
   try {
@@ -53,7 +52,7 @@ async function choose(account, pace) {
             type="button"
             role="radio"
             :aria-checked="account.pace === pace.id"
-            :disabled="busy || !mayChange(account)"
+            :disabled="busy || !account.canChange"
             @click="choose(account, pace.id)"
           >
             {{ pace.name }}

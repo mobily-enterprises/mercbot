@@ -86,6 +86,7 @@ export function movedValues(node, table, record, to) {
   const id = (key) => table.fields.find((field) => !field.obsolete && field.key === node[key])?.id;
   if (node.type === "board") {
     const field = table.fields.find((entry) => entry.id === id("groupBy"));
+    if (!field) throw new Error(`${table.key} no longer has the field its columns are of ("${node.groupBy}"), so its cards can't move.`);
     const choice = String(to ?? "");
     if (choice && !field?.options?.choices?.includes(choice)) throw new Error(`"${choice}" isn't one of this board's columns.`);
     return { [field.id]: choice || null };

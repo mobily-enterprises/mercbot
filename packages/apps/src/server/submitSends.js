@@ -1,4 +1,4 @@
-import { celSchema, evaluateFormula, formulaRecord, plainValue } from "../shared/formulas.js";
+import { celSchema, evaluateFormula, formulaRecord, isFormula, plainValue } from "../shared/formulas.js";
 
 /**
  * What a create form sends once its button has added the record (`onSubmit`, D-137): each email or notice, its formulas
@@ -16,9 +16,7 @@ export async function sendOnSubmit({ sending }, actx, loaded, formNode, made, { 
   const table = loaded.tableNamed(made.table);
   const record = formulaRecord(table, { ...made.values, id: made.id });
   const seen = { variables: { ...variables, record: celSchema(table) }, values: { ...scope, record } };
-  const evaluate = (value) => (typeof value === "string" && value.startsWith("=")
-    ? plainValue(evaluateFormula(seen.variables, value, seen.values, functions))
-    : value);
+  const evaluate = (value) => (isFormula(value) ? plainValue(evaluateFormula(seen.variables, value, seen.values, functions)) : value);
   const effects = [];
   for (const send of formNode.onSubmit || []) {
     try {

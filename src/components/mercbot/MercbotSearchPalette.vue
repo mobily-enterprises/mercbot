@@ -62,12 +62,7 @@ watch(query, (text) => {
   }
   searching.value = true;
   messageTimer = setTimeout(async () => {
-    let found = { messages: [], files: [] };
-    try {
-      found = await botsApi.search(text.trim());
-    } catch {
-      found = { messages: [], files: [] };
-    }
+    const found = await botsApi.search(text.trim()).catch(() => ({ messages: [], files: [] }));
     if (query.value !== text) return;
     messages.value = found.messages || [];
     files.value = found.files || [];
@@ -92,7 +87,6 @@ const entries = computed(() => paletteEntries({
 
 // While messages are being searched and nothing else matches, five placeholder rows show.
 const loading = computed(() => searching.value && !entries.value.length);
-
 
 // A found message shows its author's initials, as search names them (authorName: "you" for the person's own).
 function messageInitials(message) {

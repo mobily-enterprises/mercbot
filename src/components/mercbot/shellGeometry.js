@@ -2,16 +2,16 @@
 export const SIDEBAR_MIN = 240;
 export const SIDEBAR_MAX = 400;
 export const SIDEBAR_COLLAPSE_X = 210;
-export const RAIL_WIDTH = 88;
-export const RAIL_FORCED_BELOW = 704;
+const RAIL_WIDTH = 88;
+const RAIL_FORCED_BELOW = 704;
 export const DETAILS_MIN = 280;
 export const DETAILS_MAX = 336;
 export const DETAILS_CLOSE_WIDTH = 235;
-export const CHAT_MIN = 424;
-export const COLUMN_MAX = 960;
+const CHAT_MIN = 424;
+const COLUMN_MAX = 960;
 // Below this the window is a phone: the chat fills it, the bot list slides in as a drawer and
 // the details open over the chat.
-export const PHONE_BELOW = 600;
+const PHONE_BELOW = 600;
 
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));

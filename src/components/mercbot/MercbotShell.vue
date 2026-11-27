@@ -28,6 +28,7 @@ import MercbotSidebar from "./MercbotSidebar.vue";
 import { buildSidebarModel, railOrder, toChatRow } from "./chatDirectory.js";
 import { BOT_COLOURS } from "@/theme/palettes.js";
 import { botFace, computerLine, isDirect, readersLine } from "./chatView.js";
+import { initialsOf } from "./messageAuthors.js";
 import { chatsApi } from "./chatsApi.js";
 import { followOpenChat } from "./chatPlace.js";
 import { composerPlaceholder } from "./composerPlaceholder.js";
@@ -210,8 +211,6 @@ const accentColor = computed(() => {
   return bots.length === 1 ? bots[0].color : BOT_COLOURS.Black;
 });
 
-// The page shown in place of the chat; on a phone it has the screen, with its own Close.
-const shownPage = computed(() => openPage.value);
 const status = computed(() => (currentChat.value ? workByChat.value[currentChat.value.id] || onboardingTiming.value?.status || "" : ""));
 // The status line shows the bots that are working in this chat.
 const statusBots = computed(() => (speakersByChat.value[currentChatId()] || [])
@@ -233,10 +232,7 @@ const displayName = computed(() => {
   const user = placementContext.value?.user || {};
   return String(user.displayName || user.name || auth.username || "").trim() || "Account";
 });
-const initials = computed(() => {
-  const words = displayName.value.split(/\s+/u).filter(Boolean);
-  return (words.length > 1 ? `${words[0][0]}${words[1][0]}` : displayName.value.slice(0, 2)).toUpperCase();
-});
+const initials = computed(() => initialsOf(displayName.value));
 // The account button's picture, from the user JSKIT's bootstrap keeps in the placement context, which it reads again
 // as the person comes back from their settings.
 const picture = computed(() => uploadedPicture(placementContext.value?.user));
@@ -465,7 +461,7 @@ const details = computed(() => {
 const ACTIONS = {
   search: () => { paletteOpen.value = true; },
   newBot: openNewBot,
-  newChat: () => beginNewChat(),
+  newChat: beginNewChat,
   connectApps: () => { appsOpen.value = true; },
   skills: openSkills,
   settings: () => openSettings("general"),
@@ -552,7 +548,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         />
       </MercbotDrawer>
       <!-- On a phone a chat's own header has the drawer's button (plan 4.6); an empty list shows this one. -->
-      <div v-if="geometry.phone && !shownPage && !currentChat" class="mb-shell__menu">
+      <div v-if="geometry.phone && !openPage && !currentChat" class="mb-shell__menu">
         <MercbotIconButton icon="$menu" label="Your chats" tone="surface" @click="drawerOpen = true" />
         <span v-if="otherNews" class="mb-shell__menu-dot" aria-hidden="true" />
       </div>
@@ -571,7 +567,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         :load-older="loadOlder"
         :find-older="findOlder"
         :load-through="loadThrough"
-        :page="shownPage"
+        :page="openPage"
         :status="status"
         :status-mood="statusMood"
         :status-bots="statusBots"

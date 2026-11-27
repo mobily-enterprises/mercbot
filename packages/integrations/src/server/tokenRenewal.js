@@ -59,7 +59,7 @@ export function createTokenRenewal({ accounts, oauthClient, sealed, opened }) {
 
   /**
    * A signed-in account's next keys, from its refresh key.
-   * @param {{ id: string, home: boolean }} account a record a scoped read answered
+   * @param {{ id: string }} account a record a scoped read answered
    * @param {object} provider
    * @param {string} used the key that ran out, or that the provider turned down
    * @param {object} options
@@ -76,7 +76,7 @@ export function createTokenRenewal({ accounts, oauthClient, sealed, opened }) {
 
   /**
    * The next key of an account connected with API credentials, made from them by their kind (credentials.js).
-   * @param {{ id: string, home: boolean }} account a record a scoped read answered
+   * @param {{ id: string }} account a record a scoped read answered
    * @param {{ name: string, mint: (values: object) => Promise<{ access: string, expiresAt: number }> }} kind
    * @param {string} used the key that ran out, or that the app turned down
    * @param {object} options

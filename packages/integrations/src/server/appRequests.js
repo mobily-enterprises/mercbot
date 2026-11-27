@@ -112,13 +112,15 @@ export async function busyFor(response) {
 export function createAppRequests({ turns, systemContext, now = Date.now, sleep = wait }) {
   // A turn is taken on its own, outside any transaction the caller holds, so a slow call never keeps the row locked.
   const scope = () => ({ context: systemContext("pace the requests a connected account sends to its app (D-96)") });
+  /** Runs `work(row, txOptions)` with the account's turn row locked, made now when it has none. */
+  const withTurn = (accountId, work) => turns.lockOrCreate({ id: String(accountId), nextAt: new Date(now()).toISOString() }, scope(), work);
 
   /**
    * Takes the account's next turn, by the pace's spacing: how long to wait for it, in ms. A turn further off than a
    * caller waits is not taken: the app is busy for it, for that many seconds.
    */
   function take(accountId, { burst, everyMs }) {
-    return turns.lockOrCreate({ id: String(accountId), nextAt: new Date(now()).toISOString() }, scope(), async (row, txOptions) => {
+    return withTurn(accountId, async (row, txOptions) => {
       const at = now();
       const next = new Date(row.nextAt).getTime() || at;
       const sendAt = Math.max(at, next - (burst - 1) * everyMs);
@@ -130,7 +132,7 @@ export function createAppRequests({ turns, systemContext, now = Date.now, sleep 
 
   /** The app asked to wait `seconds`: no request of the account goes before then, on any server. */
   function holdOff(accountId, { burst, everyMs }, seconds) {
-    return turns.lockOrCreate({ id: String(accountId), nextAt: new Date(now()).toISOString() }, scope(), async (row, txOptions) => {
+    return withTurn(accountId, async (row, txOptions) => {
       const until = now() + seconds * 1000 + (burst - 1) * everyMs;
       if ((new Date(row.nextAt).getTime() || 0) >= until) return;
       await turns.patch(String(accountId), { nextAt: new Date(until).toISOString() }, { ...txOptions, returning: "none" });

@@ -1,4 +1,6 @@
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps({
   runtime: {
     type: Object,
@@ -7,6 +9,7 @@ const props = defineProps({
 });
 
 const profile = props.runtime.profile;
+const busy = computed(() => profile.isSaving.value || profile.isDeletingAvatar.value || profile.isRefreshing.value);
 </script>
 
 <template>
@@ -31,7 +34,7 @@ const profile = props.runtime.profile;
                 variant="tonal"
                 color="secondary"
                 size="large"
-                :disabled="profile.isSaving.value || profile.isDeletingAvatar.value || profile.isRefreshing.value"
+                :disabled="busy"
                 @click="profile.openAvatarEditor"
               >
                 Replace avatar
@@ -41,7 +44,7 @@ const profile = props.runtime.profile;
                 variant="text"
                 color="error"
                 size="large"
-                :disabled="profile.isSaving.value || profile.isDeletingAvatar.value || profile.isRefreshing.value"
+                :disabled="busy"
                 @click="profile.removeAvatar"
               >
                 {{ profile.isDeletingAvatar.value ? "Removing avatar…" : "Remove avatar" }}
@@ -84,7 +87,7 @@ const profile = props.runtime.profile;
           type="submit"
           color="primary"
           size="large"
-          :disabled="profile.isSaving.value || profile.isDeletingAvatar.value || profile.isRefreshing.value"
+          :disabled="busy"
         >
           {{ profile.isSaving.value ? "Saving profile…" : "Save profile" }}
         </v-btn>

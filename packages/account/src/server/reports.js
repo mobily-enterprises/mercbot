@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
 import { AccountError } from "./accountError.js";
-import { DAILY_MONTHS } from "./retention.js";
+import { DAILY_MONTHS, csvField, monthsBefore } from "./retention.js";
 import { everyGroup, seen } from "./spending.js";
 
 // Spending reports (D-76): what a home spent over any range of days, by day, kind, bot and person, and the same as a
@@ -38,7 +38,7 @@ const dayAfter = ({ year, month, day }, days = 1) => new Date(Date.UTC(year, mon
  * @param {{ from?: string, to?: string }} asked
  * @param {Date} now
  */
-export function reportRange(asked, now) {
+function reportRange(asked, now) {
   const today = now.toISOString().slice(0, 10);
   const from = dateParts(asked.from || `${today.slice(0, 8)}01`);
   const to = dateParts(asked.to || today);
@@ -50,7 +50,7 @@ export function reportRange(asked, now) {
   const first = dayAfter(from, 0);
   const before = dayAfter(to);
   const month = from.day === 1 && before.endsWith("-01") && to.year === from.year && to.month === from.month ? first : null;
-  const daysKept = first >= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (DAILY_MONTHS - 1), 1)).toISOString().slice(0, 10);
+  const daysKept = first >= `${monthsBefore(now, DAILY_MONTHS - 1)}-01`;
   if (!daysKept && !month) {
     throw new AccountError(400, `Day-by-day totals are kept ${DAILY_MONTHS} months: for an older month, choose the whole month.`, {
       code: "report_range_too_old"
@@ -70,9 +70,7 @@ function everyDay(range) {
  * formula (=, +, -, @ first) starts with an apostrophe, so opening the file runs nothing.
  */
 export function csvCell(value) {
-  let text = value === null || value === undefined ? "" : String(value);
-  if (typeof value === "string" && /^[=+\-@\t\r]/u.test(text)) text = `'${text}`;
-  return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  return csvField(typeof value === "string" && /^[=+\-@\t\r]/u.test(value) ? `'${value}` : value);
 }
 
 /** Whole nanodollars as dollars with every digit kept, counted in integers, for a spreadsheet: "1.23", "0.000042". */

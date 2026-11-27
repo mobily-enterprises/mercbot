@@ -312,7 +312,6 @@ export function keepingErrors(send, { kind, provider, secret }) {
   };
 }
 
-
 /**
  * The provider's own figures in a response's body: its tokens (cache hits, cache misses and output) in DeepSeek's,
  * the OpenAI-style or the Anthropic form, or Gemini's usageMetadata with the pictures it made; what it really cost

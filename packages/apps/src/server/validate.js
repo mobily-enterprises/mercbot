@@ -41,8 +41,8 @@ function validDate(text) {
   );
 }
 
-/** Returns the stored value (null for empty) or throws a GateError naming the field. */
-function cleanValue(field, value) {
+/** A value as its field's type stores it (null for empty), or throws a GateError naming the field. */
+export function cleanValueOf(field, value) {
   /**
    * Refuses the value, naming its field first.
    * @param {string} message What is wrong with it.
@@ -145,9 +145,6 @@ function cleanValue(field, value) {
   }
 }
 
-/** A value as its field's type stores it (null for empty), or throws a GateError naming the field. */
-export const cleanValueOf = (field, value) => cleanValue(field, value);
-
 /**
  * Maps input keyed by field id or key to cleaned values keyed by field id. `creating` also
  * enforces required fields that weren't given.
@@ -183,7 +180,7 @@ export function cleanRecord(table, input = {}, { creating = false } = {}) {
         params: { field: field.label }
       });
     }
-    const cleaned = cleanValue(field, value);
+    const cleaned = cleanValueOf(field, value);
     const broken = limitProblem(field, cleaned);
     if (broken) throw new GateError(400, `${field.label}: ${broken}`, { code: "apps_value_out_of_range", params: { field: field.label } });
     if (cleaned === null && field.options?.required) {

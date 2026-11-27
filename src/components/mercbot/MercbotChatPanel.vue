@@ -324,7 +324,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <MercbotIconButton icon="$info" label="Chat details" tone="surface" @click="emit('open-details')" />
       <button v-if="canLeave" type="button" class="mb-set-pill mb-chat__leave" @click="leaving = true">
-        <v-icon icon="$logout" size="16" /> <span>{{ phone ? "Leave" : "Leave room" }}</span>
+        <v-icon icon="$logout" size="16" /> <span>Leave</span>
       </button>
     </header>
 
@@ -419,7 +419,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       <MercbotIconButton v-if="inviteLabel" icon="$personAdd" :label="inviteLabel" tone="surface" @click="emit('invite')" />
       <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <button v-if="canLeave" type="button" class="mb-set-pill mb-chat__leave" @click="leaving = true">
-        <v-icon icon="$logout" size="16" /> <span>{{ phone ? "Leave" : "Leave room" }}</span>
+        <v-icon icon="$logout" size="16" /> <span>Leave room</span>
       </button>
     </div>
     <MercbotConfirmDialog
@@ -692,7 +692,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
             </template>
           </MercbotTooltip>
           <MercbotIconButton
-            :icon="dictating ? '$mic' : '$mic'"
+            icon="$mic"
             :label="dictating ? 'Stop dictating' : 'Dictate'"
             tooltip="Click to dictate, or hold to talk"
             :tooltip-keys="['Ctrl', 'D']"

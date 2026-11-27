@@ -2,7 +2,7 @@ import { nextRunAt } from "./routineSchedule.js";
 import { RUN_LEASE, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 
 /** What a server that handed routines over says, and every routine runner listens to (tellHandedOver). */
-export const ROUTINES_HANDED_OVER = "routines";
+const ROUTINES_HANDED_OVER = "routines";
 
 /** The routine's next run time, or null when its schedule can't say (it stops). */
 function nextRunOf(routine) {

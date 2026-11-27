@@ -1,5 +1,5 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
-import { createCallerReaders } from "./recordRows.js";
+import { createCallerReaders, isId } from "./recordRows.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
@@ -55,7 +55,7 @@ export function createCommonKnowledgeRepository(resources) {
    */
   async function addFromCard(cardId, refusal, options) {
     const me = personOf(options);
-    if (!/^\d+$/u.test(String(cardId ?? ""))) return { refused: "There's no card for that." };
+    if (!isId(cardId)) return { refused: "There's no card for that." };
     const [card] = await messages.queryAll({ filters: { id: String(cardId), kinds: ["choice"] }, fields: ["conversationId", "authorBotId", "body"] }, passedOn(options));
     const body = card?.body || {};
     if (!card || body.purpose !== "approval" || body.action?.id !== SHARE_COMMON_KNOWLEDGE || card.authorBotId == null) {
@@ -96,7 +96,7 @@ export function createCommonKnowledgeRepository(resources) {
 
   /** One entry not removed, or null. */
   async function find(entryId, options) {
-    if (!/^\d+$/u.test(String(entryId ?? ""))) return null;
+    if (!isId(entryId)) return null;
     const filters = { id: [String(entryId)], live: true };
     const [found] = await commonKnowledge.queryAll({ filters, fields: [...ENTRY_FIELDS] }, passedOn(options));
     return found ? asEntry(found) : null;

@@ -152,11 +152,9 @@ export function buildTools({
   const privateChat = seat.chat.kind !== "public";
   // The chat's computer (D14), keyed by the bot's seat; a request's bot not yet in the asking chat joins it first.
   const { computer, computerId, chatBotId } = seatedComputer(chatComputer, seated, join);
-  /**
-   * Actions the person switched off for an app in Connect apps: skipped for that app,
-   * and left out altogether when every connected app offering them has them off.
-   */
   // The connected accounts are the home's, in any chat (D-111, R4): the call names the home and the person it works for.
+  // Actions the person switched off for an app in Connect apps are skipped for that app, and left out altogether when
+  // every connected app offering them has them off.
   const appFor = (toolId) => ({ integrations, skip: toolSwitches.skip[toolId] || [], call });
   // Set by nothing_new: a routine run that found nothing to tell the person.
   let nothingPosted = false;
@@ -193,12 +191,12 @@ export function buildTools({
     await post([{ kind: "text", role: "bot", body: { text: line, lead: true } }]);
   }
 
+  let signInSaid = false;
   /**
    * D14: what the chat's computer signs in to is the chat's. At a sign-in the chat is told so in one line, once a turn,
    * and the computer notes it (its status lists it).
    * @param {{ label: string, kind: "site" | "coding" | "sedna" }} signIn
    */
-  let signInSaid = false;
   async function signedIn({ label, kind }) {
     await computer.noteSignIn(computerId, { label: String(label || "a site"), kind }).catch((error) =>
       console.warn(`Noting a sign-in on a chat's computer failed: ${error?.message}`));

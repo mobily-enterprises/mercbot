@@ -2,7 +2,7 @@ import { startResumer as startRunResumer } from "@jskit-ai/agent-runtime/server"
 import { HAND_OVER_MS, RunTakenOver, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 
 /** What a stopping server says once it has handed its person's replies over, and every server's resumer listens to. */
-export const REPLIES_HANDED_OVER = "replies";
+const REPLIES_HANDED_OVER = "replies";
 
 /**
  * Replies a stopped server left part-way (D-48, D-19): any server finds them by their stale heartbeat, takes one over

@@ -91,7 +91,7 @@ export function stepPeriod(period, anchor, step) {
 }
 
 /** The most days one report covers, as the server allows. */
-export const MOST_REPORT_DAYS = 366;
+const MOST_REPORT_DAYS = 366;
 /** The daily totals are kept for this month and the twelve before it (D-73); older months have their totals only. */
 const DAILY_MONTHS = 13;
 

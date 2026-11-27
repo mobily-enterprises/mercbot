@@ -1,3 +1,5 @@
+import { isId } from "./recordRows.js";
+
 // Who may read a chat and everything keyed to it (D-112). These policies are the one place chat privacy is decided;
 // ownership already keeps every read in the call's home, and they only narrow inside it. Writes are the services'
 // to check (a create is never narrowed by a policy).
@@ -26,6 +28,13 @@
 const READER = Symbol("mercbot.bots.modelReader");
 const READER_REASON = "the model reads for one bot in one chat";
 
+/** Refuses a reader made without one of its ids (`who` names the reader). @param {string} who @param {Record<string, unknown>} ids */
+function requireIds(who, ids) {
+  for (const [name, id] of Object.entries(ids)) {
+    if (!isId(id)) throw new TypeError(`${who} needs ${name}: got ${id}.`);
+  }
+}
+
 /**
  * The model's reader for one bot in one chat: the context every model-facing read of that turn passes (R1, D-112).
  * It acts for the asker (`actorId`, for audit fields and for whose approvals a card asks), and reads what the chat may.
@@ -33,9 +42,7 @@ const READER_REASON = "the model reads for one bot in one chat";
  * @param {{ homeId: string, botId: string, chatId: string, askerId: string }} reader
  */
 export function readerFor(systemContext, { homeId, botId, chatId, askerId }) {
-  for (const [name, id] of Object.entries({ homeId, botId, chatId, askerId })) {
-    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The model's reader needs ${name}: got ${id}.`);
-  }
+  requireIds("The model's reader", { homeId, botId, chatId, askerId });
   const context = systemContext(READER_REASON)
     .forWorkspaceUser(String(homeId), String(askerId), { actorId: String(askerId) });
   const reader = Object.freeze({ homeId: String(homeId), botId: String(botId), chatId: String(chatId), askerId: String(askerId) });
@@ -53,9 +60,7 @@ export function readerFor(systemContext, { homeId, botId, chatId, askerId }) {
  * @param {{ homeId: string, chatId: string }} chat
  */
 export function chatReaderFor(systemContext, { homeId, chatId }) {
-  for (const [name, id] of Object.entries({ homeId, chatId })) {
-    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The chat's reader needs ${name}: got ${id}.`);
-  }
+  requireIds("The chat's reader", { homeId, chatId });
   const context = systemContext(READER_REASON).forWorkspace(String(homeId));
   const reader = Object.freeze({ homeId: String(homeId), botId: null, chatId: String(chatId), askerId: null });
   return Object.freeze({
@@ -72,9 +77,7 @@ export function chatReaderFor(systemContext, { homeId, chatId }) {
  * @param {{ homeId: string, botId: string }} memory
  */
 export function homeReaderFor(systemContext, { homeId, botId }) {
-  for (const [name, id] of Object.entries({ homeId, botId })) {
-    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The memory's reader needs ${name}: got ${id}.`);
-  }
+  requireIds("The memory's reader", { homeId, botId });
   const context = systemContext(READER_REASON).forWorkspace(String(homeId));
   const reader = Object.freeze({ homeId: String(homeId), botId: String(botId), chatId: null, askerId: null, publicOnly: true });
   return Object.freeze({

@@ -762,10 +762,6 @@
   margin-left: auto;
 }
 
-.mb-composer--stacked .mb-composer__spacer {
-  flex: 1;
-}
-
 .mb-composer__input {
   flex: 1;
   min-width: 0;
@@ -808,6 +804,7 @@
 
 .mb-composer--stacked .mb-composer__spacer {
   display: block;
+  flex: 1;
 }
 
 .mb-composer__menu-text {

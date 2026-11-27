@@ -35,8 +35,9 @@ const READABLE = ".pdf,.docx,.doc,.odt,.rtf,.html,.htm,.xlsx,.xls,.xlsm,.ods,.pp
 const editorOpen = computed({ get: () => Boolean(editor.value), set: (value) => { if (!value && !editor.value?.saving) editor.value = null; } });
 const editorChars = computed(() => [...(editor.value?.text || "")].length);
 const editorTitle = computed(() => (editor.value?.id ? editor.value.title || "Knowledge" : `Add text to ${props.bot.name}'s knowledge`));
-const editorChanged = computed(() => Boolean(editor.value) && (!editor.value.id || editor.value.text !== editor.value.original || editor.value.title !== editorTitleWas.value));
+// The opened piece's name as it was, so a renamed one counts as changed.
 const editorTitleWas = ref("");
+const editorChanged = computed(() => Boolean(editor.value) && (!editor.value.id || editor.value.text !== editor.value.original || editor.value.title !== editorTitleWas.value));
 const inMindLimit = computed(() => (known.value?.limits.inMind || 40000).toLocaleString());
 const removeOpen = computed({ get: () => Boolean(removing.value), set: (value) => { if (!value) removing.value = null; } });
 

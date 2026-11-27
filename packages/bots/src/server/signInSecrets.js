@@ -18,7 +18,7 @@ export const CODE = /(?<![\w$€£#+.,:/@-])(?<!\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul
 const SIGN_IN_WORDS =
   /\b(codes?|passcode|otp|one[- ]time|verification|verify|verifying|security|pin|sign[- ]?in|signing in|log[- ]?in|logging in|login|2fa|two[- ](?:factor|step)|authenticat\w*|password|magic link)\b/iu;
 // "G-123456 is your Google verification code": the code's own prefix.
-const PREFIXED = /\b[A-Z]-(?=\d{4,8}\b)/gu;
+export const PREFIXED = /\b[A-Z]-(?=\d{4,8}\b)/gu;
 const LINK = /\bhttps?:\/\/[^\s<>"'()[\]]+/giu;
 /** An address that is itself a sign-in: one to sign in, verify, confirm, reset a password, or that carries a token. */
 const SIGN_IN_ADDRESS =

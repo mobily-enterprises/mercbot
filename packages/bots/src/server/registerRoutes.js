@@ -18,14 +18,15 @@ function modelRefusal(request, error) {
   return new BotsError(502, "The AI provider couldn't answer just now. Try again in a moment.", { code: "bots_model_failed" });
 }
 
+// A whole piece of a bot's knowledge as JSON (KNOWLEDGE_LIMITS.piece characters, at up to 4 bytes each, and the escapes of
+// its lines and quotes), which is past the server's usual body limit (D-107).
+const KNOWLEDGE_BODY_LIMIT = KNOWLEDGE_LIMITS.piece * 8;
+
 /**
  * New AI work refused in a paused home (D-73), saying why: before it starts, or when it's refused (meter.js refuseWork)
  * part-way, the same answer.
  * @param {string} text
  */
-// A whole piece of a bot's knowledge as JSON (KNOWLEDGE_LIMITS.piece characters, at up to 4 bytes each, and the escapes of
-// its lines and quotes), which is past the server's usual body limit (D-107).
-const KNOWLEDGE_BODY_LIMIT = KNOWLEDGE_LIMITS.piece * 8;
 const pausedRefusal = (text) => new BotsError(402, text, { code: "work_paused" });
 
 /**

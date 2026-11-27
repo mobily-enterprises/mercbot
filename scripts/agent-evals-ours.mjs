@@ -186,6 +186,29 @@ async function ask(chatId, text, workspaceId) {
   return sent.messages.at(-1);
 }
 
+/** The bots' words in a chat's messages. */
+const botReply = (messages) => messages.filter((message) => message.role === "bot" && message.kind === "text").map((message) => message.body.text).join("\n\n");
+
+/**
+ * A case's figures once it has run: its tool calls, what the meter counted since `usage` was cleared, the bot's latest
+ * goal, and whether the reply leaked the model's own markup.
+ */
+async function runFigures(messages, chatBotId, reply) {
+  const toolCalls = messages.flatMap((message) => message.body?.transcript || []).flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call") : [])).length;
+  const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
+  const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
+  const goal = await knex("agent_goals").where({ conversation_id: chatBotId }).orderBy("id", "desc").first();
+  return {
+    toolCalls,
+    tokens,
+    cost: Number(cost.toFixed(4)),
+    goal: goal ? `${goal.status}/${goal.rounds}` : "-",
+    leaked: /｜DSML｜|<parameter|<｜|<invoke|<budget:/u.test(reply),
+    steps: usage.filter((event) => event.kind === "model").length,
+    cached: Math.round(100 * usage.reduce((sum, event) => sum + (event.cacheHit || 0), 0) / Math.max(1, usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0), 0)))
+  };
+}
+
 async function runCase(name, attempt) {
   const dir = path.join(CASES, name);
   const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: homeId, name: `Eval ${name} ${attempt}`, color: "#1E86FC" }).returning("*");
@@ -207,9 +230,7 @@ async function runCase(name, attempt) {
     await meter.track({ userId, botId: String(bot.id) }, () => ask(chat.id, prompt, homeId));
     const seconds = Math.round((Date.now() - started) / 1000);
     const messages = await knex("messages").where({ conversation_id: chat.id }).orderBy("id");
-    const reply = messages.filter((message) => message.role === "bot" && message.kind === "text").map((message) => message.body.text).join("\n\n");
-    const transcript = messages.flatMap((message) => message.body?.transcript || []);
-    const toolCalls = transcript.flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call") : [])).length;
+    const reply = botReply(messages);
     // The judge's files join the folder only now, so the bot never saw them.
     for (const file of readdirSync(dir).filter((entry) => entry.startsWith("judge"))) cpSync(path.join(dir, file), path.join(dirs.chat, file));
     cpSync(judgeDir, dirs.chat, { recursive: true });
@@ -217,11 +238,8 @@ async function runCase(name, attempt) {
     const command = judgeFile.endsWith(".py") ? `python3 ${judgeFile}` : `node --test ${judgeFile}`;
     const judged = await shell.start({ place, workspaceId: homeId, botId: bot.id, chatBotId, userId, why: "judge", script: `cd /files/chat && ${command}` });
     const pass = judged.status === "done" && Number(judged.exitCode ?? 0) === 0;
-    const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
-    const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
-    const goal = await knex("agent_goals").where({ conversation_id: chatBotId }).orderBy("id", "desc").first();
-    const leaked = /｜DSML｜|<parameter|<｜|<invoke|<budget:/u.test(reply);
-    const result = { name, attempt, pass, variant, leaked, goal: goal ? `${goal.status}/${goal.rounds}` : "-", seconds, steps: usage.filter((event) => event.kind === "model").length, toolCalls, tokens, cached: Math.round(100 * usage.reduce((sum, event) => sum + (event.cacheHit || 0), 0) / Math.max(1, usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0), 0))), cost: Number(cost.toFixed(4)), judge: String(judged.output || judged.error || "").slice(-600), reply: reply.slice(0, 1500) };
+    const { leaked, goal, steps, toolCalls, tokens, cached, cost } = await runFigures(messages, chatBotId, reply);
+    const result = { name, attempt, pass, variant, leaked, goal, seconds, steps, toolCalls, tokens, cached, cost, judge: String(judged.output || judged.error || "").slice(-600), reply: reply.slice(0, 1500) };
     writeFileSync(path.join(OUT, `${name}-${attempt}.json`), JSON.stringify({ ...result, messages }, null, 1));
     return result;
   } finally {
@@ -264,14 +282,10 @@ async function runAppCase(name, attempt) {
     const seconds = Math.round((Date.now() - started) / 1000);
     // Only what came after the case's message: a case may seed a long history first.
     const messages = await knex("messages").where({ conversation_id: chat.id }).where("id", ">", askedId).orderBy("id");
-    const reply = messages.filter((message) => message.role === "bot" && message.kind === "text").map((message) => message.body.text).join("\n\n");
-    const toolCalls = messages.flatMap((message) => message.body?.transcript || []).flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call") : [])).length;
+    const reply = botReply(messages);
     const verdict = await kase.judge({ ...ctx, reply }).catch((error) => ({ pass: false, notes: `judge error: ${error.message}` }));
-    const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
-    const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
-    const goal = await knex("agent_goals").where({ conversation_id: chatBotId }).orderBy("id", "desc").first();
-    const leaked = /｜DSML｜|<parameter|<｜|<invoke|<budget:/u.test(reply);
-    const result = { name, attempt, pass: verdict.pass, variant, leaked, goal: goal ? `${goal.status}/${goal.rounds}` : "-", seconds, steps: usage.filter((event) => event.kind === "model").length, toolCalls, tokens, cached: Math.round(100 * usage.reduce((sum, event) => sum + (event.cacheHit || 0), 0) / Math.max(1, usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0), 0))), cost: Number(cost.toFixed(4)), judge: verdict.notes, reply: reply.slice(0, 1500) };
+    const { leaked, goal, steps, toolCalls, tokens, cached, cost } = await runFigures(messages, chatBotId, reply);
+    const result = { name, attempt, pass: verdict.pass, variant, leaked, goal, seconds, steps, toolCalls, tokens, cached, cost, judge: verdict.notes, reply: reply.slice(0, 1500) };
     writeFileSync(path.join(OUT, `${name}-${attempt}.json`), JSON.stringify({ ...result, messages }, null, 1));
     return result;
   } finally {

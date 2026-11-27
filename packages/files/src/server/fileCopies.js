@@ -7,13 +7,13 @@ import { FilesError } from "./fileStore.js";
 // directory entry at a time, never read into memory whole, and a free name for what arrives.
 
 /** Copies a file to `to`, never over one already there. */
-export const copyFileOnce = (from, to) => fs.copyFile(from, to, fsConstants.COPYFILE_EXCL);
+const copyFileOnce = (from, to) => fs.copyFile(from, to, fsConstants.COPYFILE_EXCL);
 
 /**
  * A free name for `name` in the real folder `dir`: the name itself, else "<stem> (2)<ext>", "(3)" and on, as uploads
  * name theirs.
  */
-export async function freeName(dir, name) {
+async function freeName(dir, name) {
   const { name: stem, ext } = path.parse(name);
   let free = name;
   for (let count = 2; await fs.lstat(path.join(dir, free)).then(() => true, () => false); count += 1) free = `${stem} (${count})${ext}`;
@@ -25,7 +25,7 @@ export async function freeName(dir, name) {
  * never read into memory whole. Links are left out: one could lead outside the place. `each` hears every file copied,
  * by its path inside the folder ("a/b.txt").
  */
-export async function copyTree(from, to, each, inner = "") {
+async function copyTree(from, to, each, inner = "") {
   await fs.mkdir(to);
   for await (const entry of await fs.opendir(from)) {
     const at = inner ? `${inner}/${entry.name}` : entry.name;
@@ -71,14 +71,14 @@ export function placeTransfer({ prepare, existingEntry, existingFolder, makeFold
       return existingFolder(to.place, folder);
     });
     if (!(await fs.lstat(target.real)).isDirectory()) throw new FilesError(400, "That's a file, not a folder.", { code: "files_not_folder" });
+    const isFolder = source.stat.isDirectory();
     const same = () => new FilesError(409, "That's where it already is.", { code: "files_transfer_same" });
     if (move && path.dirname(source.real) === target.real) throw same();
-    if (source.stat.isDirectory() && (target.real + path.sep).startsWith(source.real + path.sep)) throw same();
+    if (isFolder && (target.real + path.sep).startsWith(source.real + path.sep)) throw same();
     const name = await freeName(target.real, path.posix.basename(path.posix.normalize(String(from.path))));
     const real = path.join(target.real, name);
     const landed = `${target.virtualPath}/${name}`;
     const heard = (inner) => each(inner, landed);
-    const isFolder = source.stat.isDirectory();
     if (move) {
       try {
         await fs.rename(source.real, real);

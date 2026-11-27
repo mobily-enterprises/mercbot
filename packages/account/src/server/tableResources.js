@@ -134,7 +134,7 @@ export const computerDayResource = defineTableResource({
  * A background job over the usage tables: archiving a month of daily totals; claimed by one server at a time, with
  * what it found.
  */
-export const usageJobSchema = Object.freeze({
+const usageJobSchema = Object.freeze({
   claimedAt: { type: "dateTime" },
   details: { type: "object", additionalProperties: true },
   doneAt: { type: "dateTime", nullable: true },

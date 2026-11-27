@@ -47,7 +47,7 @@ export const actionLabel = (plugin) => (plugin.soon ? (plugin.wanted ? "Requeste
 
 // Where an account's sign-in stands: the words and the button for each state.
 // "more-access": connected, but the app now asks for more than it was given (D-42).
-export const NEEDS = { "needs-auth": "Sign in", started: "Reconnect", failed: "Retry", "more-access": "Sign in again" };
+const NEEDS = { "needs-auth": "Sign in", started: "Reconnect", failed: "Retry", "more-access": "Sign in again" };
 const WORST = ["failed", "started", "needs-auth", "more-access", "connected"];
 // An account the bots can use: connected, even when it needs signing in again for more access.
 export const working = (account) => account.status === "connected" || account.status === "more-access";

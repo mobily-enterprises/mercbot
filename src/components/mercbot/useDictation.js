@@ -88,8 +88,7 @@ export function useDictation({ draft, chatId, botId, focusComposer, voiceEnded }
   function dictationPress() {
     pressedAt = Date.now();
     startedByPress = !dictating.value;
-    if (dictating.value) stopDictation();
-    else startDictation();
+    toggleDictation();
   }
 
   function dictationRelease() {

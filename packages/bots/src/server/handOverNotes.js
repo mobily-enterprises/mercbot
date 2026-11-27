@@ -15,10 +15,10 @@ import { plainText, previewOf } from "./botRows.js";
 export const NOTE_WRITER = "You write a short hand-over note that carries a chat on into a new chat with more people.";
 
 /** The most a note's input and answer hold: each line of the chat, and the note itself. */
-export const NOTE_LIMITS = Object.freeze({ line: 1500, note: 4000 });
+const NOTE_LIMITS = Object.freeze({ line: 1500, note: 4000 });
 
 /** The note writer's instructions, for the direct chat's bot. @param {string} botName */
-export function noteSystem(botName) {
+function noteSystem(botName) {
   return [
     NOTE_WRITER,
     `The chat so far is between the person and ${botName}, a bot. The person is taking it on into a new chat with other ` +
@@ -30,7 +30,7 @@ export function noteSystem(botName) {
 }
 
 /** The user message: the chat, one line per message, oldest first. @param {string[]} lines */
-export const notePrompt = (lines) => `The chat:\n${lines.join("\n")}`;
+const notePrompt = (lines) => `The chat:\n${lines.join("\n")}`;
 
 /**
  * One message as the note reads it: its author's name and what people see of it, or "" for Mercbot's own lines. A
@@ -39,7 +39,7 @@ export const notePrompt = (lines) => `The chat:\n${lines.join("\n")}`;
  * @param {{ role: string, kind: string, body: Record<string, any> }} message as toMessage gives it
  * @param {string} botName
  */
-export function noteLine(message, botName) {
+function noteLine(message, botName) {
   if (message.role !== "user" && message.role !== "bot") return "";
   const body = message.body || {};
   const who = body.authorName || (message.role === "bot" ? botName : "Someone");

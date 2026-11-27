@@ -98,6 +98,10 @@ export function sealStream(filesKey) {
   });
 }
 
+/** A failure to open as a SealError: its own, or one saying the file didn't open. */
+const asSealError = (error) =>
+  (error instanceof SealError ? error : new SealError("A sealed file didn't open: it was changed, cut off or sealed with another key."));
+
 /** A stream that opens what sealStream sealed; it fails on anything changed, cut off or sealed with another key. */
 export function openStream(filesKey) {
   let key = null;
@@ -126,7 +130,7 @@ export function openStream(filesKey) {
         }
         done();
       } catch (error) {
-        done(error instanceof SealError ? error : new SealError("A sealed file didn't open: it was changed, cut off or sealed with another key."));
+        done(asSealError(error));
       }
     },
     flush(done) {
@@ -135,7 +139,7 @@ export function openStream(filesKey) {
         this.push(open(pending, true));
         done();
       } catch (error) {
-        done(error instanceof SealError ? error : new SealError("A sealed file didn't open: it was changed, cut off or sealed with another key."));
+        done(asSealError(error));
       }
     }
   });

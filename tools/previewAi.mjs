@@ -5,8 +5,8 @@ import { startStandInModel } from "./standInModel.mjs";
 // Turnstile's, and every sign-in or connection app's (AUTH_<PROVIDER>_CLIENT_ID, <APP>_CLIENT_SECRET, and the
 // <APP>_TEST_CLIENT_ID pair the integrations use on a local address), and the files bucket's keys
 // (MERCBOT_FILES_S3_ACCESS_KEY_ID, MERCBOT_FILES_S3_SECRET_ACCESS_KEY), so a Preview's files stay in its own folder,
-// and a GitHub App's private key (GITHUB_APP_PRIVATE_KEY, D-128), which makes keys to people's repositories. The database's password and the copy's own secrets (the session secret, the Vault key, the
-// files passphrase) don't match.
+// and a GitHub App's private key (GITHUB_APP_PRIVATE_KEY, D-128), which makes keys to people's repositories. The
+// database's password and the copy's own secrets (the session secret, the Vault key, the files passphrase) don't match.
 const CREDENTIAL = /(^|_)(API_KEY|CLIENT_ID|CLIENT_SECRET|SECRET_KEY|SITE_KEY|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY|TOKEN|PRIVATE_KEY)$/u;
 // A payment provider's test-mode key, which says so in its value and can't move money: Stripe's secret and restricted
 // test keys. Its live keys (sk_live_, rk_live_) are emptied like every other credential (D-116).
@@ -16,8 +16,8 @@ const LIVE_PAYMENT_KEY = /^(sk|rk)_live_/u;
 
 /**
  * Empties every setting of `env` shaped like an outside service's credential, and every live payment key whatever its
- * name, so a Preview or Test Preview reaches no outside service with one: a feature without its key is off there, or has its stand-in. A Preview then gives its AI
- * keys back (aiKeysOf, D-118). The one exception is a payment
+ * name, so a Preview or Test Preview reaches no outside service with one: a feature without its key is off there, or
+ * has its stand-in. A Preview then gives its AI keys back (aiKeysOf, D-118). The one exception is a payment
  * provider's test-mode key (Stripe's `sk_test_…` and `rk_test_…`), kept so a copy built on Mercbot that takes payments
  * can try them in its Preview (D-116). Run it after .env is loaded, which never replaces a variable that is set, even
  * to "".

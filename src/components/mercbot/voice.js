@@ -49,7 +49,7 @@ export function listen({ lang, continuous = true, onText, onEnd, onError }) {
 }
 
 // A reply as plain sentences for reading aloud: no Markdown, links read as their words.
-export function speakable(text) {
+function speakable(text) {
   return String(text || "")
     .replace(/```[\s\S]*?```/gu, " (code) ")
     .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")

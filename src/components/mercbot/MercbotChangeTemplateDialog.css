@@ -83,7 +83,10 @@
   min-height: 0;
 }
 
+/* The templates, and at their foot the ways to make one: Make a new template, and here Start from this bot. */
 .mb-ctemp__picker {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   padding-top: 16px;
   transition:
@@ -94,12 +97,6 @@
 .mb-ctemp__picker--behind {
   opacity: 0;
   transform: translateX(-32px);
-}
-
-/* The templates, and at their foot the ways to make one: Make a new template, and here Start from this bot. */
-.mb-ctemp__picker {
-  display: flex;
-  flex-direction: column;
 }
 
 .mb-ctemp__browser {

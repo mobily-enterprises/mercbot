@@ -11,7 +11,7 @@ import { oneLine } from "./roomsMemory.js";
 // note, and Settings → Bots' common knowledge lists them all, where its author and the home's owners and admins remove
 // one. share_common_knowledge asks the person, on a card, to add something.
 
-export const COMMON_KNOWLEDGE_LIMITS = Object.freeze({
+const COMMON_KNOWLEDGE_LIMITS = Object.freeze({
   // The entries a turn reads, newest first; Settings lists them all.
   inTurn: 30,
   // A page of Settings' list.

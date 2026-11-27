@@ -16,6 +16,9 @@ const CONFIRM_MINUTES = 15;
 /** A refusal the script sees, in words for the app's people. */
 export const refused = (message) => new Error(message);
 
+/** The person of a call, as a job or a confirm keeps them: the member's, or the one a job's run is for. */
+export const personOf = (call) => String(resolveAuditActorId(call?.context) ?? "");
+
 /**
  * The call options of the person a run uses connected apps, bots or pictures (`what`) as: the member who pressed or
  * opened, or the job's person; refused for a public app's visitor and for a job whose person left the home.
@@ -38,7 +41,6 @@ export function personCallFor(systemContext, ctx, script, what) {
  */
 export function createScriptConnected({ resources, systemContext, connected }) {
   const { apps: appRows, auditEvents, appConnectedConfirms } = resources;
-  const personOf = (call) => String(resolveAuditActorId(call?.context) ?? "");
 
   /** A change made in a connected app, in the app's activity: the script, the app, the action and the person. */
   const recordChange = (call, { actor, via }, app, action, made) => auditEvents.create(

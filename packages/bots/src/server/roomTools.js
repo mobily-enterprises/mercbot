@@ -10,7 +10,7 @@ import { escape, mentionMarkers, withMentions } from "./mentions.js";
 // the card names. The brief @-mentions it, and the bot that wrote it doesn't answer its own brief.
 
 /** The most a brief may be: a message's length (botRows.js messageBody). */
-export const BRIEF_LIMIT = 8000;
+const BRIEF_LIMIT = 8000;
 // The most bots and people a card names besides the bot and the person.
 const NAMED_LIMIT = 20;
 

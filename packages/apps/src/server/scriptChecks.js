@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { calculatedFormulas, isCalculated, storedFieldIds } from "../shared/calculated.js";
 import { fieldsIn } from "../shared/definitions.js";
-import { BUILT_IN_FUNCTIONS, celSchema, evaluateFormula, formulaValue, isFormula } from "../shared/formulas.js";
+import { BUILT_IN_FUNCTIONS, celSchema, evaluateFormula, formulaValue, isFormula, isTimeZone } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { compileWhere, planToIds } from "../shared/where.js";
 
@@ -23,6 +23,8 @@ const EVERY = ["15min", "hour", "day", "week", "month"];
 export const ON = { create: ["create"], update: ["update"], any: ["create", "update"] };
 const READS = { list: true, get: true, totals: true };
 const WRITES = { create: true, update: true, markObsolete: true };
+// The host groups a test answers by operation, from its own `ai`, `notify` and `docs`.
+const ANSWERED = new Set(["ai", "notify", "docs"]);
 
 const typeOf = (value) => (typeof value === "number" ? "double" : typeof value === "boolean" ? "bool" : "string");
 
@@ -131,11 +133,7 @@ export function createScriptChecks({ pool, ready }) {
           fail("settings.day", "the weekday, 0 (Sunday) to 6 (Saturday).");
         }
         const timeZone = settings.timeZone || "UTC";
-        try {
-          new Intl.DateTimeFormat("en-US", { timeZone });
-        } catch {
-          fail("settings.timeZone", "a time zone like Europe/Rome.");
-        }
+        if (!isTimeZone(timeZone)) fail("settings.timeZone", "a time zone like Europe/Rome.");
         clean = {
           every: settings.every,
           at: settings.at || "00:00",
@@ -194,9 +192,11 @@ export function createScriptChecks({ pool, ready }) {
       list: (key, options = {}) => {
         const table = tableNamed(key);
         let found = matching(table, options);
-        if (options.sort) {
-          const field = options.sort.replace(/^-/u, "");
-          const sign = options.sort.startsWith("-") ? -1 : 1;
+        // The sort's text, as a live run takes it (scripts.js): "-amount" and ["-amount"] alike.
+        const sort = String(options.sort || "");
+        if (sort) {
+          const field = sort.replace(/^-/u, "");
+          const sign = sort.startsWith("-") ? -1 : 1;
           found = [...found].sort((a, b) => (a[field] > b[field] ? sign : a[field] < b[field] ? -sign : 0));
         }
         const size = Math.min(Math.max(Number(options.limit) || PAGE, 1), PAGE);
@@ -281,17 +281,9 @@ export function createScriptChecks({ pool, ready }) {
                 };
               }
               if (group === "people") return test.me ?? null;
-              if (group === "ai") {
-                if (!Object.hasOwn(test.ai || {}, operation)) throw new Error(`no ai answer for ai.${operation} in this test`);
-                return test.ai[operation];
-              }
-              if (group === "notify") {
-                if (!Object.hasOwn(test.notify || {}, operation)) throw new Error(`no notify answer for notify.${operation} in this test`);
-                return test.notify[operation];
-              }
-              if (group === "docs") {
-                if (!Object.hasOwn(test.docs || {}, operation)) throw new Error(`no docs answer for docs.${operation} in this test`);
-                return test.docs[operation];
+              if (ANSWERED.has(group)) {
+                if (!Object.hasOwn(test[group] || {}, operation)) throw new Error(`no ${group} answer for ${group}.${operation} in this test`);
+                return test[group][operation];
               }
               if (group === "connected") {
                 const key = operation === "actions" ? "actions" : `${args[0]}.${args[1]}`;

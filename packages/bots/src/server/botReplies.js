@@ -14,7 +14,7 @@ import { UNCALLED } from "./joiningIn.js";
 import { CHECKS, CLAIM_CHECKS, CUT_CHECK, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
-export const CARD_KINDS = new Set(["choice", "handover", "draft", "secure_form", "connect"]);
+const CARD_KINDS = new Set(["choice", "handover", "draft", "secure_form", "connect"]);
 // A card's status once its person answered it.
 const SETTLED = new Set(["done", "skipped", "submitted", "closed", "connected", "sent", "send", "discarded"]);
 
@@ -681,11 +681,11 @@ const REPLY_WAIT_MS = 20000;
 // How many of Mercbot's lines after the chat's latest words a paused home's check reads: a run posts one or two.
 const PAUSED_LINES_READ = 10;
 
-/** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
 /** Who is in a chat for R3 (addressedBots): its people, its bots, and whether its bots join in (D-115, D-129). */
 const presentIn = async ({ chats }, chatId, joinIn, call) =>
   ({ people: await chats.people(chatId, call), bots: await chats.bots(chatId, call), joinIn });
 
+/** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
 const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
 
 /** A waiting message's words, as the prompt that names it quotes them, the people it mentions by name (D-114). */

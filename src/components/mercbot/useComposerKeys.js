@@ -16,45 +16,34 @@ import { nextTick } from "vue";
 export function useComposerKeys({ draft, input, quotes, replyTarget, tokens: composerTokens, send }) {
   const { tokens, mention, slash, skillRows, mentionRows, insertSkill, insertMention, tokenSpans } = composerTokens;
 
+  /**
+   * An open menu's keys (the skill menu's or the mention menu's): the arrows move its highlight, Enter or Tab inserts
+   * the highlighted row, Escape closes it. Answers whether the menu took the key.
+   */
+  function menuKeydown(event, menu, rows, insert) {
+    if (!menu.value || !rows.value.length) return false;
+    const count = rows.value.length;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      menu.value = { ...menu.value, active: (menu.value.active + (event.key === "ArrowDown" ? 1 : -1) + count) % count };
+      return true;
+    }
+    if ((event.key === "Enter" || event.key === "Tab") && !event.shiftKey) {
+      event.preventDefault();
+      insert(rows.value[menu.value.active] || rows.value[0]);
+      return true;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      menu.value = null;
+      return true;
+    }
+    return false;
+  }
+
   function onComposerKeydown(event) {
-    if (slash.value && skillRows.value.length) {
-      const count = skillRows.value.length;
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        slash.value = { ...slash.value, active: (slash.value.active + (event.key === "ArrowDown" ? 1 : -1) + count) % count };
-        return;
-      }
-      if ((event.key === "Enter" || event.key === "Tab") && !event.shiftKey) {
-        event.preventDefault();
-        insertSkill(skillRows.value[slash.value.active] || skillRows.value[0]);
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        slash.value = null;
-        return;
-      }
-    }
-    if (mention.value && mentionRows.value.length) {
-      const count = mentionRows.value.length;
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        mention.value = { ...mention.value, active: (mention.value.active + (event.key === "ArrowDown" ? 1 : -1) + count) % count };
-        return;
-      }
-      if ((event.key === "Enter" || event.key === "Tab") && !event.shiftKey) {
-        event.preventDefault();
-        insertMention(mentionRows.value[mention.value.active] || mentionRows.value[0]);
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        mention.value = null;
-        return;
-      }
-    }
+    if (menuKeydown(event, slash, skillRows, insertSkill) || menuKeydown(event, mention, mentionRows, insertMention)) return;
     // A token goes as a whole.
     if ((event.key === "Backspace" || event.key === "Delete") && tokens.value.length && event.target.selectionStart === event.target.selectionEnd) {
       const caret = event.target.selectionStart;

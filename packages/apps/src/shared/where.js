@@ -102,7 +102,7 @@ export function compileWhere(variables, source, { calculated = {} } = {}) {
       if (isList && !list.lower && !mentionsFields(node.args[0])) return { kind: "has", field: list, value: text(node.args[0]) };
       fail(node);
     }
-    if (node.op === "rcall" && LIKE_MODES[node.args[0]]) {
+    if (node.op === "rcall" && Object.hasOwn(LIKE_MODES, node.args[0])) {
       const field = fieldOf(node.args[1]);
       const argument = node.args[2][0];
       if (field && argument && !mentionsFields(argument)) {
@@ -119,7 +119,7 @@ export function compileWhere(variables, source, { calculated = {} } = {}) {
  * The parser's end positions can stop before a closing bracket (e.g. after `!(a == b`), so extend
  * a slice until its brackets balance, skipping brackets inside quoted strings.
  */
-function balanced(expression, start, end) {
+export function balanced(expression, start, end) {
   let depth = 0;
   let quote = null;
   let index = start;

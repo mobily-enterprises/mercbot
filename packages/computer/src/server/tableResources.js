@@ -91,12 +91,3 @@ export const mercbotSettingResource = defineTableResource({
     value: { type: "string", noTrim: true, required: true }
   }
 });
-
-/** Every table resource this feature owns, in table order. */
-export const TABLE_RESOURCES = Object.freeze([
-  botComputerResource,
-  botBrowserStateResource,
-  computerTicketResource,
-  mercbotServerResource,
-  mercbotSettingResource
-]);

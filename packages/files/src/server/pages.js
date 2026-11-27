@@ -9,6 +9,7 @@ import {
   describePage,
   isPagePath,
   newPageKey,
+  pageAddresses,
   pageKeyOf,
   pageNames,
   prepareForSave,
@@ -471,11 +472,7 @@ export function createPages({ store, resources, systemContext, env, insecure = f
       return Buffer.from(rewriteCss(text, (url) => answers.get(url)), "utf8");
     }
 
-    const addresses = new Set();
-    visitLoads(document, (url) => {
-      addresses.add(url);
-      return undefined;
-    });
+    const addresses = new Set(pageAddresses(document).map(({ url }) => url));
     const answers = new Map();
     for (const url of addresses) answers.set(url, await settle(url, ""));
     visitLoads(document, (url) => answers.get(url));
@@ -494,12 +491,7 @@ export function createPages({ store, resources, systemContext, env, insecure = f
     const { document } = await readDocument(place, pagePath);
     withoutForbidden(document);
     const inlined = new Map();
-    const addresses = [];
-    visitLoads(document, (url) => {
-      addresses.push(url);
-      return undefined;
-    });
-    for (const url of addresses) if (!inlined.has(url)) inlined.set(url, await files.asDataAddress(place, pagePath, url));
+    for (const { url } of pageAddresses(document)) if (!inlined.has(url)) inlined.set(url, await files.asDataAddress(place, pagePath, url));
     visitLoads(document, (url) => inlined.get(url));
     withShell(document, { css: SHELL_CSS, helper: HELPER });
     withStandalonePolicy(document);

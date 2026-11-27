@@ -1,6 +1,7 @@
 import { fileKind } from "./filesApi.js";
 import extensions from "./extensions.js";
 import { chatTitle, memberNames, joinNames } from "./chatView.js";
+import { itemIcon } from "./useBotLibrary.js";
 
 // What Settings: General is found by, with the buttons a copy built on Mercbot adds there (extensions.js).
 const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone timezone", ...extensions.generalActions.map((action) => action.title.toLowerCase())].join(" ");
@@ -178,7 +179,7 @@ export function paletteEntries({ needle, me, chats: allChats, bots: allBots, peo
     file,
     title: file.name,
     secondary: file.kind === "view" ? "View" : `${{ page: "Page", chart: "Chart", picture: "Picture" }[file.kind] || fileKind(file.name).label} · ${file.botName}`,
-    icon: file.kind === "view" ? "$dashboard" : file.kind === "page" ? "$book2" : file.kind === "chart" ? "$barChart" : fileKind(file.name).icon
+    icon: itemIcon(file)
   }));
   const messageRows = messages.map((message) => ({ key: `message-${message.id}`, kind: "message", message, ...snippet(message.text, needle), secondary: whereAndWhen(message) }));
   return [...chats, ...botRows, ...personRows, ...appRows, ...tucked, ...commandRows, ...routineRows, ...fileRows, ...messageRows];

@@ -34,6 +34,14 @@ export const ROOMS_MEMORY_QUEUE_SEARCH = Object.freeze({
   })
 });
 
+/** A chat row (snake_case, as records.chats and sinceThen answer it) as the memory names chats. */
+export const chatOfRow = (row) => ({
+  id: String(row.id),
+  title: row.title ?? null,
+  directUserId: row.direct_user_id == null ? null : String(row.direct_user_id),
+  directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id)
+});
+
 const DIGEST_FIELDS = Object.freeze(["botId", "text", "covers", "upTo", "version", "tokens", "madeAt"]);
 // A refresh's row just made, before its ask sets when it's due: never due on its own.
 const NOT_YET = "9999-12-31T00:00:00.000Z";
@@ -340,12 +348,6 @@ export function createRoomsMemoryRepository(resources) {
     return { query };
   }
 
-  const chatOf = (row) => ({
-    id: String(row.id),
-    title: row.title ?? null,
-    directUserId: row.direct_user_id == null ? null : String(row.direct_user_id),
-    directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id)
-  });
   const chatFields = {
     id: conversations.column("id", "c"),
     title: conversations.column("title", "c"),
@@ -433,7 +435,7 @@ export function createRoomsMemoryRepository(resources) {
       .select(lines.query.as("lines"))
       .select(counted.query.as("total"));
     const kept = chats.slice(0, Number(limits.chats)).map((chat) => ({
-      ...chatOf(chat),
+      ...chatOfRow(chat),
       lines: (chat.lines || []).map(asLine),
       total: Number(chat.total)
     }));

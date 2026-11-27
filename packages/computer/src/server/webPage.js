@@ -82,6 +82,15 @@ export async function readPage(page) {
   return { url: page.url(), title, text: text.slice(0, 8000), status, covering: await covering(page) };
 }
 
+/** A page address's host without "www.", or "" for one that isn't an address. */
+export function hostOf(url) {
+  try {
+    return new URL(String(url)).hostname.replace(/^www\./u, "");
+  } catch {
+    return "";
+  }
+}
+
 /** A site as a login names it: "https://www.Example.com/login" gives example.com. */
 export const siteName = (site) => String(site).trim().toLowerCase().replace(/^https?:\/\//u, "").replace(/^www\./u, "").split(/[/?#]/u)[0];
 
@@ -92,12 +101,7 @@ export const siteName = (site) => String(site).trim().toLowerCase().replace(/^ht
  * @param {string} wanted
  */
 export function isOnSite(page, wanted) {
-  let host = "";
-  try {
-    host = new URL(page.url()).hostname.replace(/^www\./u, "");
-  } catch {
-    // No address the page is on.
-  }
+  const host = hostOf(page.url());
   return !wanted || host === wanted || host.endsWith(`.${wanted}`) || wanted.endsWith(`.${host}`);
 }
 

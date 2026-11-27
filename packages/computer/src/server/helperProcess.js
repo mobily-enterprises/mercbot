@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import net from "node:net";
 
-// Starting the helper programs of a bot's computer (computerManager.js): Xvfb and x11vnc, each waited on until it's ready.
+// Starting the helper programs of a bot's computer (computerManager.js): Xvfb and x11vnc, each waited on until it's ready,
+// and the windows opened on its screen.
 
 /** Waits `ms` milliseconds. */
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,11 +45,22 @@ export function startProcess(name, command, args, { env, ready, timeoutMs = 8000
   });
 }
 
+/**
+ * Starts `argv` on the computer's screen, kept with its other open windows (`computer.opened`), which close when it
+ * goes to sleep.
+ */
+export function openOnScreen(computer, [program, ...args]) {
+  const child = spawn(program, args, { stdio: "ignore" });
+  child.once("error", () => {});
+  computer.opened = [...(computer.opened || []).filter((open) => open.exitCode === null), child];
+}
+
 export function canConnect(socketPath) {
   return new Promise((resolve) => {
     const socket = net.connect(socketPath);
     socket.once("connect", () => {
-      socket.destroy(); resolve(true);
+      socket.destroy();
+      resolve(true);
     });
     socket.once("error", () => resolve(false));
   });

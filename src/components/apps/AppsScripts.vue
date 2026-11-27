@@ -2,14 +2,13 @@
 import { onMounted, ref } from "vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { appsApi, errorText } from "./appsApi.js";
-import { whenText } from "./appRuntime.js";
+import { SCRIPT_KIND, whenText } from "./appRuntime.js";
 
 // The Apps home's Scripts tab (D-35): every script in the home, with its app and last run, and the
 // web addresses scripts may call. Owners and admins edit the addresses and their secret headers
 // (API keys); a stored secret is never shown again, only its name.
 const paths = usePaths();
 const emit = defineEmits(["notify"]);
-const KIND = { action: "Button", source: "Screen data", rule: "Rule on saving", function: "Formula function", job: "Job" };
 
 const scripts = ref(null);
 const entries = ref([]);
@@ -58,7 +57,7 @@ onMounted(load);
             <tr v-for="script in scripts" :key="script.id">
               <td><div class="text-body-2">{{ script.summary }}</div><div class="text-caption text-medium-emphasis">{{ script.key }}</div></td>
               <td><router-link :to="paths.page(`/apps/${script.app.slug}`)">{{ script.app.name }}</router-link></td>
-              <td>{{ KIND[script.kind] }}</td>
+              <td>{{ SCRIPT_KIND[script.kind] }}</td>
               <td>
                 <span v-if="script.kind === 'function'" class="text-medium-emphasis">Runs in formulas</span>
                 <span v-else-if="!script.lastRun" class="text-medium-emphasis">Not yet</span>

@@ -5,16 +5,20 @@
 import { ConnectedAppError, unlessBusy } from "./connectedApps.js";
 import { call } from "./googleApi.js";
 
+const DRIVE = "https://www.googleapis.com/drive/v3/files";
+const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
+const FOLDER = "application/vnd.google-apps.folder";
+
 /** A copy of one of the bot's files in the person's Google Drive, in a Mercbot folder Mercbot made. */
 export async function saveFile(key, { name, type, data }) {
   const folderQuery = new URLSearchParams({
-    q: "name = 'Mercbot' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+    q: `name = 'Mercbot' and mimeType = '${FOLDER}' and trashed = false`,
     fields: "files(id)"
   });
-  let [folder] = (await call(key, `https://www.googleapis.com/drive/v3/files?${folderQuery}`)).files || [];
-  folder ??= await call(key, "https://www.googleapis.com/drive/v3/files", {
+  let [folder] = (await call(key, `${DRIVE}?${folderQuery}`)).files || [];
+  folder ??= await call(key, DRIVE, {
     method: "POST",
-    body: JSON.stringify({ name: "Mercbot", mimeType: "application/vnd.google-apps.folder" })
+    body: JSON.stringify({ name: "Mercbot", mimeType: FOLDER })
   });
   const boundary = `mercbot${Date.now()}`;
   const body = Buffer.concat([
@@ -25,7 +29,7 @@ export async function saveFile(key, { name, type, data }) {
     data,
     Buffer.from(`\r\n--${boundary}--`)
   ]);
-  const file = await call(key, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink", {
+  const file = await call(key, `${UPLOAD}?uploadType=multipart&fields=id,name,webViewLink`, {
     method: "POST",
     headers: { "content-type": `multipart/related; boundary=${boundary}` },
     body
@@ -35,7 +39,6 @@ export async function saveFile(key, { name, type, data }) {
 
 // Files in a Google Drive account of the home's: the newest few, a new Google Doc at the top
 // level, and moving one to the bin. Drive keeps binned files for 30 days.
-const DRIVE = "https://www.googleapis.com/drive/v3/files";
 const KINDS = {
   "application/vnd.google-apps.document": "a Google Doc",
   "application/vnd.google-apps.spreadsheet": "a Google Sheet",
@@ -81,7 +84,7 @@ export async function createDocument(key, { name, html }) {
     `--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${html}\r\n--${boundary}--`;
   const file = await call(
     key,
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,modifiedTime,webViewLink",
+    `${UPLOAD}?uploadType=multipart&fields=id,name,mimeType,modifiedTime,webViewLink`,
     {
       method: "POST",
       headers: { "content-type": `multipart/related; boundary=${boundary}` },
@@ -114,7 +117,6 @@ export async function binFile(key, id) {
 
 // The rest of the person's Drive (D-42): finding, reading, downloading and exporting,
 // details and sharing, making, changing, moving, copying, and comments.
-const FOLDER = "application/vnd.google-apps.folder";
 const FILE_FIELDS = "id,name,mimeType,modifiedTime,webViewLink,size,parents";
 const quoted = (text) => `'${String(text).replace(/\\/gu, "\\\\").replace(/'/gu, "\\'")}'`;
 /** Drive won't sort a search inside files' contents, so those come in its own order of relevance. */
@@ -264,7 +266,7 @@ export async function createFile(key, { name, text, folder = "" }) {
     `--${boundary}\r\nContent-Type: application/json; ` +
     `charset=UTF-8\r\n\r\n${JSON.stringify({ name, parents: [await folderOf(key, folder)] })}\r\n--${boundary}\r\nContent-Type: ` +
     `${type}; charset=UTF-8\r\n\r\n${text}\r\n--${boundary}--`;
-  const made = await call(key, `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=${FILE_FIELDS}`, {
+  const made = await call(key, `${UPLOAD}?uploadType=multipart&fields=${FILE_FIELDS}`, {
     method: "POST",
     headers: { "content-type": `multipart/related; boundary=${boundary}` },
     body
@@ -287,7 +289,7 @@ export async function updateFile(key, id, { text, description }) {
       throw new ConnectedAppError("A Google Sheet or Slides can't have its contents replaced with text; use their own app.");
     }
     await changing(() =>
-      call(key, `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media`, {
+      call(key, `${UPLOAD}/${encodeURIComponent(id)}?uploadType=media`, {
         method: "PATCH",
         headers: { "content-type": `${type}; charset=UTF-8` },
         body: text

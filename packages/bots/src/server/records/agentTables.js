@@ -56,10 +56,9 @@ export function lookingRuns(runs, agentRuns, options) {
     const id = String(conversationId);
     const claimed = await agentRuns.get(id, { fields: ["started_at"] }, { ...options, missing: "skip" });
     const start = claimed ? new Date(claimed.started_at).getTime() : NaN;
-    const writing = joined;
     const now = () => agentRuns.raw("now()");
     async function holds(txOptions) {
-      const run = await agentRuns.lock(id, { ...writing(txOptions), fields: ["started_at"] });
+      const run = await agentRuns.lock(id, { ...joined(txOptions), fields: ["started_at"] });
       return Boolean(run) && new Date(run.started_at).getTime() === start;
     }
     const whileHeld = (write) => agentRuns.withTransaction(options, async (txOptions) => {
@@ -69,21 +68,21 @@ export function lookingRuns(runs, agentRuns, options) {
     });
     return Object.freeze({
       /** Its heartbeat. */
-      beat: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: now() }, writing(txOptions))),
+      beat: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: now() }, joined(txOptions))),
       /** Its steps so far, and what started it. */
-      save: (steps, input) => whileHeld((txOptions) => agentRuns.patch(id, { steps, input, heartbeat_at: now() }, writing(txOptions))),
+      save: (steps, input) => whileHeld((txOptions) => agentRuns.patch(id, { steps, input, heartbeat_at: now() }, joined(txOptions))),
       /** In the transaction that posts its reply (txOptions): its steps and input go, as settle's do. */
       settle: async (txOptions) => {
         if (!(await holds(txOptions))) return false;
-        await agentRuns.patch(id, { steps: null, input: null }, writing(txOptions));
+        await agentRuns.patch(id, { steps: null, input: null }, joined(txOptions));
         return true;
       },
-      release: () => whileHeld((txOptions) => agentRuns.delete(id, writing(txOptions))),
+      release: () => whileHeld((txOptions) => agentRuns.delete(id, joined(txOptions))),
       /**
        * Its server is stopping, the reply stopped with its steps kept: the run is stale at once (its heartbeat long
        * past), so another server carries it on now, not once the staleness has passed.
        */
-      handOver: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: agentRuns.raw("to_timestamp(0)") }, writing(txOptions)))
+      handOver: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: agentRuns.raw("to_timestamp(0)") }, joined(txOptions)))
     });
   }
   return Object.freeze({

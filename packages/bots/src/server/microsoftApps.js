@@ -54,6 +54,8 @@ const booked = (event, timeZone) => ({
   guests: (event.attendees || []).map((person) => ({ email: person.emailAddress?.address, answer: person.status?.response }))
 });
 const IN_UTC = { prefer: 'outlook.timezone="UTC"' };
+/** A message's body as plain text, not HTML. */
+const AS_TEXT = { prefer: 'outlook.body-content-type="text"' };
 
 /** Events on every calendar the person has, between two local times. */
 export async function calendarEvents(key, { from, to, timeZone }) {
@@ -239,7 +241,7 @@ export async function readEmail(key, id) {
   const message = await call(
     key,
     `/messages/${encodeURIComponent(id)}?$select=from,toRecipients,ccRecipients,replyTo,subject,receivedDateTime,body`,
-    { headers: { prefer: 'outlook.body-content-type="text"' } }
+    { headers: AS_TEXT }
   );
   return {
     id,
@@ -305,7 +307,7 @@ export async function readThread(key, id) {
     key,
     `/messages?$filter=${encodeURIComponent(`conversationId eq '${conversationId}'`)}` +
       "&$top=50&$select=id,from,toRecipients,receivedDateTime,body",
-    { headers: { prefer: 'outlook.body-content-type="text"' } }
+    { headers: AS_TEXT }
   );
   const messages = value
     .sort((a, b) => String(a.receivedDateTime).localeCompare(String(b.receivedDateTime)))
@@ -331,7 +333,7 @@ export async function listDrafts(key) {
 
 export async function readDraft(key, id) {
   const draft = await call(key, `/messages/${encodeURIComponent(id)}?$select=id,toRecipients,ccRecipients,subject,body,isDraft`, {
-    headers: { prefer: 'outlook.body-content-type="text"' }
+    headers: AS_TEXT
   });
   if (!draft.isDraft) throw new ConnectedAppError("That message isn't a draft.");
   return {

@@ -3,7 +3,7 @@ export { ICONS, checkView, viewBody, viewDefinition } from "./check.js";
 export { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "./where.js";
 export { CALCULATED_TYPES, calculate, calculatedFormulas, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, isRollup, isWorkedOut, ROLLUP_MEASURES, rollupByNames, storedFieldIds, withCalculated } from "./calculated.js";
 export { withNamedFormulas } from "./namedFormulas.js";
-export { jobSchedule } from "./schedules.js";
+export { changesOn, jobSchedule } from "./schedules.js";
 export { expandLines } from "./lines.js";
 export { BOARD_FIELDS, isBoard, shiftDays } from "./boards.js";
 export { limitProblem } from "./fieldChecks.js";

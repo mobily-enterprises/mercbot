@@ -73,7 +73,7 @@ export function settingOf(env, name) {
  * D-87), which refuse development shortcuts: there it's "" whatever the setting says.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
-export function standInAddress(env) {
+function standInAddress(env) {
   const address = settingOf(env, "MERCBOT_TEST_AI_URL").replace(/\/+$/u, "");
   return address && !isStagingOrProduction(env) ? address : "";
 }

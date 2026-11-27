@@ -6,11 +6,10 @@ import path from "node:path";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { createRecorder } from "./recorder.js";
 import { BROWSER_ICON, startDesktop } from "./desktop.js";
-import { canConnect, sleep, startProcess } from "./helperProcess.js";
+import { canConnect, openOnScreen, sleep, startProcess } from "./helperProcess.js";
 import { createSignInChain } from "./signInChain.js";
 import { createStagehandModel } from "./stagehandModel.js";
 import { clickDirectly, covering, fingerprint, isOnSite, loginFields, readPage, settled, siteName, typeValues } from "./webPage.js";
-
 
 // Stagehand and Puppeteer, with the AI SDK Stagehand brings, are a large share of the code a server
 // would load at start, and only a bot's computer uses them, so they load when the first one starts.
@@ -41,12 +40,11 @@ const CHROME_FLAGS = [
 ];
 // Each bot's computer (docs/architecture.md §3.5, D-11 to D-13): a small desktop of its
 // own Xvfb display, the desktop of desktop.js (D-23) and a headful Chrome that Stagehand launches,
-// shown to the person
-// over VNC (x11vnc on that display). Display numbers are picked free at start and kept in the
-// computer's own state. Nothing listens on a TCP port (D-68): the display, the screen and the
-// browser's remote control are Unix sockets, and Stagehand and Puppeteer reach the browser
-// through this server's own port (cdpBridge.js). Sleeping, or Mercbot
-// stopping, shuts all four down. This manager only knows the computers running on this server;
+// shown to the person over VNC (x11vnc on that display). Display numbers are picked free at start
+// and kept in the computer's own state. Nothing listens on a TCP port (D-68): the display, the
+// screen and the browser's remote control are Unix sockets, and Stagehand and Puppeteer reach the
+// browser through this server's own port (cdpBridge.js). Sleeping, or Mercbot stopping, shuts all
+// four down. This manager only knows the computers running on this server;
 // computers.js shares their state, screens and screenshots with every server (D-15).
 const WIDTH = 1280;
 const HEIGHT = 800;
@@ -78,14 +76,17 @@ function displayInUse(display) {
   return existsSync(`/tmp/.X11-unix/X${display}`) || existsSync(`/tmp/.X${display}-lock`);
 }
 
-/**
- * `changed(computerId, change)` hears every state and address change; `store(computerId, jpeg)` keeps a
- * screenshot and returns its name.
- * A cookie as read from Chrome, in the form Chrome takes it back.
- */
+/** A cookie as read from Chrome, in the form Chrome takes it back. */
 function cookieParam(cookie) {
   const { size, session, expires, ...rest } = cookie;
   return session || !(expires > 0) ? rest : { ...rest, expires };
+}
+
+/** Stops the computer's helper programs still running: its screen server, desktop, open windows and display. */
+function stopHelpers(computer) {
+  for (const child of [computer.vnc, ...(computer.desktop || []), ...(computer.opened || []), computer.xvfb]) {
+    if (child && child.exitCode === null) child.kill("SIGTERM");
+  }
 }
 
 /**
@@ -373,9 +374,7 @@ export function createComputerManager({
         console.error(`Bot ${computer.computerId}'s browser state couldn't be saved: ${error.message}`);
       });
     }
-    for (const child of [computer.vnc, ...(computer.desktop || []), ...(computer.opened || []), computer.xvfb]) {
-      if (child && child.exitCode === null) child.kill("SIGTERM");
-    }
+    stopHelpers(computer);
     await apps.closed(computer.computerId);
     Object.assign(computer, {
       pptr: null,
@@ -478,11 +477,7 @@ export function createComputerManager({
 
   /** If Mercbot exits without a clean shutdown, still don't leave helpers running. */
   const killAll = () => {
-    for (const computer of computers.values()) {
-      for (const child of [computer.vnc, ...(computer.desktop || []), ...(computer.opened || []), computer.xvfb]) {
-        if (child && child.exitCode === null) child.kill("SIGTERM");
-      }
-    }
+    for (const computer of computers.values()) stopHelpers(computer);
   };
   process.once("exit", killAll);
 
@@ -497,7 +492,8 @@ export function createComputerManager({
         computer.viewers += 1;
       },
       closed: () => {
-        computer.viewers = Math.max(0, computer.viewers - 1); computer.lastUsed = Date.now();
+        computer.viewers = Math.max(0, computer.viewers - 1);
+        computer.lastUsed = Date.now();
       }
     };
   }
@@ -672,10 +668,7 @@ export function createComputerManager({
   async function open(computerId, virtualPath) {
     const computer = await wake(computerId);
     computer.lastUsed = Date.now();
-    const [command, ...args] = await apps.command(computerId, computer.display, virtualPath);
-    const child = spawn(command, args, { stdio: "ignore" });
-    child.once("error", () => {});
-    computer.opened = [...(computer.opened || []).filter((running) => running.exitCode === null), child];
+    openOnScreen(computer, await apps.command(computerId, computer.display, virtualPath));
     return status(computerId);
   }
 
@@ -683,7 +676,6 @@ export function createComputerManager({
     const computer = entry(computerId);
     return { state: computer.state, url: computer.url, error: computer.error };
   }
-
 
   async function shutdown() {
     stopping = true;

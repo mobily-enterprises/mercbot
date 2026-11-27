@@ -3,8 +3,10 @@ import { generateOnce } from "@jskit-ai/agent/server";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { settledWithin } from "./backgroundWork.js";
 import { BotsError } from "./botsError.js";
+import { CHARS_PER_TOKEN } from "./knowledgePrompt.js";
 import { keepLease } from "./runLease.js";
 import { createCallerReaders } from "./records/recordRows.js";
+import { chatOfRow } from "./records/roomsMemoryRepository.js";
 
 // Each bot's rooms memory (D-113): like a person in a home, a bot knows every public room it is in, and a private chat
 // is one-way glass, aware of what everyone in it may read and never read anywhere else. Two things, in a turn's
@@ -14,9 +16,6 @@ import { createCallerReaders } from "./records/recordRows.js";
 //   the bot (so only ever made from public chats, through the memory's reader);
 // - "since then": what was said after the digest in the bot's other chats this chat may read (readable_from, D12),
 //   read through the model's reader for the bot in this chat, with recall and read_chat for more.
-
-/** Characters a token is counted as, as the agent loop counts them (@jskit-ai/agent estimateTokens). */
-const CHARS_PER_TOKEN = 4;
 
 export const ROOMS_MEMORY_LIMITS = Object.freeze({
   // The digest: a target and a ceiling, in tokens; it's cut at a chat's section past the ceiling.
@@ -43,7 +42,7 @@ export const ROOMS_MEMORY_LIMITS = Object.freeze({
 });
 
 /** How the background model is asked to write a digest (D-113): the same every time, so only the input changes. */
-export const DIGEST_RULES = [
+const DIGEST_RULES = [
   "You keep a bot's memory of the public chats it is in, in one home: notes for the bot itself, read before it answers in any chat.",
   "Write one section per chat, newest activity first, each starting with a line \"## <the chat's name>\" and a line with who is in it. " +
     "Under it, short lines: what was decided, facts about people, open threads, promises made, and the gist. " +
@@ -82,14 +81,6 @@ export function createRoomsMemory({ records, systemContext, workspaces, model, m
   async function homeName(homeId, options) {
     return (await workspaces.findById(String(homeId), passedOn(options)))?.name || "the home";
   }
-
-  /** A chat row (snake_case, as records.chats answers it) as the memory names chats. */
-  const chatOfRow = (row) => ({
-    id: String(row.id),
-    title: row.title ?? null,
-    directUserId: row.direct_user_id == null ? null : String(row.direct_user_id),
-    directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id)
-  });
 
   /** What a chat is called where the memory names it: its title, or whose direct chat it is. */
   function chatName(chat, people, bots) {

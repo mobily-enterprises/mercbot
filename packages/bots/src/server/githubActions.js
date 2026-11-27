@@ -11,8 +11,12 @@ const query = (values) => {
   const kept = Object.entries(values).filter(([, value]) => value !== undefined && value !== "");
   return kept.length ? `?${new URLSearchParams(kept)}` : "";
 };
+// A change's fields, only those given: GitHub leaves the rest as they are.
+const given = (values) => Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
 const short = (text, size = 4000) => String(text || "").slice(0, size);
 const firstLine = (text) => String(text || "").split("\n")[0];
+// A file a commit or a comparison changed.
+const changedFile = (file) => ({ file: file.filename, status: file.status, added: file.additions, removed: file.deletions });
 export const need = (args, ...names) => {
   const missing = names.filter((name) => args[name] === undefined || args[name] === "");
   if (missing.length) throw new ConnectedAppError(`Give ${missing.join(" and ")}.`);
@@ -75,9 +79,7 @@ export const READS = {
         message: short(commit.commit?.message),
         author: commit.author?.login,
         date: commit.commit?.author?.date,
-        files: (commit.files || [])
-          .slice(0, 50)
-          .map((file) => ({ file: file.filename, status: file.status, added: file.additions, removed: file.deletions })),
+        files: (commit.files || []).slice(0, 50).map(changedFile),
         link: commit.html_url
       };
     },
@@ -91,9 +93,7 @@ export const READS = {
         commits: (found.commits || [])
           .slice(-30)
           .map((commit) => ({ sha: commit.sha.slice(0, 7), message: firstLine(commit.commit?.message) })),
-        files: (found.files || [])
-          .slice(0, 50)
-          .map((file) => ({ file: file.filename, status: file.status, added: file.additions, removed: file.deletions })),
+        files: (found.files || []).slice(0, 50).map(changedFile),
         link: found.html_url
       };
     },
@@ -320,6 +320,8 @@ const where = (args) => `${args.repo}${args.number ? `#${args.number}` : ""}`;
 
 // The event line's words for each kind of review sent.
 const REVIEWED = { approve: "Approved", request_changes: "Asked for changes on", comment: "Reviewed" };
+// Each kind of review as GitHub names its event.
+const REVIEW_EVENTS = { approve: "APPROVE", request_changes: "REQUEST_CHANGES", comment: "COMMENT" };
 // What a test copy's answers say where only GitHub could answer: a new issue's or pull request's
 // number, and on a release's page (D-69).
 const SIMULATED = "simulated";
@@ -373,11 +375,7 @@ export const CHANGES = {
         };
       },
       run: async (key, args) => {
-        const change = Object.fromEntries(
-          Object.entries({ title: args.title, body: args.body, state: args.state, assignees: args.assignees }).filter(
-            ([, value]) => value !== undefined
-          )
-        );
+        const change = given({ title: args.title, body: args.body, state: args.state, assignees: args.assignees });
         const done = await call(key, `${repoPath(args.repo)}/issues/${Number(args.number)}`, patch(change));
         return {
           text: `${args.state === "closed" ? "Closed" : args.state === "open" ? "Reopened" : "Changed"} ${where(args)}: ${done.title}`,
@@ -443,11 +441,7 @@ export const CHANGES = {
         };
       },
       run: async (key, args) => {
-        const change = Object.fromEntries(
-          Object.entries({ title: args.title, body: args.body, state: args.state, base: args.base }).filter(
-            ([, value]) => value !== undefined
-          )
-        );
+        const change = given({ title: args.title, body: args.body, state: args.state, base: args.base });
         const done = await call(key, `${repoPath(args.repo)}/pulls/${Number(args.number)}`, patch(change));
         return {
           text: `${args.state === "closed" ? "Closed" : "Changed"} pull request ${where(args)}: ${done.title}`,
@@ -509,7 +503,7 @@ export const CHANGES = {
       sends: (args) => (REVIEWED[args.event] ? reviewSent(args) : null),
       simulated: (key, args) => ({ text: `${REVIEWED[args.event]} ${where(args)}` }),
       run: async (key, args) => {
-        const event = { approve: "APPROVE", request_changes: "REQUEST_CHANGES", comment: "COMMENT" }[args.event];
+        const event = REVIEW_EVENTS[args.event];
         const review = await call(
           key,
           `${repoPath(args.repo)}/pulls/${Number(args.number)}/reviews`,
@@ -531,7 +525,7 @@ export const CHANGES = {
       sends: reviewSent,
       simulated: (key, args) => ({ text: `Sent the review of ${where(args)}` }),
       run: async (key, args) => {
-        const event = { approve: "APPROVE", request_changes: "REQUEST_CHANGES", comment: "COMMENT" }[args.event];
+        const event = REVIEW_EVENTS[args.event];
         await call(
           key,
           `${repoPath(args.repo)}/pulls/${Number(args.number)}/reviews/${Number(args.reviewId)}/events`,
@@ -580,13 +574,7 @@ export const CHANGES = {
         await call(
           key,
           `${repoPath(args.repo)}/labels/${encodeURIComponent(args.name)}`,
-          patch(
-            Object.fromEntries(
-              Object.entries({ new_name: args.newName, color: args.color?.replace("#", ""), description: args.description }).filter(
-                ([, value]) => value !== undefined
-              )
-            )
-          )
+          patch(given({ new_name: args.newName, color: args.color?.replace("#", ""), description: args.description }))
         );
         return { text: `Changed the label ${args.name} in ${args.repo}${args.newName ? ` to ${args.newName}` : ""}` };
       }

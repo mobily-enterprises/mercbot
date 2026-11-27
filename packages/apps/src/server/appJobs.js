@@ -40,6 +40,9 @@ export function createAppJobs({ appJobs }) {
   /** @type {(options: object, work: (txOptions: object) => Promise<any>) => Promise<any>} */
   const withTransaction = (options, work) => appJobs.withTransaction(options, work);
 
+  /** Whether a claimed job is AI work, which the bots' runner does as such, not in a chat. */
+  const isAiWork = (job) => AI_KINDS.has(job.kind);
+
   /** The database's now() plus some seconds, as a write's value. */
   const secondsFromNow = (seconds) => appJobs.raw("now() + make_interval(secs => ?)", [Number(seconds)]);
 
@@ -125,7 +128,7 @@ export function createAppJobs({ appJobs }) {
       finishedAt: new Date().toISOString(),
       leaseUntil: null,
       // AI work keeps its items (their texts already dropped), for the app's Logic tab to show how far it got (D-136).
-      ...(AI_KINDS.has(job.kind) ? {} : { steps: null })
+      ...(isAiWork(job) ? {} : { steps: null })
     }, options).catch(() => false);
 
   /**
@@ -137,9 +140,6 @@ export function createAppJobs({ appJobs }) {
    */
   const fail = (job, error, options) =>
     changeRun(job, { status: "failed", error: String(error).slice(0, 1000), finishedAt: new Date().toISOString(), leaseUntil: null }, options);
-
-  /** Whether a claimed job is AI work, which the bots' runner does as such, not in a chat. */
-  const isAiWork = (job) => AI_KINDS.has(job.kind);
 
   return Object.freeze({
     withTransaction,

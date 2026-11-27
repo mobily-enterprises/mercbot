@@ -57,7 +57,6 @@ host_unpack_deb() { # deb dir
   dpkg-deb -x "$1" "$2"
 }
 
-
 # The programs bots' desktops run on the host beside the toolbox, the system's own where it has
 # them, else Ubuntu's packages for this machine, downloaded with the host's apt and unpacked into
 # TOOLS: tint2 and hsetroot, and xterm. The apps and Chrome draw with the toolbox's own Mesa, in

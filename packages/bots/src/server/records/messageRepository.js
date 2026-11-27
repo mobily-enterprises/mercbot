@@ -9,7 +9,7 @@ import { createCallerReaders } from "./recordRows.js";
 // (timeline): the platform tables' page limit.
 const PAGE = 100;
 // The messages a bot's row in the list can show as its preview.
-export const PREVIEW_KINDS = Object.freeze(["text", "choice", "connect", "handover", "files", "page", "view", "chart", "pictures", "voice"]);
+const PREVIEW_KINDS = Object.freeze(["text", "choice", "connect", "handover", "files", "page", "view", "chart", "pictures", "voice"]);
 // What the bots made, for the Library and search.
 export const MADE_KINDS = Object.freeze(["files", "page", "chart", "pictures", "view"]);
 // What search finds among them by name; views are the home's, found among its apps (D-55).

@@ -1,8 +1,9 @@
 // npm run check:templates [-- <slug> ...]: every bot template, or the ones named, checked end to end on the real AI
 // (D-43, D-79). For each, a new person adds the bot through Mercbot's routes, plays its setup interview with an
 // AI-played person, and the check records whether the bot asked its setup questions, created its routines paused and
-// sent nothing without a yes (on two runs of up to three, each as a new person: one run on a real AI can be unlucky), with the date, the app's commit, the fingerprint of how bots behave (D-79) and the
-// reasons, in bot-templates/checks/results.json, which the gallery reads at start. Commit that file afterwards. Run it
+// sent nothing without a yes (on two runs of up to three, each as a new person: one run on a real AI can be unlucky),
+// with the date, the app's commit, the fingerprint of how bots behave (D-79) and the reasons, in
+// bot-templates/checks/results.json, which the gallery reads at start. Commit that file afterwards. Run it
 // after changing how bots behave and before publishing: a result counts only for the fingerprint it ran on.
 //
 // It needs the two text kinds of AI (D-72): AI_PREMIUM_PROVIDER and AI_PREMIUM_API_KEY, AI_ECONOMY_PROVIDER and

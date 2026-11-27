@@ -15,7 +15,7 @@ const MINUTE_MS = 60 * 1000;
 const BOT_FOR_MS = 10 * MINUTE_MS;
 const BOTS_KEPT = 2000;
 /** How a call ended when it gave no figures of its own: counted as an estimate. */
-export const ESTIMATES = Object.freeze(["cut", "lost", "no_usage"]);
+const ESTIMATES = Object.freeze(["cut", "lost", "no_usage"]);
 
 /** The search entries the usage tables add, by table. */
 export const USAGE_FILTERS = Object.freeze({

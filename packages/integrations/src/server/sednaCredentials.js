@@ -115,7 +115,7 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
    * turns the client id and secret down, they're tried once as Basic auth on the organisation's own API, which Sedna's
    * docs allow with the same credentials; taken that way, `access` is the whole "Basic …" header. A 403 there is Sedna
    * taking them without COMPANY_READ, which check() then names. Sedna turning them down both ways throws a
-   * CredentialsRefused (CREDENTIALS_REFUSED).
+   * ConnectionError coded CREDENTIALS_REFUSED.
    */
   async function mint(values) {
     const form = new URLSearchParams({ grant_type: "client_credentials", client_id: values.clientId, client_secret: values.clientSecret });

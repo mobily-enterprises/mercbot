@@ -1,6 +1,6 @@
 import { ME, VISITOR, celSchema, checkFormula, isFixedFormula, isFormula } from "./formulas.js";
 import { calculatedFormulas, calculatedFrom, isCalculated, storedFieldIds } from "./calculated.js";
-import { closest, fieldsIn, toIds } from "./definitions.js";
+import { closest, fieldsIn, isObject, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
 import { expandLines } from "./lines.js";
@@ -40,7 +40,7 @@ const READ_ONLY = {
 };
 const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit", "groupBy", "by", "sum", "avg", "grandTotal"]);
 // The periods a date field's totals can be grouped by (D-140), in the home's time zone.
-export const GROUP_PERIODS = ["day", "week", "month", "year"];
+const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
 const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set", "if"];
 export const ICONS = ["search", "edit", "back", "save", "add", "open", "check", "close", "person", "mail", "phone", "calendar", "chart", "star"];
@@ -306,21 +306,20 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     }
   };
   // Definitions come from a model: a wrong shape is reported here, and treated as absent below.
-  const anObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
   for (const name of ["state", "params", "data"]) {
-    if (screen[name] !== undefined && !anObject(screen[name])) report(`${base}.${name}`, `must be an object of named ${name === "data" ? "queries" : "values"}.`);
+    if (screen[name] !== undefined && !isObject(screen[name])) report(`${base}.${name}`, `must be an object of named ${name === "data" ? "queries" : "values"}.`);
   }
-  const screenState = anObject(screen.state) ? screen.state : {};
-  const screenParams = anObject(screen.params) ? screen.params : {};
-  const screenData = anObject(screen.data) ? screen.data : {};
+  const screenState = isObject(screen.state) ? screen.state : {};
+  const screenParams = isObject(screen.params) ? screen.params : {};
+  const screenData = isObject(screen.data) ? screen.data : {};
   const state = Object.fromEntries(Object.entries(screenState).map(([name, def]) => {
     if (!STATE_TYPES[def?.type]) report(`${base}.state.${name}`, "type must be string, double or bool.");
     return [name, STATE_TYPES[def?.type] || "string"];
   }));
   const params = Object.fromEntries(Object.keys(screenParams).map((name) => [name, "string"]));
   const queries = Object.entries(screenData).filter(([name, query]) => {
-    if (!anObject(query)) report(`${base}.data.${name}`, 'must be a query, such as { "from": "<table>" }.');
-    return anObject(query);
+    if (!isObject(query)) report(`${base}.data.${name}`, 'must be a query, such as { "from": "<table>" }.');
+    return isObject(query);
   });
   if (queries.length > LIMITS.queries) report(`${base}.data`, `At most ${LIMITS.queries} queries per screen.`);
   const data = {};
@@ -433,7 +432,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     if (reference === "=row" && kind === "record" && variables?.row) return rowTables.get(variables.row) ?? null;
     const name = DATA_REFERENCE.exec(String(reference || ""))?.[1];
     const query = name && screenData[name];
-    if (!anObject(query)) {
+    if (!isObject(query)) {
       report(path, "must be \"=data.<query>\" naming a query of this screen.");
       return null;
     }

@@ -13,7 +13,7 @@ import { createCallerReaders } from "./records/recordRows.js";
 import { GENERAL } from "./templates.js";
 
 export const DEFAULT_BOT_NAME = "Mercbot";
-export const DEFAULT_BOT_COLOR = "#1C1C1C";
+const DEFAULT_BOT_COLOR = "#1C1C1C";
 const NAME_IDEAS = ["Juno", "Milo", "Iris", "Otto", "Nova", "Remy", "Ada", "Tansy", "Wren", "Theo"];
 
 function pickNameOptions(random = Math.random) {
@@ -326,10 +326,8 @@ export function createOnboarding({ records, chats, model, meter, notices, worksp
     const changed = await retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
       const chat = await store.lock(chatId, txOptions, { writing: true });
       const choice = await messages.latestOfKind(chat.id, "choice", txOptions);
-      if (chat.onboarding_step !== "ask-name" || choice?.body?.purpose !== "bot-name" || !choice.body.options.includes(name)) {
-        throw new BotsError(409, "That choice isn't open any more.", { code: "bots_choice_closed" });
-      }
-      if (!(await store.moveOnboarding(chat.id, "ask-name", "confirm", txOptions))) {
+      const open = chat.onboarding_step === "ask-name" && choice?.body?.purpose === "bot-name" && choice.body.options.includes(name);
+      if (!open || !(await store.moveOnboarding(chat.id, "ask-name", "confirm", txOptions))) {
         throw new BotsError(409, "That choice isn't open any more.", { code: "bots_choice_closed" });
       }
       return messages.setBody(choice.id, { ...choice.body, chosen: name }, txOptions);

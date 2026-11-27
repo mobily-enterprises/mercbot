@@ -1,5 +1,6 @@
 import { Environment } from "@marcbachmann/cel-js";
 import { BOARD_FIELDS } from "./boards.js";
+import { isFormula } from "./formulas.js";
 
 // App definitions are stored by permanent table and field ids and shown by name (D-35): the Builder
 // and the renderer always see current names, so renaming a field never touches an app, and
@@ -7,7 +8,6 @@ import { BOARD_FIELDS } from "./boards.js";
 const parser = new Environment({ unlistedVariablesAreDyn: true });
 const PAGE_NAMES = new Set(["state", "params", "data", "row", "form", "user", "today", "now", "visitor", "me"]);
 const FORM_EXTRAS = new Set(["valid", "changed", "values"]);
-const isFormula = (value) => typeof value === "string" && value.startsWith("=");
 /** A plain object: what definitions, written by a model, hold where an object belongs. */
 export const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -67,7 +67,7 @@ export function tableFormulaToIds(source, table) {
   const live = table.fields.filter((field) => !field.obsolete);
   const formula = rewriteFormula(source, { bareTable: table.id }, {
     field: (_tableId, name) => live.find((field) => field.key === name)?.id ?? null,
-    unknownField: (_tableId, name) => `${table.key} has no field "${name}".${closest(name, live.map((field) => field.key))}`
+    unknownField: (_tableId, name) => `${table.key} has no field "${name}".${suggestField(table, name)}`
   }, (message) => errors.push(message));
   return { formula, errors };
 }
@@ -338,16 +338,13 @@ export function toIds(definition, tables) {
     convertTable: (name) => byKey.get(name)?.id ?? null,
     idOf: (_name, id) => id,
     unknownTable: (name) => `there is no table "${name}".${closest(name, byKey.keys())}`,
-    tableLabel: (id) => byId.get(id)?.key ?? `"${id}"`,
     unknownField: (id, name) =>
       `${byId.get(id)?.key ?? "that table"} has no field "${name}".${byId.get(id) ? suggestField(byId.get(id), name) : ""}`,
     field: (tableId, name) => {
       const table = byId.get(tableId);
       if (!table) return name;
-      const fields = table.fields.filter((field) => !field.obsolete);
-      const found = fields.find((field) => field.key === name);
-      if (found) return found.id;
-      return null;
+      const found = table.fields.find((field) => !field.obsolete && field.key === name);
+      return found ? found.id : null;
     }
   });
 }
@@ -363,7 +360,6 @@ export function toNames(definition, tables) {
     idOf: (id) => id,
     unknownTable: () => "",
     unknownField: () => "",
-    tableLabel: (id) => byId.get(id)?.key ?? `"${id}"`,
     field: (tableId, id) => {
       const field = byId.get(tableId)?.fields.find((entry) => entry.id === id);
       return field && !field.obsolete ? field.key : id;

@@ -1,8 +1,7 @@
-import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { publishIn } from "@local/notices/server/publishIn";
 import { isFileField } from "../shared/formulas.js";
-import { personCallFor, refused } from "./scriptConnected.js";
+import { personCallFor, personOf, refused } from "./scriptConnected.js";
 
 // Bots and pictures for scripts (D-136): `ai.bots()`, `ai.work(...)` and `ai.picture(...)`, for a button's and a job's
 // scripts (a screen's would spend on every view), when the app's owners and admins allowed "AI: bots and pictures"
@@ -10,7 +9,7 @@ import { personCallFor, refused } from "./scriptConnected.js";
 // connected apps are used) through the home's meter: `ai_batch`, items a bot answers in one session, each answer
 // written into a field of the item's record; `ai_picture`, a picture made into a record's files field. A draft's
 // preview queues nothing.
-export const AI_LIMITS = Object.freeze({
+const AI_LIMITS = Object.freeze({
   items: 100,
   itemChars: 8000,
   taskChars: 2000,
@@ -189,6 +188,3 @@ export function createScriptAi({ resources, systemContext, registry, homeBots })
     listFor
   });
 }
-
-/** The person of a call, as the job keeps them: the member's, or the one a job's run is for. */
-const personOf = (call) => String(resolveAuditActorId(call?.context) ?? "");

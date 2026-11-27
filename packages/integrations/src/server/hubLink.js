@@ -39,6 +39,7 @@ export function createHttpHub(base, installToken = null) {
     // The hub's own refusal, passed on with its code.
     throw new ConnectionError(answered, result.error, { code: result.code || "integrations_hub_refused", params: result.params });
   }
+
   function createLinkRequest(name) {
     return call("POST", "/api/bridge/link-requests", { name });
   }

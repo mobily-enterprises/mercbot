@@ -3,8 +3,9 @@ import { createCallerReaders } from "./recordRows.js";
 
 // A page of the chats a bot's or person's card lists under "Show hidden and archived".
 const SHARED_PAGE = 20;
-// A person's own place in a chat, as chatRepository.js's chat list reads it.
-const PLACE = Object.freeze(["readUpTo", "unread", "mentionedAt", "pinPosition", "sectionId", "hidden", "muted"]);
+// A person's own place in a chat, as its chat_people row names it (chatRepository.js's chat list reads it too): since
+// when someone mentioned them there unread too (D-114), which only a message sets and only reading clears.
+export const PLACE = Object.freeze(["readUpTo", "unread", "mentionedAt", "pinPosition", "sectionId", "hidden", "muted"]);
 
 /**
  * The caller's hidden and archived chats that a bot or another person is in too: what a card adds under "Show hidden

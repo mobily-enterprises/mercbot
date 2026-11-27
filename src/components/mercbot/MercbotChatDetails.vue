@@ -57,7 +57,6 @@ const people = computed(() => [...props.chat.people].sort((a, b) =>
 // Its maker and the home's owners and admins take people out; the everyone chat has everyone in the home. A bot is
 // taken out by anyone in the home from a public room, by its people from a private one.
 const mayRemovePerson = (person) => may.value.removeMembers && !props.chat.everyone && String(person.userId) !== String(props.me);
-const mayRemoveBot = computed(() => may.value.removeBots);
 // Whether its bots join in when useful (D-115): they and everyone else see it; they switch it.
 const joinInNote = computed(() => (may.value.joinIn
   ? "On: a bot may reply without being called. Off: only when called."
@@ -173,7 +172,7 @@ function confirmAsked() {
               <span class="mb-chat-details__member-name">{{ member.name }}<template v-if="member.archived"> · archived</template></span>
             </button>
             <button
-              v-if="mayRemoveBot"
+              v-if="may.removeBots"
               type="button"
               class="mb-chat-details__remove"
               :aria-label="`Take ${member.name} out of this chat`"

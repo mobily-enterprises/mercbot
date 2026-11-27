@@ -25,15 +25,19 @@ async function load() {
   }
 }
 
-// While the person approves on the hub, check every few seconds for up to 15 minutes.
+// While the person approves on the hub, check every few seconds for up to 15 minutes, one check at a time: a tick while
+// the hub is still answering the last one is skipped, so two answers never both say it's linked.
 function waitForApproval() {
   clearInterval(poll);
   const started = Date.now();
+  let checking = false;
   poll = setInterval(async () => {
+    if (checking) return;
     if (Date.now() - started > 15 * 60000) {
       clearInterval(poll);
       return;
     }
+    checking = true;
     try {
       status.value = await bridgeApi.check();
       if (status.value.linked) {
@@ -44,6 +48,8 @@ function waitForApproval() {
     } catch (error) {
       clearInterval(poll);
       problem.value = error?.message || "The link didn't go through. Try again.";
+    } finally {
+      checking = false;
     }
   }, 3000);
 }

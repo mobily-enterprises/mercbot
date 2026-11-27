@@ -15,7 +15,7 @@ import { loadTables } from "./tables.js";
 const AppsFeature = defineFeature({
   id: "mercbot.apps",
   domain: "apps",
-  // The 16 apps tables, with the filters platformTables.js declares; the runtime tables are AnyAPI's.
+  // The apps tables (tableResources.js), with the filters platformTables.js declares; the runtime tables are AnyAPI's.
   owns: withPlatformSearch(TABLE_RESOURCES),
   // The watch loop, due scripts, the pruning of scripts' old runs and the sweep of unused practice
   // copies of drafts run over every home.

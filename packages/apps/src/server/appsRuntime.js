@@ -81,9 +81,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);
-  // Someone's role in the home, for a script's `people.me()` and a rule's actor (D-140).
-  const roleOf = (userId, options) => records.chats.roleIn(userId, options);
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf });
+  // Someone's role in the home is also a script's `people.me()`'s and a rule's actor's (D-140).
+  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf: people.roleOf });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
   // The home's connected mailboxes an app's email may go from (D-137), for its owners and admins to choose.
   const connectedMailboxes = (options) => connected().mailboxes(options);

@@ -199,8 +199,7 @@ export function createPush({ resources, systemContext, env, sendNotification = w
     if (held && String(held.userId) !== String(userId) && (held.p256dh !== sealing.p256dh || held.auth !== sealing.auth)) {
       throw new AccountError(409, "That device gets someone else's notifications.", { code: "account_push_device_taken" });
     }
-    const row = { ...owner, endpoint: String(endpoint), p256dh: sealing.p256dh, auth: sealing.auth, failures: 0 };
-    row.label = oneLine(label);
+    const row = { ...owner, endpoint: String(endpoint), p256dh: sealing.p256dh, auth: sealing.auth, failures: 0, label: oneLine(label) };
     await pushDevices.createMany([row], { ...options, onConflict: { keys: ["endpoint"], action: "merge" }, returning: "none" });
     // A person keeps their newest devices: past the limit, the oldest go.
     const [{ devices = 0 } = {}] = await pushDevices.aggregate({ filters: owner, measures: { devices: { count: "*" } } }, options);

@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createWriteStream, existsSync } from "node:fs";
 import path from "node:path";
 import { SIGN_IN_HOME } from "./codingSandbox.js";
+import { openOnScreen } from "./helperProcess.js";
 
 /**
  * Coding tools on a bot's computer: Claude Code or Codex CLI, each signed in
@@ -13,7 +13,7 @@ import { SIGN_IN_HOME } from "./codingSandbox.js";
  * sandbox sees nothing else of the profile (D-77). `credentials` is where a signed-in tool keeps
  * its sign-in, under that folder.
  */
-export const CODING_TOOLS = Object.freeze({
+const CODING_TOOLS = Object.freeze({
   "claude-code": Object.freeze({
     label: "Claude Code",
     bin: "claude",
@@ -36,7 +36,7 @@ export const CODING_TOOLS = Object.freeze({
 });
 
 /** Where the tools are installed (scripts/install-tools.sh), as a coding sandbox sees them. */
-export const CODING_BIN = "/opt/coding/node_modules/.bin";
+const CODING_BIN = "/opt/coding/node_modules/.bin";
 
 /** The tools' own home: their sign-in, kept in the computer's browser profile, never the bot's files. */
 const TOOL_ENV = [
@@ -49,8 +49,8 @@ const TOOL_ENV = [
 
 /** How much of a run's output is kept, how long a run may go on, and a sign-in's window stay open. */
 const OUTPUT_CHARS = 20000;
-export const CODING_LIMIT_MS = 2 * 60 * 60 * 1000;
-export const SIGN_IN_LIMIT_MS = 30 * 60 * 1000;
+const CODING_LIMIT_MS = 2 * 60 * 60 * 1000;
+const SIGN_IN_LIMIT_MS = 30 * 60 * 1000;
 // What of a run's output its window shows: past this the log stops, saying so (the bot still reads the end).
 const LOG_BYTES = 4 * 1024 * 1024;
 /**
@@ -133,10 +133,7 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
   function showWindow(computer, title, argv) {
     const shown = window(computer.computerId, title, argv);
     if (!shown) return false;
-    const [program, ...args] = shown;
-    const child = spawn(program, args, { stdio: "ignore" });
-    child.once("error", () => {});
-    computer.opened = [...(computer.opened || []).filter((open) => open.exitCode === null), child];
+    openOnScreen(computer, shown);
     return true;
   }
 

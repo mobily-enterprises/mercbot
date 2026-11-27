@@ -355,8 +355,8 @@ for _ in $(seq 100); do [ -e /tmp/.gateway-ready ] && break; sleep 0.05; done`;
 export async function sandboxGateway(dir, start = startGateway, options = {}) {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, "forward.py"), FORWARDER);
-  // A socket's path has at most 107 bytes, and a sandbox's folder under a long TMPDIR passes that (Production's
-  // /var/lib/mercbot-online-work/tmp gives about 120), so the socket is made through the folder's open handle. The
+  // A socket's path has at most 107 bytes, and a sandbox's folder under a long TMPDIR passes that (a TMPDIR
+  // such as /var/lib/mercbot-server-work/tmp gives about 120), so the socket is made through the folder's open handle. The
   // handle stays open until the gateway has closed, which removes the socket by that same path.
   const folder = await fs.open(dir, constants.O_RDONLY | constants.O_DIRECTORY);
   try {

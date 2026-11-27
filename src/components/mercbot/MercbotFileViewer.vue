@@ -25,15 +25,18 @@ const loading = ref(true);
 // Edit on computer opens it on that bot's computer in that chat (D14), so a file seen outside a chat isn't offered it.
 const editable = Boolean(props.botId && props.chatId) && EDITABLE.has(props.file.name.split(".").pop().toLowerCase());
 const opening = ref(false);
+// Why Edit on computer didn't work, said beside it; the file stays shown.
+const editProblem = ref("");
 
 // Edit it in its app on the bot's computer in the chat; the live view takes over from here, for that bot.
 async function edit() {
   opening.value = true;
+  editProblem.value = "";
   try {
     await openOnComputer(props.botId, props.file.path, props.chatId);
     emit("opened", { botId: props.botId, chatId: props.chatId });
   } catch (error) {
-    problem.value = error?.message || "The computer couldn't open it.";
+    editProblem.value = error?.message || "The computer couldn't open it.";
   } finally {
     opening.value = false;
   }
@@ -73,7 +76,7 @@ async function load() {
 }
 
 useEscapeToClose(() => emit("close"));
-onMounted(() => load());
+onMounted(load);
 </script>
 
 <template>
@@ -85,6 +88,7 @@ onMounted(() => load());
         <button type="button" :aria-pressed="!source" @click="source = false">Formatted</button>
         <button type="button" :aria-pressed="source" @click="source = true">Source</button>
       </div>
+      <span v-if="editProblem" class="mb-viewer__edit-problem" role="alert">{{ editProblem }}</span>
       <button v-if="editable" type="button" class="mb-viewer__edit" :disabled="opening" @click="edit">
         <v-icon icon="$screenshotMonitor" size="16" />{{ opening ? "Opening…" : "Edit on computer" }}
       </button>
@@ -197,6 +201,13 @@ onMounted(() => load());
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.mb-viewer__edit-problem {
+  max-width: 40%;
+  color: rgb(var(--v-theme-error));
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .mb-viewer__edit:disabled {

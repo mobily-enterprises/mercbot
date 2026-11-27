@@ -14,7 +14,7 @@ import { compileWhere, planToIds } from "../shared/where.js";
 const DEPTH = 3;
 
 /** The roll-ups over `tableId`'s records, grouped by the table they're on, the link and the filter: one read a group. */
-export function rollupsFrom(tables, tableId) {
+function rollupsFrom(tables, tableId) {
   const groups = new Map();
   for (const parent of tables) {
     if (parent.obsolete) continue;

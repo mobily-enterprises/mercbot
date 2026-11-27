@@ -82,3 +82,10 @@ test("a move's values: a board's choice, a calendar's and a timeline's days, kep
   assert.throws(() => movedValues(parts.calendar, table, record, 1.5), /whole number of days/u);
   assert.equal(shiftDays("2024-02-28", 1), "2024-02-29", "a leap day");
 });
+
+test("a board whose column field was removed refuses a move with words, even to its empty column", () => {
+  const table = { ...tables[0], fields: tables[0].fields.map((entry) => (entry.key === parts.board.groupBy ? { ...entry, obsolete: true } : entry)) };
+  const record = { id: "1", f_stage: "Open" };
+  assert.throws(() => movedValues(parts.board, table, record, ""), /no longer has the field its columns are of/u);
+  assert.throws(() => movedValues(parts.board, table, record, "Done"), /no longer has the field its columns are of/u);
+});

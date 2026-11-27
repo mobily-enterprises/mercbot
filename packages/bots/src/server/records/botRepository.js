@@ -1,6 +1,6 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { BotsError } from "../botsError.js";
-import { createCallerReaders, fieldsOf } from "./recordRows.js";
+import { createCallerReaders, fieldsOf, isId } from "./recordRows.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 
@@ -19,7 +19,7 @@ export function createBotRepository({ resources, workspaces, homeTemplates }) {
 
   /** One bot of the home, or null. */
   async function find(botId, options) {
-    if (!/^\d+$/u.test(String(botId ?? ""))) return null;
+    if (!isId(botId)) return null;
     const [bot] = await withSummaries([await bots.get(String(botId), {}, { ...passedOn(options), missing: "skip" })], options);
     return bot ?? null;
   }
@@ -39,7 +39,7 @@ export function createBotRepository({ resources, workspaces, homeTemplates }) {
 
   /** The home's bots among the ids given, in id order. */
   async function byIds(ids, options) {
-    const wanted = [...new Set(ids.map(String))].filter((id) => /^\d+$/u.test(id));
+    const wanted = [...new Set(ids.map(String))].filter(isId);
     if (!wanted.length) return [];
     return withSummaries(await bots.queryAll({ filters: { id: wanted }, sort: ["id"] }, passedOn(options)), options);
   }

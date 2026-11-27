@@ -34,6 +34,12 @@ const GROUPS = [
 const groups = computed(() => GROUPS.map((group) => ({ ...group, bots: bots.value.filter(group.has) })).filter((group) => group.bots.length));
 const tagOf = (bot) => ({ template: { tag: bot.tag, source: bot.library ? "library" : "home", description: bot.description } });
 const ticked = (bot) => !bot.inHome && !unticked.value.has(bot.key);
+/** A copy of `set` with `key` taken out if it was in, else put in. */
+function toggled(set, key) {
+  const next = new Set(set);
+  if (!next.delete(key)) next.add(key);
+  return next;
+}
 
 // A library bot's whole template, read when View is pressed: "loading", "failed" or the template.
 const viewing = ref({});
@@ -52,9 +58,7 @@ async function view(bot) {
 // A new bot's whole template shown (Read it all), and the one on the draft screen (Edit).
 const reading = ref(new Set());
 function readAll(key) {
-  const next = new Set(reading.value);
-  if (!next.delete(key)) next.add(key);
-  reading.value = next;
+  reading.value = toggled(reading.value, key);
 }
 const editing = ref("");
 function saveEdit({ draft }) {
@@ -67,9 +71,7 @@ const apps = ref(new Map());
 const withoutApp = ref(new Set());
 const appOf = (bot) => (bot.appTemplate ? apps.value.get(bot.appTemplate) || null : null);
 function tickApp(key) {
-  const next = new Set(withoutApp.value);
-  if (!next.delete(key)) next.add(key);
-  withoutApp.value = next;
+  withoutApp.value = toggled(withoutApp.value, key);
 }
 onMounted(async () => {
   const { templates = [], canManage } = await appsApi.templates().catch(() => ({}));

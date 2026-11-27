@@ -184,6 +184,14 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   const budget = { ...bonus, key: "greedy", code: "async function main() { for (let i = 0; i < 60; i += 1) await records.list('deals'); return {} }", tests: [{ name: "runs", input: {}, records: {}, expect: {} }] };
   assert.deepEqual((await save(budget)).errors, []);
   await assert.rejects(scripts.runNamed("action", (await apps.find("sales", options)).id, "greedy", {}, { kind: "button" }, null, options), /Something went wrong in “Marks a deal won and logs a note”: Error: at most 50 record calls per run/u);
+  // A sort given as a list of its one field (as a table's sort reads) sorts as its text does, never failing the run.
+  const sorted = { ...bonus, key: "sorted", code: "async function main(input) { return { notify: (await records.list('deals', input.sort ? { sort: input.sort } : {})).map((row) => row.title).join() } }", tests: [{ name: "runs", input: {}, records: {}, expect: { notify: "" } }] };
+  assert.deepEqual((await save(sorted)).errors, []);
+  const salesId = (await apps.find("sales", options)).id;
+  assert.deepEqual(
+    await scripts.runNamed("action", salesId, "sorted", { sort: ["-amount"] }, { kind: "button" }, null, options),
+    await scripts.runNamed("action", salesId, "sorted", { sort: "-amount" }, { kind: "button" }, null, options)
+  );
 
   // ---- Rules on saving: refuse, or fill in fields, wherever the change comes from ----
   assert.deepEqual((await save({

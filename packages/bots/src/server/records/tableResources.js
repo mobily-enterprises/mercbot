@@ -409,10 +409,6 @@ export const roomsMemoryResource = defineTableResource({
   }
 });
 
-/** rooms_memory_queue
- * a bot's rooms memory refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
- * its server renews while it writes; asks counts its requests; rebuild asks for one made from the chats
- */
 /** push_queue
  * A notification waiting to be sent (D-133): one per person and chat, sent once `sendAfter` has come if the message is
  * still unread then, by whichever server claims it first.
@@ -432,6 +428,10 @@ export const pushQueueResource = defineTableResource({
   }
 });
 
+/** rooms_memory_queue
+ * a bot's rooms memory refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
+ * its server renews while it writes; asks counts its requests; rebuild asks for one made from the chats
+ */
 export const roomsMemoryQueueResource = defineTableResource({
   name: "roomsMemoryQueue",
   tableName: "rooms_memory_queue",

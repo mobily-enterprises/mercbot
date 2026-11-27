@@ -93,7 +93,7 @@ const AccountFeature = defineFeature({
   async setup({
     records, http, uploads, env, database, fastify, profiles, aiFailures, usageRecorder, copyRunners, mediaCheck, resources, systemContext
   }) {
-    const account = createAccountService({ resources, systemContext, env, copyRunners });
+    const account = createAccountService({ resources, env, copyRunners });
     const recorder = usageRecorder || createUsageRecorder({ resources, systemContext, directory: records.directory });
     const spending = usageRecorder?.spending || {
       ...createSpending({ resources, systemContext }),

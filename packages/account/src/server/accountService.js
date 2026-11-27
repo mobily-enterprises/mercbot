@@ -23,6 +23,9 @@ function toItem(record) {
   };
 }
 
+/** A saved login as a chat's computer fills it in: with its sealed secret. */
+const toLogin = (record) => ({ id: String(record.id), label: record.label, data: record.data || {} });
+
 /**
  * The account menu's services (D-16, D-17, D-61): who runs this copy and the home's Vault (D8: used in any chat of the
  * home, as the person who asked; anyone in the home adds to it). What work uses is recorded
@@ -143,7 +146,7 @@ export function createAccountService({ resources, env, copyRunners }) {
    */
   async function savedLogins(options) {
     const records = await vaultItems.queryAll({ filters: { kind: "login" }, sort: ["-id"], fields: ["label", "data"] }, inHome(options));
-    return records.map((record) => ({ id: String(record.id), label: record.label, data: record.data || {} }));
+    return records.map(toLogin);
   }
 
   /** One of the home's saved logins, or null. */
@@ -151,7 +154,7 @@ export function createAccountService({ resources, env, copyRunners }) {
     const found = /^\d+$/u.test(String(id ?? ""))
       ? (await vaultItems.queryAll({ filters: { id: String(id), kind: "login" }, fields: ["label", "data"] }, inHome(options)))[0]
       : null;
-    return found ? { id: String(found.id), label: found.label, data: found.data || {} } : null;
+    return found ? toLogin(found) : null;
   }
 
   /**

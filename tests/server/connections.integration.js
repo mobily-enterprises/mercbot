@@ -297,6 +297,33 @@ test("a sign-in lent for a bridge connection is finished only through the featur
   );
 });
 
+test("a lent sign-in a work account's admin must approve links to the approval for the lent app's access", async (context) => {
+  const { userId, connections, as } = await setup(context);
+  const microsoft = {
+    name: "Microsoft",
+    env: "TESTMAIL",
+    server: { issuer: "https://login.example", authorization_endpoint: "https://login.example/authorize", token_endpoint: "https://login.example/token" },
+    scopes: ["profile"],
+    params: {}
+  };
+  const lender = connections({
+    catalogue: [{ id: "workmail", name: "Workmail", oauth: { provider: "microsoft", scopes: ["Mail.Read", "Mail.Send"] } }],
+    env: HUB_ENV,
+    providers: { microsoft },
+    oauthClient: createOAuth({ env: HUB_ENV, insecure: true }),
+    bridgedSignIns: { pluginOf: async () => "workmail", signedIn: async () => assert.fail("nothing is signed in") }
+  });
+  const started = await lender.startBridgedSignIn("workmail", { connectionFor: async () => "41", lentTo: userId }, NO_ONE);
+  const state = new URL(started.url).searchParams.get("lent");
+  const begun = await lender.beginLentSignIn(state, as);
+  const refused = await lender.callback({ state, error: "access_denied", error_description: "AADSTS65001: The user or administrator has not consented" }, browserOf(begun), NO_ONE)
+    .then(() => assert.fail("the sign-in is refused"), (error) => error);
+  assert.equal(refused.code, "integrations_sign_in_needs_admin");
+  const approval = new URL(refused.approval);
+  assert.equal(approval.pathname, "/organizations/v2.0/adminconsent");
+  assert.equal(approval.searchParams.get("scope"), "Mail.Read Mail.Send");
+});
+
 test("a copy with its own app signs in directly", async (context) => {
   const { knex, account, service, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });

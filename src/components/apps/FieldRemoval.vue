@@ -20,7 +20,8 @@ onMounted(async () => {
   }
 });
 
-const kinds = { column: "column", "form field": "form field", filter: "filter", sort: "sorting", total: "total", totals: "totals", part: "part" };
+// Each kind of change reads as itself, but sorting.
+const kinds = { sort: "sorting" };
 const describe = (use) => {
   const parts = [...new Set(use.changes.map((change) => kinds[change.kind] || change.kind))];
   return `${use.app}${use.version === "draft" ? " (draft)" : ""}: ${parts.join(", ")}`;

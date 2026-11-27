@@ -25,14 +25,18 @@ const SAME_NAMES = 50;
 
 const invalid = (code, message) => new WebsiteError(400, message, { code });
 
+/** An address as a URL, or null when it isn't one. */
+function urlOrNull(text) {
+  try {
+    return new URL(text);
+  } catch {
+    return null;
+  }
+}
+
 /** The address a website serves its place at: http(s), without a query, ending in a slash. */
 function baseUrlOf(value) {
-  let url;
-  try {
-    url = new URL(String(value || "").trim());
-  } catch {
-    url = null;
-  }
+  const url = urlOrNull(String(value || "").trim());
   if (!url || !/^https?:$/u.test(url.protocol) || url.username || url.password) {
     throw invalid("websites_base_url_invalid", "Enter the address your website serves its pages at, starting with https:// or http://.");
   }
@@ -55,12 +59,7 @@ function placeFrom(input, previous) {
   const endpointText = String(input.endpoint || "").trim();
   let endpoint = "";
   if (endpointText) {
-    let url = null;
-    try {
-      url = new URL(endpointText);
-    } catch {
-      url = null;
-    }
+    const url = urlOrNull(endpointText);
     if (!url || !/^https?:$/u.test(url.protocol) || url.username || url.password || url.search || url.hash) {
       throw invalid("websites_endpoint_invalid", "Enter the storage's endpoint, starting with https://, or leave it empty for Amazon S3.");
     }

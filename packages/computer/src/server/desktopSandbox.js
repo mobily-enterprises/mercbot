@@ -8,14 +8,13 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { FORWARDER, PROXY_ENV, startGateway } from "@local/files/gateway";
 import {
-  DESKTOP_GRAPHICS, ensureMountPoints, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot
+  DESKTOP_GRAPHICS, ensureMountPoints, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot, toolsDir
 } from "@local/files/gvisor";
 import { quote } from "./shellQuote.js";
 
 const run = promisify(execFile);
 const STAGEHAND_EXTENSION = path.join(path.dirname(fileURLToPath(import.meta.resolve("@browserbasehq/stagehand"))), "extension");
-const tools = (env) => path.resolve(env.MERCBOT_TOOLS_DIR || ".tools");
-const runscPath = (env) => env.MERCBOT_RUNSC || path.join(tools(env), "bin", "runsc");
+const runscPath = (env) => env.MERCBOT_RUNSC || path.join(toolsDir(env), "bin", "runsc");
 // The browser's remote-control port inside the sandbox, where it has a network of its own, so the
 // same number serves every computer and never takes a port of this server.
 const CHROME_DEBUG_PORT = 9222;
@@ -82,7 +81,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
   const gateway = await startGateway({ socketPath: path.join(io, "gateway.sock") });
 
   const bind = (source, destination, { readonly = false, exec = true } = {}) => folderMount(source, destination, { readonly, exec });
-  const apps = path.join(tools(runtimeEnv), "apps");
+  const apps = path.join(toolsDir(runtimeEnv), "apps");
   // The chat's folder is the desktop's home (R6): its apps' settings are the chat's, as everything else on it is (D14).
   const home = folders?.chat ? "/files/chat" : "/tmp";
   const env = [
