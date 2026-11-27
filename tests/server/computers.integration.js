@@ -17,6 +17,7 @@ import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.j
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { separateHome, testBot } from "./testHome.js";
+import { moduleClock } from "../support/moduleClock.mjs";
 import { testServerEnv } from "../support/testEnv.mjs";
 
 // A copy that checks no pictures (Mercbot's own): nothing is queued.
@@ -553,6 +554,44 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
   const recorded = () => knex("bot_computers").where({ chat_bot_id: computerId }).first("state", "error");
   for (const deadline = Date.now() + 5000; (await recorded())?.error !== PAUSED && Date.now() < deadline;) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.deepEqual(await recorded(), { state: "asleep", error: PAUSED }, "it stays asleep, saying why");
+});
+
+test("a server shut down while it registers starts nothing after: it hears no notices, keeps no timer and leaves no row", async (context) => {
+  const knex = await connectTestDatabase();
+  const volume = await mkdtemp(path.join(os.tmpdir(), "mercbot-volume-"));
+  const real = createNotices({ knex });
+  const subscribed = [];
+  const notices = {
+    ...real,
+    subscribe: (topic, key, listener) => {
+      subscribed.push(topic);
+      return real.subscribe(topic, key, listener);
+    }
+  };
+  const clock = moduleClock(context, "computer/src/server/computers.js");
+  const files = {
+    store: createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} }),
+    shell: { available: () => false, detach: async () => {} },
+    media: NO_CHECKS
+  };
+  const computers = createComputers({
+    ...(await computerParts(knex, context)), env: { ...testServerEnv(), MERCBOT_SERVER_ID: "integration-closing" }, notices, files, meter: createMeter({ recorder: FREE_RECORDER }), placement: PLACE_HERE
+  });
+  context.after(async () => {
+    await real.close();
+    await knex("mercbot_servers").where({ id: "integration-closing" }).del();
+    await knex.destroy();
+    await rm(volume, { recursive: true, force: true });
+  });
+
+  // Closed soon after it listened: its shutdown starts while register waits on its first query, as an async function
+  // runs up to its first await before the next line.
+  const registering = computers.register({ address: "127.0.0.1", port: 9 });
+  await computers.shutdown();
+  await registering;
+  assert.deepEqual(subscribed, [], "it hears no notices");
+  assert.equal(clock.pending.size, 0, "it keeps no timer");
+  assert.equal(await knex("mercbot_servers").where({ id: "integration-closing" }).first(), undefined, "and no row says it serves");
 });
 
 // A computer's states land in the order they change, though the manager doesn't wait for a write: here the first,

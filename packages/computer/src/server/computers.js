@@ -351,11 +351,13 @@ export function createComputers({
   let sweeper = null;
   let newDays = null;
   let stopHearingRemoved = null;
+  let stopping = false;
 
   /**
    * Called once this server listens, so its address is known. Other servers reach it on
    * MERCBOT_SERVER_URL if set, otherwise on this machine's private IPv4 address when it listens
-   * on every interface (as on AWS), or on the address it's bound to.
+   * on every interface (as on AWS), or on the address it's bound to. A server shut down while it registers (closed
+   * soon after it listened) starts nothing after its shutdown and leaves no row of itself.
    */
   async function register(address) {
     const anyInterface = !address.address || address.address === "0.0.0.0" || address.address === "::";
@@ -364,10 +366,12 @@ export function createComputers({
     me = env.MERCBOT_SERVER_ID || `${os.hostname()}:${address.port}`;
     cdp.listening(address);
     secret = placement.secret ?? await records.sharedSecret();
+    if (stopping) return;
     await records.seen(me, url);
     await records.forgetOldServers();
     // Computers this server ran before a restart are gone now.
     await records.putToSleep(me);
+    if (stopping) return records.forgetServer(me).catch(() => {});
     heartbeat = setInterval(() => {
       records.seen(me, url).catch(() => {});
     }, HEARTBEAT_MS);
@@ -586,6 +590,7 @@ export function createComputers({
   }
 
   async function shutdown() {
+    stopping = true;
     clearInterval(heartbeat);
     clearInterval(sweeper);
     clearInterval(newDays);

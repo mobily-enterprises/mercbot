@@ -275,7 +275,8 @@ themselves in `mercbot_servers` when they start listening (`MERCBOT_SERVER_ID`,
 default host name and port; `MERCBOT_SERVER_URL`, the address other servers
 reach it on, default the machine's private IPv4 address when listening on every
 interface, otherwise the bound address) and refresh it every 15 seconds; one
-silent for 45 seconds counts as gone. Any server answers the computer routes: it
+silent for 45 seconds counts as gone. A server shut down while it records itself
+(closed soon after it listened) starts nothing afterwards and leaves no row. Any server answers the computer routes: it
 reads state from the database, and passes wake, browse, act, fill, screenshot, hold,
 sleep and a sign-in's start, page check and end (`startSignIn`, `signInPage`,
 `endSignIn`; the last two run only where the computer is awake already, and never
