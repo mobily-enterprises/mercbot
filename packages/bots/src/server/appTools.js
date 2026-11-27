@@ -5,6 +5,8 @@ import {
   celSchema,
   checkCalculated,
   compileWhere,
+  calculatedFormulas,
+  calculatedOrder,
   dataOnly,
   fieldByNames,
   isCalculated,
@@ -201,12 +203,17 @@ export function buildAppTools({
       const { table } = await gate.tableFor(name, call);
       const keyToId = storedFieldIds(table);
       const sortKey = sort?.replace(/^-/u, "");
-      if (calculatedNamed(table, [sortKey])) return { error: `"${sortKey}" is calculated, so records can't be sorted by it.` };
+      // A calculated number sorts when it's arithmetic over number fields, worked out in the database (D-140).
+      const sortField = table.fields.find((field) => !field.obsolete && field.key === sortKey);
+      const sortExpr = isCalculated(sortField) && ["number", "money"].includes(sortField.type)
+        ? calculatedOrder(sortField, celSchema(table), calculatedFormulas(table), keyToId)
+        : null;
+      if (calculatedNamed(table, [sortKey]) && !sortExpr) return { error: `"${sortKey}" is calculated, so records can't be sorted by it.` };
       let plan = null;
       if (where) {
         try {
           plan = {
-            plan: planToIds(compileWhere({ ...celSchema(table), state: {}, params: {} }, `=${where}`), keyToId),
+            plan: planToIds(compileWhere({ ...celSchema(table), state: {}, params: {} }, `=${where}`, { calculated: calculatedFormulas(table) }), keyToId),
             variables: { state: {}, params: {} },
             values: { state: {}, params: {} }
           };
@@ -222,7 +229,9 @@ export function buildAppTools({
       }
       const result = await gate.read(context, table.id, {
         where: plan,
-        sort: sortKey && keyToId.get(sortKey) ? [{ field: keyToId.get(sortKey), desc: sort.startsWith("-") }] : [],
+        sort: sortExpr
+          ? [{ expr: sortExpr, desc: sort.startsWith("-") }]
+          : sortKey && keyToId.get(sortKey) ? [{ field: keyToId.get(sortKey), desc: sort.startsWith("-") }] : [],
         page: { size: limit || 20 }
       });
       return { table: table.key, total: result.total, records: dataOnly(result.records.map((record) => byName(table, record))) };

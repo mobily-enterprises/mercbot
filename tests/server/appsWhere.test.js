@@ -4,6 +4,7 @@ import knexLib from "knex";
 import { checkFormula, evaluateFormula } from "../../packages/apps/src/shared/formulas.js";
 import { compileWhere } from "../../packages/apps/src/shared/where.js";
 import { applyPlan } from "../../packages/apps/src/server/sqlPlan.js";
+import { planFields } from "../../packages/apps/src/server/visitorAccess.js";
 
 // Apps formulas (D-35): CEL `where` formulas become a plan, and the plan becomes SQL. Fields are
 // plain variables; `state` and `params` are worked out before the query runs.
@@ -69,7 +70,9 @@ test("a field the server marks `trim` is compared trimmed as JavaScript trims, a
 
 test("formulas that can't become SQL are refused with the offending part", () => {
   assert.throws(() => compileWhere(variables, "=name.size() > 3"), /"name.size\(\) > 3" can't be turned into a database query/u);
-  assert.throws(() => compileWhere(variables, "=name == email"), /can't be turned into a database query/u);
+  assert.throws(() => compileWhere(variables, "=name.size() == amount"), /can't be turned into a database query/u);
+  // Two fields of the record compare in the database since D-140.
+  assert.equal(compileWhere(variables, "=name == email").kind, "compareExpr");
 });
 
 test("the type checker catches unknown fields and wrong types", () => {
@@ -83,4 +86,26 @@ test("our date functions", () => {
   assert.equal(evaluateFormula(dates, '=formatDate(started, "d MMM yyyy")', { started: "2021-03-03" }), "3 Mar 2021");
   assert.equal(evaluateFormula(dates, '=formatDate(started, "d MMM yyyy")', { started: "" }), "");
   assert.equal(typeof evaluateFormula(dates, "=yearsSince(started)", { started: "2021-03-03" }), "bigint");
+});
+
+test("two of a record's fields, arithmetic over its numbers and a simple calculated field compare in the database (D-140)", () => {
+  const stock = { item: "string", quantity: "double", reorder: "double", price: "double", value: "double", label: "string" };
+  const calculated = { value: "=price * quantity", label: '=item + " (" + string(quantity) + ")"' };
+  const sqlOf = (where) => {
+    const plan = compileWhere({ ...stock, state: {}, params: {} }, where, { calculated });
+    const query = knex("records").where((builder) => applyPlan(builder, plan, { variables: { state: {}, params: {} }, values: { state: {}, params: {} } }, (field) => `records.${field}`, knex));
+    const { sql: text, bindings } = query.toSQL().toNative();
+    return { text: text.replace(/^select \* from "records" where /u, "").replace(/^\((.*)\)$/su, "$1"), bindings };
+  };
+  assert.equal(sqlOf("=quantity <= reorder").text, '"records"."quantity" <= "records"."reorder"');
+  const arithmetic = sqlOf("=price * quantity > 100.0");
+  assert.equal(arithmetic.text, '("records"."price" * "records"."quantity") > $1');
+  assert.deepEqual(arithmetic.bindings, [100]);
+  assert.equal(sqlOf("=value >= 50.0").text, '("records"."price" * "records"."quantity") >= $1', "a calculated field stands in by its formula");
+  assert.equal(sqlOf("=quantity / reorder < 1.0").text, '("records"."quantity" / nullif("records"."reorder", 0)) < $1', "never divides by zero");
+  assert.equal(sqlOf("=2.0 * reorder > quantity").text, '($1::double precision * "records"."reorder") > "records"."quantity"');
+  // A public app's visitor must be able to read every field a comparison works out from, a calculated one's too.
+  assert.deepEqual(planFields(compileWhere({ ...stock, state: {}, params: {} }, "=value > quantity", { calculated })).sort(), ["price", "quantity", "quantity"].sort());
+  assert.throws(() => compileWhere({ ...stock, state: {}, params: {} }, '=label == "x"', { calculated }), /can't be turned into a database query/u, "text worked out isn't");
+  assert.throws(() => compileWhere({ ...stock, state: {}, params: {} }, '=item + "s" == "pens"', { calculated }), /can't be turned into a database query/u);
 });

@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { isCalculated, storedFieldIds } from "../shared/calculated.js";
+import { calculatedFormulas, isCalculated, storedFieldIds } from "../shared/calculated.js";
 import { fieldsIn } from "../shared/definitions.js";
 import { BUILT_IN_FUNCTIONS, celSchema, evaluateFormula, formulaValue, isFormula } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
@@ -35,7 +35,8 @@ export function whereFor(table, where, params) {
   // A filter runs in the database, on stored fields: a calculated one (D-78) isn't there.
   const keyToId = storedFieldIds(table);
   try {
-    return { plan: planToIds(compileWhere({ ...celSchema(table), ...variables }, where), keyToId), variables, values: { params: clean } };
+    const plan = compileWhere({ ...celSchema(table), ...variables }, where, { calculated: calculatedFormulas(table) });
+    return { plan: planToIds(plan, keyToId), variables, values: { params: clean } };
   } catch (error) {
     if (error.message !== "needs attention") throw new ScriptError(`where: ${error.message}`);
     const calculated = fieldsIn(where, { bareTable: table.key }).map(([, name]) => name)

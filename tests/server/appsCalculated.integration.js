@@ -93,12 +93,13 @@ test("calculated fields are worked out on every read, and named formulas run eve
   assert.deepEqual(await gate.grandTotal(data, "orders", { measure: "avg", field: id("total") }), { count: 2, total: 18750 });
   await assert.rejects(gate.totals(data, "orders", { groupBy: id("big"), measure: "count" }), /Big is calculated, so records can't be grouped by it/u);
 
-  // The bots' tools say what a calculated field is, and refuse a filter or sort on one.
+  // The bots' tools say what a calculated field is; a calculated number that is arithmetic filters and sorts (D-140).
   const tables = await run(builder.dataTables, {});
   const totalField = tables.tables.find((table) => table.table === "orders").fields.find((field) => field.name === "total");
   assert.deepEqual(totalField, { name: "total", label: "Total", type: "money", calculated: "=price * quantity" });
-  assert.match((await run(builder.dataQuery, { table: "orders", where: "total > 100.0" })).error, /"total" is calculated, so it can't be filtered on/u);
-  assert.match((await run(builder.dataQuery, { table: "orders", sort: "-total" })).error, /"total" is calculated, so records can't be sorted by it/u);
+  assert.equal((await run(builder.dataQuery, { table: "orders", where: "total > 20000.0" })).total, 1, "only the desk is worth over $200");
+  assert.match((await run(builder.dataQuery, { table: "orders", sort: "-total" })).records, /Desk.*Mug/su, "the desk first");
+  assert.match((await run(builder.dataQuery, { table: "orders", where: "big" })).error ?? "", /"big" is calculated, so it can't be filtered on|can't be turned into a database query/u, "a yes/no worked out still can't");
 
   // A changed formula shows at once; a cycle or a stored field is refused.
   assert.equal((await run(builder.fieldFormula, { table: "orders", field: "total", formula: "=price * quantity * 1.1" })).status, "changed");

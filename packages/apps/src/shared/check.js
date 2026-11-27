@@ -1,9 +1,9 @@
 import { ME, VISITOR, celSchema, checkFormula, isFixedFormula, isFormula } from "./formulas.js";
-import { calculatedFrom, isCalculated } from "./calculated.js";
+import { calculatedFormulas, calculatedFrom, isCalculated, storedFieldIds } from "./calculated.js";
 import { closest, fieldsIn, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
-import { compileWhere } from "./where.js";
+import { calculatedOrder, compileWhere } from "./where.js";
 
 // The save check (D-35): an app is saved only when every part, setting, table, field, screen and
 // formula is known and well typed, and every list filter can become SQL. Errors name the exact
@@ -348,17 +348,25 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
       const variables = { ...celSchema(table), state, params, ...who };
       formula(`${path}.where`, query.where, variables, "bool", { noFunctions: true });
       try {
-        compileWhere(variables, query.where);
+        compileWhere(variables, query.where, { calculated: calculatedFormulas(table) });
       } catch (error) {
         report(`${path}.where`, error.message);
       }
+      // A calculated number or money field is worked out in the database (arithmetic over number fields, D-140); the
+      // compile above refuses one that isn't. Any other calculated field can't be filtered on.
       for (const name of new Set(fieldsIn(query.where, { bareTable: table.key }).map(([, used]) => used))) {
-        const refusal = calculatedRefusal(table, name, "a filter");
+        const field = table.fields.find((entry) => !entry.obsolete && entry.key === name);
+        const refusal = ["number", "money"].includes(field?.type) ? null : calculatedRefusal(table, name, "a filter");
         if (refusal) report(`${path}.where`, refusal);
       }
     }
     if (typeof query.sort === "string") {
-      const refusal = calculatedRefusal(table, query.sort.replace(/^-/u, ""), "sorting");
+      // A calculated number or money field sorts when it's arithmetic over number fields (D-140).
+      const key = query.sort.replace(/^-/u, "");
+      const field = table.fields.find((entry) => !entry.obsolete && entry.key === key);
+      const sortable = isCalculated(field) && ["number", "money"].includes(field.type) &&
+        calculatedOrder(field, celSchema(table), calculatedFormulas(table), storedFieldIds(table));
+      const refusal = sortable ? null : calculatedRefusal(table, key, "sorting");
       if (refusal) report(`${path}.sort`, refusal);
     }
     if (typeof query.groupBy === "string") {

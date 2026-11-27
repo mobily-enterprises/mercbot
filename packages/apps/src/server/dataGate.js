@@ -4,6 +4,7 @@ import { PAGE_MAX, isCalculated, isFileField, withCalculated } from "../shared/i
 import { OBSOLETE } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { periodTotals } from "./periodTotals.js";
+import { exprFields } from "../shared/where.js";
 import { GateError, cleanRecord } from "./validate.js";
 
 import { fromSheet } from "./sheetInput.js";
@@ -179,17 +180,19 @@ export function createDataGate({
     const api = await apiFor(ctx, tables, table);
     const size = Math.min(Math.max(Number(page.size) || 50, 1), PAGE_MAX);
     const number = Math.max(Number(page.number) || 1, 1);
-    // A calculated field has no column to sort by (D-78): the save check refuses it in a screen's sort.
+    // A calculated field has no column to sort by (D-78), unless it's arithmetic over number fields, which the database
+    // works out (`expr`, D-140): the save check refuses the rest in a screen's sort.
     const sorted = sort.filter((entry) => table.fields.some((field) => field.id === entry.field && !isCalculated(field)));
+    const ordered = sort.find((entry) => entry.expr) || null;
     if (access) {
-      checkFields(access, table, [...planFields(where?.plan), ...sorted.map((entry) => entry.field)]);
+      checkFields(access, table, [...planFields(where?.plan), ...sorted.map((entry) => entry.field), ...exprFields(ordered?.expr)]);
       where = rowsWhere(access, where);
       includeObsolete = false;
     }
     const sortParams = sorted.map((entry) => `${entry.desc ? "-" : ""}${entry.field}`);
     const result = await api.resources[table.id].query(
       { queryParams: { ...(sortParams.length ? { sort: sortParams } : {}), page: { size, number } } },
-      { where, includeObsolete }
+      { where, includeObsolete, ...(ordered ? { order: { expr: ordered.expr, desc: Boolean(ordered.desc) } } : {}) }
     );
     const records = result.data.map((row) => toRecord(table, row)).map((record) => (access ? project(access, record) : record));
     return {

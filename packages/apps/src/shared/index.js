@@ -1,7 +1,7 @@
 export { ME, celSchema, evaluateFormula, isFileField, isFormula, isTimeZone, plainValue, formatDate, formatMoney, formulaValue, showValue, formulaRecord, FIELD_REFERENCE, refersToRemovedField, useTimeZoneSource } from "./formulas.js";
 export { ICONS, checkView, viewBody, viewDefinition } from "./check.js";
-export { NeedsAttention, compileWhere, planToIds } from "./where.js";
-export { CALCULATED_TYPES, calculate, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, storedFieldIds, withCalculated } from "./calculated.js";
+export { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "./where.js";
+export { CALCULATED_TYPES, calculate, calculatedFormulas, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, storedFieldIds, withCalculated } from "./calculated.js";
 export { withNamedFormulas } from "./namedFormulas.js";
 export { jobSchedule } from "./schedules.js";
 

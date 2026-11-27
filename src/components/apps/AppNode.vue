@@ -65,7 +65,9 @@ const pages = computed(() => (list.value.total ? Math.ceil(list.value.total / pa
 function sortKeyOf(column) {
   const key = FIELD_REFERENCE.exec(String(column.value || ""))?.[1];
   const field = key && runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === key && !entry.obsolete);
-  return browsing.value && field && !isCalculated(field) ? key : null;
+  // A calculated number sorts in the database when it's arithmetic over number fields; the server keeps the screen's
+  // own order for any other.
+  return browsing.value && field && (!isCalculated(field) || ["number", "money"].includes(field.type)) ? key : null;
 }
 function sortBy(column) {
   const key = sortKeyOf(column);

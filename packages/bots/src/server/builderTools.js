@@ -10,8 +10,9 @@ import { SCRIPT_GUIDE, writeScript } from "./scriptWriter.js";
 
 // What a calculated field can't do (D-78), which the Builder tells the person whenever it adds one (owner, 2026-11-12).
 const CALCULATED_LIMITS =
-  "Lists can't be filtered, sorted or grouped by a calculated field, and a sum or average of one adds up at most 5,000 records: " +
-  "tell the person so when you add one. If they will want to filter, sort or group by it, offer a stored field that a rule fills in on save instead.";
+  "Lists can filter and sort by a calculated field only when it's a number or amount worked out by arithmetic over number fields, " +
+  "never group by one, and a sum or average of one adds up at most 5,000 records: tell the person so when you add one. If they will want " +
+  "to filter, sort or group by one that can't, offer a stored field that a rule fills in on save instead.";
 
 export const fieldInput = z.object({
   key: z.string().min(1).max(64).describe("Field name: lowercase letters, digits and _ , starting with a letter"),
@@ -518,7 +519,7 @@ ${SCRIPT_GUIDE}`,
         id: "field_formula",
         description:
           "Builder: change a calculated field's formula (by field names, e.g. \"=price * quantity\"). Every record shows the new value at once. " +
-          "It stays calculated: lists still can't be filtered, sorted or grouped by it; if the person now wants that, offer a stored field that a rule fills in on save instead.",
+          "It stays calculated: lists filter and sort by it only while it's arithmetic over number fields, and never group by it; if the person now wants that, offer a stored field that a rule fills in on save instead.",
         inputSchema: z.object({
           table: z.string().min(1).max(64),
           field: z.string().min(1).max(64),

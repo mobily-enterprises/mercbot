@@ -28,6 +28,15 @@ export const isCalculated = (field) => typeof field?.options?.formula === "strin
 export const storedFieldIds = (table) =>
   new Map(table.fields.filter((field) => !field.obsolete && !isCalculated(field)).map((field) => [field.key, field.id]));
 
+/**
+ * A table's calculated fields' formulas by names, keyed by field key: what a filter works out in the database in their
+ * place when they're arithmetic over number fields (where.js, D-140).
+ */
+export const calculatedFormulas = (table) =>
+  Object.fromEntries(table.fields
+    .filter((field) => !field.obsolete && isCalculated(field))
+    .map((field) => [field.key, formulaByNames(table, field)]));
+
 /** A calculated field's formula by current names. */
 export const formulaByNames = (table, field) => (isCalculated(field) ? tableFormulaToNames(field.options.formula, table) : null);
 

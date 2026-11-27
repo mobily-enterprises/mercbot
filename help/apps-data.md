@@ -83,7 +83,9 @@ A calculated field is worked out from the record's other fields instead of being
 - **No filtering, sorting or grouping by it.** Apps' screens and totals, public tables, rule scripts and bots can't pick records by a calculated field, sort them by it or group them by it. In the Data tab its column can't be clicked to sort, search doesn't look in it, and a line under the search box says so. Filter or sort by the fields it's worked out from instead.
 - **Sums and averages of up to 5,000 records.** A sum or average of a calculated field adds up at most 5,000 records. With more, Mercbot asks you to filter the list first.
 
-The Builder tells you this when it adds a calculated field. If you'll want to filter, sort or group by the value, for example a list of only the overdue ones or orders ranked by total, ask the Builder for a stored field instead. A rule fills it in every time a record is saved, so it can be filtered, sorted and grouped like any other field.
+A calculated number or amount worked out by adding, subtracting, multiplying or dividing other number fields, such as a total of price times quantity, can still filter and sort a list: orders over $100, or ranked by total. Other calculated fields, such as text, dates, yes/no or anything using a function, can't, and no calculated field can group totals. The Builder tells you this when it adds one. If you'll want to filter, sort or group by such a value, for example a list of only the overdue ones, ask the Builder for a stored field instead. A rule fills it in every time a record is saved, so it can be filtered, sorted and grouped like any other field.
+
+A list can also compare two of a record's fields, such as items whose quantity is at or below their reorder level.
 
 ## Edit records in the spreadsheet view
 

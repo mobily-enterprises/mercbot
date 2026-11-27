@@ -5,13 +5,23 @@ const FLIPPED = { "=": "=", "<>": "<>", "<": ">", "<=": ">=", ">": "<", ">=": "<
 const LIKE_MODES = { contains: "contains", startsWith: "starts", endsWith: "ends" };
 const PAGE_NAMES = new Set(["state", "params", "visitor", "me"]);
 
+const ARITHMETIC = new Set(["+", "-", "*", "/"]);
+const NUMERIC = new Set(["double", "int"]);
+
 /**
  * Turns a `where` formula into a plan for SQL. Parts that don't mention fields stay as
- * small formulas, evaluated when the query runs (e.g. `state.search`).
+ * small formulas, evaluated when the query runs (e.g. `state.search`). A comparison may also be between two of the
+ * record's fields ("quantity <= reorder_level"), or of arithmetic over its number fields ("price * quantity > 100.0");
+ * `calculated` maps a calculated field's key to its formula by names (D-78), which stands in for it when it is such
+ * arithmetic, so a simple calculated field can be filtered on (D-140).
+ * @param {Record<string, any>} variables
+ * @param {string} source
+ * @param {{ calculated?: Record<string, string> }} [options]
  */
-export function compileWhere(variables, source) {
+export function compileWhere(variables, source, { calculated = {} } = {}) {
   const expression = source.slice(1);
-  const ast = environmentFor(variables).parse(expression).ast;
+  const environment = environmentFor(variables);
+  const ast = environment.parse(expression).ast;
   const text = (node) => balanced(expression, node.start, node.end);
 
   const mentionsFields = (node) => {
@@ -23,6 +33,7 @@ export function compileWhere(variables, source) {
   };
 
   const fieldOf = (node) => {
+    if (node.op === "id" && Object.hasOwn(calculated, node.args)) return null;
     if (node.op === "id" && !PAGE_NAMES.has(node.args)) return { name: node.args, lower: false };
     if (node.op === "rcall" && node.args[0] === "lowerAscii" && node.args[2].length === 0) {
       const inner = fieldOf(node.args[1]);
@@ -30,6 +41,30 @@ export function compileWhere(variables, source) {
     }
     return null;
   };
+
+  /**
+   * An expression over the record's fields the database can work out: a field, a number, arithmetic over number fields,
+   * or a calculated field made of those; null otherwise. `depth` stops a calculated field leading back to itself.
+   */
+  const exprOf = (node, depth = 0) => {
+    if (!node || typeof node !== "object" || depth > 5) return null;
+    if (node.op === "id" && Object.hasOwn(calculated, node.args) && NUMERIC.has(String(variables[node.args]))) {
+      return exprOf(environment.parse(calculated[node.args].replace(/^=/u, "")).ast, depth + 1);
+    }
+    const field = fieldOf(node);
+    if (field) return { kind: "field", field, numeric: NUMERIC.has(String(variables[field.name])) };
+    if (node.op === "value" && (typeof node.args === "number" || typeof node.args === "bigint")) return { kind: "num", value: Number(node.args) };
+    if (node.op === "-_") {
+      const item = exprOf(node.args, depth);
+      return item && numeric(item) ? { kind: "neg", item } : null;
+    }
+    if (ARITHMETIC.has(node.op) && Array.isArray(node.args) && node.args.length === 2) {
+      const [left, right] = node.args.map((arg) => exprOf(arg, depth));
+      return left && right && numeric(left) && numeric(right) ? { kind: "arith", op: node.op, left, right } : null;
+    }
+    return null;
+  };
+  const numeric = (expr) => expr.kind !== "field" || expr.numeric;
 
   const fail = (node) => {
     throw new Error(`"${text(node)}" can't be turned into a database query`);
@@ -49,6 +84,12 @@ export function compileWhere(variables, source) {
       if (rightField && !mentionsFields(left)) {
         return { kind: "compare", op: FLIPPED[COMPARISONS[node.op]], field: rightField, value: text(left) };
       }
+      // Arithmetic, a calculated field, or two of the record's fields, worked out in the database.
+      const leftExpr = exprOf(left);
+      const rightExpr = exprOf(right);
+      if (leftExpr && !mentionsFields(right)) return { kind: "compareExpr", op: COMPARISONS[node.op], left: leftExpr, value: text(right) };
+      if (rightExpr && !mentionsFields(left)) return { kind: "compareExpr", op: FLIPPED[COMPARISONS[node.op]], left: rightExpr, value: text(left) };
+      if (leftExpr && rightExpr) return { kind: "compareExpr", op: COMPARISONS[node.op], left: leftExpr, right: rightExpr };
       fail(node);
     }
     if (node.op === "in") {
@@ -110,14 +151,50 @@ export class NeedsAttention extends Error {
 }
 
 export function planToIds(plan, keyToId) {
-  if (plan.field) {
-    const id = keyToId.get(plan.field.name);
+  const idOf = (field) => {
+    const id = keyToId.get(field.name);
     if (!id) throw new NeedsAttention();
-    return { ...plan, field: { ...plan.field, name: id } };
-  }
+    return { ...field, name: id };
+  };
+  if (plan.kind === "compareExpr") return { ...plan, left: exprToIds(plan.left, idOf), ...(plan.right ? { right: exprToIds(plan.right, idOf) } : {}) };
+  if (plan.field) return { ...plan, field: idOf(plan.field) };
   return {
     ...plan,
     ...(plan.items ? { items: plan.items.map((item) => planToIds(item, keyToId)) } : {}),
     ...(plan.item ? { item: planToIds(plan.item, keyToId) } : {})
   };
+}
+
+/**
+ * A calculated number or money field as an expression the database works out (D-140), by field ids, for a list's
+ * order; null when its formula is anything but arithmetic over the record's number fields.
+ * @param {object} field the calculated field
+ * @param {Record<string, any>} variables the table's formula schema (celSchema)
+ * @param {Record<string, string>} calculated its calculated formulas by names (calculatedFormulas)
+ * @param {Map<string, string>} keyToId its stored fields' ids by key (storedFieldIds)
+ */
+export function calculatedOrder(field, variables, calculated, keyToId) {
+  try {
+    const plan = compileWhere(variables, `=${field.key} > 0.0`, { calculated });
+    return plan.kind === "compareExpr" && !plan.right ? planToIds(plan, keyToId).left : null;
+  } catch {
+    return null;
+  }
+}
+
+/** An expression's fields mapped by `idOf` (planToIds). */
+function exprToIds(expr, idOf) {
+  if (expr.kind === "field") return { ...expr, field: idOf(expr.field) };
+  if (expr.kind === "neg") return { ...expr, item: exprToIds(expr.item, idOf) };
+  if (expr.kind === "arith") return { ...expr, left: exprToIds(expr.left, idOf), right: exprToIds(expr.right, idOf) };
+  return expr;
+}
+
+/** The field names (or ids) an expression of a compareExpr plan reads. */
+export function exprFields(expr) {
+  if (!expr) return [];
+  if (expr.kind === "field") return [expr.field.name];
+  if (expr.kind === "neg") return exprFields(expr.item);
+  if (expr.kind === "arith") return [...exprFields(expr.left), ...exprFields(expr.right)];
+  return [];
 }

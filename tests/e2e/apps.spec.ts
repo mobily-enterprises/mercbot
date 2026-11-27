@@ -427,10 +427,10 @@ test("a calculated total shows in the list, the totals and the form, follows an 
   await expect(page.getByRole("row", { name: /Pen/u })).toContainText("6.00");
   await page.screenshot({ path: testInfo.outputPath("orders-data.png") });
 
-  // Fields says why a calculated field can't be filtered, sorted or grouped by. Removing a field the total is worked out
+  // Fields says what a calculated field can't do: group a list, or filter or sort one unless it's arithmetic. Removing a field the total is worked out
   // from lists the apps using it and warns about the total too.
   await page.getByRole("button", { name: "Fields" }).click();
-  await expect(page.getByTestId("apps-fields-calculated-note")).toContainText("Calculated fields aren't stored, so lists can't be filtered, sorted or grouped by them.");
+  await expect(page.getByTestId("apps-fields-calculated-note")).toContainText("Calculated fields aren't stored, so lists can't group by them, and filter or sort by one only when it's a number worked out by adding, subtracting, multiplying or dividing number fields.");
   await page.locator(".v-list-item").filter({ hasText: "quantity · number" }).getByRole("button", { name: "Remove…" }).click();
   const removal = page.locator(".field-removal");
   await expect(removal).toContainText("Remove Quantity from Orders?");

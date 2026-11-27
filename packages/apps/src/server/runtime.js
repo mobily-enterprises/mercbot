@@ -11,8 +11,8 @@ import {
   plainValue
 } from "../shared/formulas.js";
 import { pageParamOf } from "../shared/check.js";
-import { calculate, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
-import { NeedsAttention, compileWhere, planToIds } from "../shared/where.js";
+import { calculate, calculatedFormulas, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
+import { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
 
 // Running screens (D-35). The server is in charge: the browser names a screen and a query or a
@@ -181,7 +181,10 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     try {
       if (query.where) {
         where = {
-          plan: planToIds(compileWhere({ ...celSchema(table), ...page.variables }, query.where), keyToId),
+          plan: planToIds(
+            compileWhere({ ...celSchema(table), ...page.variables }, query.where, { calculated: calculatedFormulas(table) }),
+            keyToId
+          ),
           variables: page.variables,
           values: page.values
         };
@@ -226,11 +229,20 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       if (error instanceof NeedsAttention) return { needsAttention: true, records: [] };
       throw error;
     }
-    // The person's own sort of a list (a column's stored field, "-" for descending) wins over the screen's.
+    // The person's own sort of a list (a column's stored field, or a calculated number worked out in the database,
+    // "-" for descending) wins over the screen's.
+    const orderOf = (key) => {
+      if (keyToId.get(key)) return { field: keyToId.get(key) };
+      const calculatedField = table.fields.find((field) => !field.obsolete && field.key === key && isCalculated(field));
+      const expr = calculatedField && ["number", "money"].includes(calculatedField.type)
+        ? calculatedOrder(calculatedField, celSchema(table), calculatedFormulas(table), keyToId)
+        : null;
+      return expr ? { expr } : null;
+    };
     const asked = String(sortAsked || "");
-    const sortBy = asked && keyToId.get(asked.replace(/^-/u, "")) ? asked : query.sort || "";
-    const sortKey = sortBy.replace(/^-/u, "");
-    const sort = sortKey && keyToId.get(sortKey) ? [{ field: keyToId.get(sortKey), desc: sortBy.startsWith("-") }] : [];
+    const sortBy = asked && orderOf(asked.replace(/^-/u, "")) ? asked : query.sort || "";
+    const order = sortBy ? orderOf(sortBy.replace(/^-/u, "")) : null;
+    const sort = order ? [{ ...order, desc: sortBy.startsWith("-") }] : [];
     const searched = listSearch(table, search);
     const filter = searched && where
       ? {

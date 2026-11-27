@@ -105,6 +105,19 @@ function build(builder, plan, value, column, knex) {
       builder.where(target(plan.field), plan.op, operand);
       return;
     }
+    case "compareExpr": {
+      // Arithmetic over the record's own fields, or two of them: a record with an empty one matches neither way, as SQL
+      // compares, and dividing by zero gives no value rather than an error.
+      const left = exprSql(plan.left, column, knex);
+      if (plan.right) {
+        builder.where(left, plan.op, exprSql(plan.right, column, knex));
+        return;
+      }
+      const operand = value(plan.value);
+      if (operand === null || operand === undefined || operand === "") builder.whereRaw("false");
+      else builder.where(left, plan.op, operand);
+      return;
+    }
     case "in": {
       const list = value(plan.value);
       if (!Array.isArray(list) || !list.length) {
@@ -130,4 +143,23 @@ function build(builder, plan, value, column, knex) {
     default:
       throw new Error(`Unknown plan part ${plan.kind}`);
   }
+}
+
+/**
+ * An expression (where.js exprOf) as SQL: a field's slot, a number, arithmetic, a negation, each a fixed piece of SQL
+ * with its parts bound; for a comparison, or a list's order by a calculated field.
+ * @param {object} expr
+ * @param {(name: string) => string} column a field's slot
+ * @param {import("knex").Knex} knex
+ */
+export function exprSql(expr, column, knex) {
+  if (expr.kind === "field") return expr.field.lower ? knex.raw("lower(??)", [column(expr.field.name)]) : knex.ref(column(expr.field.name));
+  if (expr.kind === "num") return knex.raw("?::double precision", [expr.value]);
+  if (expr.kind === "neg") return knex.raw("(- ?)", [exprSql(expr.item, column, knex)]);
+  const left = exprSql(expr.left, column, knex);
+  const right = exprSql(expr.right, column, knex);
+  if (expr.op === "+") return knex.raw("(? + ?)", [left, right]);
+  if (expr.op === "-") return knex.raw("(? - ?)", [left, right]);
+  if (expr.op === "*") return knex.raw("(? * ?)", [left, right]);
+  return knex.raw("(? / nullif(?, 0))", [left, right]);
 }

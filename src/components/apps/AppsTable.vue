@@ -273,7 +273,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
             </v-list-item>
           </v-list>
           <div v-if="calculated.length" class="text-body-2 text-medium-emphasis mt-2" data-testid="apps-fields-calculated-note">
-            Calculated fields aren't stored, so lists can't be filtered, sorted or grouped by them. If you need that, ask the Builder for a stored field instead.
+            Calculated fields aren't stored, so lists can't group by them, and filter or sort by one only when it's a number worked out by adding, subtracting, multiplying or dividing number fields. If you need more, ask the Builder for a stored field instead.
           </div>
           <div class="d-flex justify-end"><v-btn variant="text" @click="fieldsDialog.open = false">Close</v-btn></div>
         </template>

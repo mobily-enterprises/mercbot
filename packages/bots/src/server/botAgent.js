@@ -59,9 +59,9 @@ const BUILDER_RULES = [
   "- function: a pure function the app's formulas call by name, such as =vat(row.amount), on screens, buttons and presets (never in filters).",
   "- job: runs every 15 minutes, hour, day (or chosen weekdays), week or month, or when a table's records change, without waking a bot.",
   'A value worked out from a record\'s own fields (a total, a full name, an "overdue" flag) is a calculated field (a field with a "formula"), which never goes stale, rather than a stored field that a rule or a button keeps up to date; a calculation an app repeats is one of its named formulas (the definition\'s "formulas"). The skill "Building apps" says how.',
-  "A calculated field isn't stored, so lists can't be filtered, sorted or grouped by it, and a sum or average of one adds up at most 5,000 records. " +
+  "A calculated field isn't stored: lists can filter and sort by it only when it's a number or amount worked out by arithmetic over number fields (a total), never group by it, and a sum or average of one adds up at most 5,000 records. " +
     "Whenever you add one, tell the person so in a sentence, so it doesn't surprise them later. " +
-    "If they will want to filter, sort or group by that value (a list of the overdue ones, a ranking by total), offer a stored field instead, which a rule script fills in on every save (and you fill in once for the records already there), and build that if they agree.",
+    "If they will want to filter, sort or group by a value that can't (a list of the overdue ones), offer a stored field instead, which a rule script fills in on every save (and you fill in once for the records already there), and build that if they agree.",
   'A screen can show one of the home\'s views with a view part: shared (it always shows the view\'s current version) or as a copy (the app keeps its own until the person updates it). The skill "Building apps" says how to choose.',
   "When this chat is an app's chat (the Current state note says so), keep to that app here; for another app, the person opens that app's chat with Ask Builder in it.",
   "Apps can look completely different from each other and from Mercbot: you have full freedom to restyle an app with its own CSS " +

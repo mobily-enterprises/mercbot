@@ -157,15 +157,21 @@ test("an app with calculated fields and named formulas passes the save check", (
   assert.deepEqual(messages(app()), []);
 });
 
-test("filters, sorting and grouping can't use a calculated field, and no step sets one", () => {
+test("grouping can't use a calculated field, filters and sorting only arithmetic over numbers, and no step sets one", () => {
   const broken = app();
   broken.screens.list.data.orders.where = "=total > 100.0";
   broken.screens.list.data.orders.sort = "-total";
   broken.screens.list.data.byItem.groupBy = "big";
   broken.screens.list.content[2].buttons[0].do = [{ create: { table: "orders", values: { item: "=form.item", total: "=1.0" }, preset: { label: '="x"' } } }];
   const found = messages(broken).join("\n");
-  assert.match(found, /orders\.where: "total" is a calculated field, and a filter runs in the database, where it isn't stored, so it can't use it yet\. Use the fields it's worked out from \(price, quantity\)/u);
-  assert.match(found, /orders\.sort: "total" is a calculated field, and sorting runs in the database/u);
+  // Since D-140 a calculated number that is arithmetic over number fields (total = price * quantity) filters and sorts.
+  assert.doesNotMatch(found, /orders\.(where|sort):/u);
+  const textual = app();
+  textual.screens.list.data.orders.where = '=label == "Pens × 2"';
+  textual.screens.list.data.orders.sort = "label";
+  const refused = messages(textual).join("\n");
+  assert.match(refused, /orders\.where: "label" is a calculated field, and a filter runs in the database/u, "worked-out text still can't");
+  assert.match(refused, /orders\.sort: "label" is a calculated field, and sorting runs in the database/u);
   assert.match(found, /byItem\.groupBy: "big" is a calculated field, and grouping runs in the database/u);
   assert.match(found, /create\.values\.total: "total" is a calculated field, worked out from the record's other fields, so a step can't set it\./u);
   assert.match(found, /create\.preset\.label: "label" is a calculated field/u);

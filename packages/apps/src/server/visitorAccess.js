@@ -1,3 +1,4 @@
+import { exprFields } from "../shared/where.js";
 import { VISITOR, celSchema } from "../shared/formulas.js";
 import { OPERATIONS, listedAccess, visitorReads } from "../shared/visitorAccess.js";
 import { storedFieldIds } from "../shared/calculated.js";
@@ -85,7 +86,13 @@ export function refuse(ctx) {
 /** The field ids a `where` plan compares (shared/where.js). */
 export function planFields(plan) {
   if (!plan) return [];
-  return [...(plan.field ? [plan.field.name] : []), ...(plan.items || []).flatMap(planFields), ...planFields(plan.item)];
+  return [
+    ...(plan.field ? [plan.field.name] : []),
+    ...exprFields(plan.left),
+    ...exprFields(plan.right),
+    ...(plan.items || []).flatMap(planFields),
+    ...planFields(plan.item)
+  ];
 }
 
 /** Fields a visitor's query filters, sorts, groups or sums by must all be readable. */
