@@ -7,6 +7,7 @@
 // and so does every worker thread a test starts (the apps' script pool), since workers inherit
 // node's --import: in both it does nothing.
 import { appendFileSync } from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { isMainThread } from "node:worker_threads";
 
@@ -14,6 +15,22 @@ const timesFile = process.env.MERCBOT_TEST_TIMES_FILE;
 const boundMs = Number(process.env.MERCBOT_TEST_FILE_BOUND_MS) || 0;
 const lingerBoundMs = Number(process.env.MERCBOT_TEST_LINGER_BOUND_MS) || 0;
 const file = path.relative(process.cwd(), process.argv[1] || "");
+
+/**
+ * What keeps the process alive: Node's kinds of resource, then each connected socket's ends (a pipe, stdio's included,
+ * by kind), each server's address and each child process's command (Node lists those objects as its handles), so a
+ * linger names its cause.
+ */
+function stillOpen() {
+  const handles = (process._getActiveHandles?.() ?? []).map((handle) => {
+    if (handle instanceof net.Socket && handle.remotePort === undefined) return "pipe or unconnected socket";
+    if (handle instanceof net.Socket) return `socket ${handle.localAddress}:${handle.localPort} to ${handle.remoteAddress}:${handle.remotePort}`;
+    if (handle instanceof net.Server) return `server ${JSON.stringify(handle.address())}`;
+    if (Array.isArray(handle?.spawnargs)) return `child ${handle.pid} ${handle.spawnargs.join(" ")}`;
+    return handle?.constructor?.name ?? typeof handle;
+  });
+  return [JSON.stringify(process.getActiveResourcesInfo()), ...handles];
+}
 
 if (timesFile && process.env.NODE_TEST_CONTEXT && isMainThread) {
   let copyMs = null;
@@ -25,6 +42,7 @@ if (timesFile && process.env.NODE_TEST_CONTEXT && isMainThread) {
     if (!lingerBoundMs) return;
     setTimeout(() => {
       console.error(`${file} is still alive ${lingerBoundMs / 1000} s after its last test: a timer, pool or server keeps it running.`);
+      console.error(`  still open: ${stillOpen().join("; ")}`);
       process.exit(1);
     }, lingerBoundMs).unref();
   });
