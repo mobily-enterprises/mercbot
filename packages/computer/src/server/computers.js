@@ -352,14 +352,15 @@ export function createComputers({
   let newDays = null;
   let stopHearingRemoved = null;
   let stopping = false;
+  let registering = null;
 
   /**
-   * Called once this server listens, so its address is known. Other servers reach it on
-   * MERCBOT_SERVER_URL if set, otherwise on this machine's private IPv4 address when it listens
-   * on every interface (as on AWS), or on the address it's bound to. A server shut down while it registers (closed
-   * soon after it listened) starts nothing after its shutdown and leaves no row of itself.
+   * Called once this server listens, so its address is known. Other servers reach it on MERCBOT_SERVER_URL if set,
+   * otherwise on this machine's private IPv4 address when it listens on every interface (as on AWS), or on the one it's
+   * bound to. Shut down meanwhile (closed soon after it listened), it starts nothing after, and its shutdown waits.
    */
-  async function register(address) {
+  const register = (address) => (registering = registerHere(address));
+  async function registerHere(address) {
     const anyInterface = !address.address || address.address === "0.0.0.0" || address.address === "::";
     const host = anyInterface ? privateAddress() : address.address;
     const url = env.MERCBOT_SERVER_URL || `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`;
@@ -371,7 +372,7 @@ export function createComputers({
     await records.forgetOldServers();
     // Computers this server ran before a restart are gone now.
     await records.putToSleep(me);
-    if (stopping) return records.forgetServer(me).catch(() => {});
+    if (stopping) return;
     heartbeat = setInterval(() => {
       records.seen(me, url).catch(() => {});
     }, HEARTBEAT_MS);
@@ -591,6 +592,7 @@ export function createComputers({
 
   async function shutdown() {
     stopping = true;
+    await registering?.catch(() => {});
     clearInterval(heartbeat);
     clearInterval(sweeper);
     clearInterval(newDays);
