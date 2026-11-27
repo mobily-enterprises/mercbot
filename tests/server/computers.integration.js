@@ -594,6 +594,44 @@ test("a server shut down while it registers starts nothing after: it hears no no
   assert.equal(await knex("mercbot_servers").where({ id: "integration-closing" }).first(), undefined, "and no row says it serves");
 });
 
+// A write of a registration left behind would wait for a connection from a pool its server has closed, holding the
+// process for the pool's minute (a test file's process outlived its last test so).
+test("a server's shutdown waits for the registration it cut short, so none of its writes outlives the server", async (context) => {
+  const knex = await connectTestDatabase();
+  const volume = await mkdtemp(path.join(os.tmpdir(), "mercbot-volume-"));
+  const notices = createNotices({ knex });
+  const files = {
+    store: createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} }),
+    shell: { available: () => false, detach: async () => {} },
+    media: NO_CHECKS
+  };
+  const computers = createComputers({
+    ...(await computerParts(knex, context)), env: { ...testServerEnv(), MERCBOT_SERVER_ID: "integration-waiting" }, notices, files, meter: createMeter({ recorder: FREE_RECORDER }), placement: PLACE_HERE
+  });
+  context.after(async () => {
+    await notices.close();
+    await knex("mercbot_servers").where({ id: "integration-waiting" }).del();
+    await knex.destroy();
+    await rm(volume, { recursive: true, force: true });
+  });
+
+  // Another session holds the computers' table, so register waits where it puts this server's computers to sleep.
+  const holder = await knex.transaction();
+  await holder.raw("lock table bot_computers in access exclusive mode");
+  const order = [];
+  const registering = computers.register({ address: "127.0.0.1", port: 9 }).then(() => order.push("registered"));
+  const waiting = async () => (await knex.raw("select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'")).rows[0].n;
+  for (const deadline = Date.now() + 10_000; !(await waiting()) && Date.now() < deadline;) await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(await waiting(), 1, "register waits on the table");
+  const shut = computers.shutdown().then(() => order.push("shut"));
+  // A shutdown that doesn't wait ends meanwhile; one that waits can't.
+  await Promise.race([shut, new Promise((resolve) => setTimeout(resolve, 500))]);
+  await holder.commit();
+  await Promise.all([registering, shut]);
+  assert.deepEqual(order, ["registered", "shut"], "the shutdown ends after the registration it cut short");
+  assert.equal(await knex("mercbot_servers").where({ id: "integration-waiting" }).first(), undefined, "and no row says it serves");
+});
+
 // A computer's states land in the order they change, though the manager doesn't wait for a write: here the first,
 // creating the row, is slowest, so the second creates it first and the first, losing that race, would retry and
 // land last, leaving the asleep computer recorded as waking.
