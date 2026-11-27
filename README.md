@@ -100,9 +100,11 @@ npm run verify
 ```
 
 `npm run verify` is the whole suite, each section once: `jskit check`, lint, the node tests (`npm test`), the database
-tests (`npm run test:database`), the client tests (`npm run test:client`) and the browser tests (`npm run test:e2e`),
-which build the production app they serve. The Stack's Verification lists the same sections. While working, run only
-the files a change touches, and the whole suite once at the end:
+tests (`npm run test:database`), the migration history (`npm run test:migrations`, JSKIT's `jskit migration-history`:
+the whole history replayed from empty builds the schema the tests run on, which they never replay themselves), the
+client tests (`npm run test:client`) and the browser tests (`npm run test:e2e`), which build the production app they
+serve. The Stack's Verification lists the same sections. While working, run only the files a change touches, and the
+whole suite once at the end:
 
 ```sh
 npm run test:files -- tests/server/keys.test.js tests/server/search.integration.js   # node files of either suite
@@ -110,11 +112,9 @@ npx vitest run tests/client/<file>.vitest.js
 npx playwright test tests/e2e/<file>.spec.ts
 ```
 
-Test files run in parallel, as many at a time as the machine's test budget allows: `V64_TEST_CONCURRENCY` when the
-test runner sets it, otherwise half of the CPUs. The node test suites run through JSKIT's `jskit test`, the Vitest
-config takes its workers from `testConcurrency()` and the Playwright config from `browserTestWorkers()` (half that
-budget, as each worker drives a browser and a Test Preview), both from `@jskit-ai/jskit-catalog`. No script or config
-names a fixed worker count.
+The suites follow JSKIT's test rules: [Test files run in parallel](https://mobily-enterprises.github.io/jskit-ai/guide/framework/typed-features#test-files-run-in-parallel),
+[Test databases are prepared once](https://mobily-enterprises.github.io/jskit-ai/guide/framework/typed-features#test-databases-are-prepared-once) and the
+[speed pass](https://mobily-enterprises.github.io/jskit-ai/guide/framework/speed-pass). What Mercbot adds is below.
 
 The database and browser tests never write to `TEST_DB_NAME` itself. A run prepares a template beside it
 (`<TEST_DB_NAME>_tpl`): migrated and seeded with three test users once, and rebuilt only when a migration or the seed

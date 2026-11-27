@@ -36,9 +36,10 @@
     "db:migrate:status": "knex --knexfile ./knexfile.js migrate:list",
     "jskit:update": "npx --yes @jskit-ai/jskit-catalog@latest update",
     "jskit:check": "jskit check",
-    "verify": "npm run jskit:check && npm run lint && npm run test && npm run test:database && npm run test:client && npm run test:e2e",
+    "verify": "npm run jskit:check && npm run lint && npm run test && npm run test:database && npm run test:migrations && npm run test:client && npm run test:e2e",
     "test:database": "jskit test --import=./tests/support/testFile.mjs --test-global-setup=./tests/support/databaseRun.mjs tests/server/*.integration.js tests/server/characterization/*.integration.js",
     "test:files": "jskit test --import=./tests/support/testFile.mjs --test-global-setup=./tests/support/databaseRun.mjs",
+    "test:migrations": "APP_ENV=test jskit migration-history",
     "postinstall": "patch-package",
     "bench": "jskit test tests/bench/*.bench.js",
     "check:templates": "node ./scripts/check-templates.mjs"

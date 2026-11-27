@@ -55,14 +55,14 @@ answer. Numbers never change; a later decision that changes an earlier one says 
   Machines are disposable (D-19): nothing a person needs may live only on one
   machine's disk or in its memory, and a server must drain on SIGTERM. Anything
   still single-server must be listed in D-15 or D-19 and fixed.
-- **Tests:** README's "Check changes" says how the suites run. While working, run only the files a change touches
-  (`npm run test:files -- <files>`, `npx vitest run <file>`, `npx playwright test <spec>`); the whole suite
-  (`npm run verify`, the Stack's Verification) runs once, at the end. Every test file and browser worker gets its own
-  copy of the migrated test database, its own port and its own folder, so files run in parallel: never a shared fixed
-  database name, port or path, a migration run in a test, a development server, a fixed sleep or a fixed worker count.
-  Prove a behaviour at the cheapest level that shows it: a browser test only for what needs a browser. Tests never
-  reach a real outside service: AI, mail, sign-in providers, Google Drive and Sedna are the stand-ins in
-  `tests/support/` and `tools/standInModel.mjs`.
+- **Tests:** JSKIT's test rules apply ([Test files run in parallel](https://mobily-enterprises.github.io/jskit-ai/guide/framework/typed-features#test-files-run-in-parallel),
+  [Test databases are prepared once](https://mobily-enterprises.github.io/jskit-ai/guide/framework/typed-features#test-databases-are-prepared-once), the
+  [speed pass](https://mobily-enterprises.github.io/jskit-ai/guide/framework/speed-pass)); README's "Check changes" says how Mercbot's suites apply them. While
+  working, run only the files a change touches (`npm run test:files -- <files>`, `npx vitest run <file>`,
+  `npx playwright test <spec>`); the whole suite (`npm run verify`, the Stack's Verification) runs once, at the end.
+  Each database test file and browser worker gets its own copy of a template migrated once
+  (`tests/support/testDatabase.mjs`), so no test migrates. Tests never reach a real outside service: AI, mail, sign-in
+  providers, Google Drive and Sedna are the stand-ins in `tests/support/` and `tools/standInModel.mjs`.
 - **Architecture:** the design is in [docs/architecture.md](docs/architecture.md)
   (D-6). Don't assume a design beyond it; ask when a change needs one.
 - **Migrations:** `migrations/` starts from one baseline that creates the whole

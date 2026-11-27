@@ -17,13 +17,13 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_DB: account_app_test
+          POSTGRES_DB: account_app
           POSTGRES_USER: account_app_test
           POSTGRES_PASSWORD: account_app_test_password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U account_app_test -d account_app_test"
+          --health-cmd="pg_isready -U account_app_test -d account_app"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -31,7 +31,9 @@ jobs:
       DB_CLIENT: pg
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
-      DB_NAME: account_app_test
+      # The development database apart from the test database, as a developer's own: the migration history check
+      # (jskit migration-history) refuses a TEST_DB_NAME that is DB_NAME.
+      DB_NAME: account_app
       TEST_DB_NAME: account_app_test
       DB_USER: account_app_test
       DB_PASSWORD: account_app_test_password
@@ -45,4 +47,5 @@ jobs:
       - run: npm ci
       - run: npm exec --no -- playwright install --with-deps chromium
       - run: npm run db:prepare
+      - run: psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" -c "CREATE DATABASE $TEST_DB_NAME"
       - run: npm run verify
