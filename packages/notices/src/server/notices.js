@@ -20,12 +20,14 @@ const HEARTBEAT_TOPIC = "notices-check";
  * @param {import("@jskit-ai/database-runtime/server/types").RuntimeKnex} dependencies.knex
  * @param {number} [dependencies.heartbeatMs] how often it checks it still hears itself (tests make it short)
  * @param {number} [dependencies.heartbeatTimeoutMs] how long a check may go unheard before the connection is replaced
+ * @param {number} [dependencies.reconnectMs] how long a dropped connection waits before it connects again (tests make it short)
  * @param {(config: object) => import("pg").Client} [dependencies.newClient] the listening connection (tests keep theirs)
  */
 export function createNotices({
   knex,
   heartbeatMs = HEARTBEAT_MS,
   heartbeatTimeoutMs = HEARTBEAT_TIMEOUT_MS,
+  reconnectMs = RECONNECT_MS,
   newClient = (config) => new pg.Client(config)
 }) {
   const listeners = new Map();
@@ -128,7 +130,7 @@ export function createNotices({
     heard();
     endNow(dropped);
     if (closed) return;
-    reconnecting = setTimeout(listen, RECONNECT_MS);
+    reconnecting = setTimeout(listen, reconnectMs);
     reconnecting.unref();
   }
 

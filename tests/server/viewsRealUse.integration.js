@@ -407,7 +407,8 @@ test("the chat and the Library know a view", async (context) => {
 test("a change on one server reaches a page on another, and survives a dropped connection", async (context) => {
   const f = await viewsFixture(context);
   await makeDeals(f);
-  const other = createNotices({ knex: f.knex });
+  // It connects again 200 ms after losing its connection (2 s in use).
+  const other = createNotices({ knex: f.knex, reconnectMs: 200 });
   f.whenDone(() => other.close());
   const heard = [];
   other.subscribe("apps-data", f.workspaceId, (event) => heard.push(event));

@@ -72,10 +72,10 @@ async function until(ready, what) {
   }
 }
 
-// Short heartbeats, so a quiet connection is noticed in a fraction of a second; notices.js waits RECONNECT_MS before it
-// connects again.
-const HEARTBEAT = { heartbeatMs: 150, heartbeatTimeoutMs: 100 };
-const RECONNECT_MS = 2000;
+// Short heartbeats, so a quiet connection is noticed in a fraction of a second, and a short wait before a dropped one
+// connects again (2 s in use).
+const HEARTBEAT = { heartbeatMs: 150, heartbeatTimeoutMs: 100, reconnectMs: 200 };
+const RECONNECT_MS = HEARTBEAT.reconnectMs;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Notices whose listening connections are kept in `clients`, each made from `config` adjusted by `route`. */
