@@ -37,7 +37,12 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   // inside its writes; the gate is made first, so it asks for them late.
   let scripts = null;
   // The home's members, as person fields hold them: who's in the home now, and their names (two reads).
-  const people = { activeIds: (options) => records.chats.everyoneIn(options), names: (ids, options) => records.chats.names(ids, options) };
+  const people = {
+    activeIds: (options) => records.chats.everyoneIn(options),
+    names: (ids, options) => records.chats.names(ids, options),
+    // Someone's role in the home: whether they may reach a private table (D-138).
+    roleOf: (userId, options) => records.chats.roleIn(userId, options)
+  };
   /** The home's people as a person field's picker lists them, by name. */
   const homePeople = async (options) => {
     const ids = (await people.activeIds(options)).map(String);

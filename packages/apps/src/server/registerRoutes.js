@@ -247,9 +247,18 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
   router.register("GET", `${data}/tables`, home, handle(async (request, ctx) => {
     // Calculated fields' formulas as they were written, and roll-ups' settings, by names (D-78, D-140).
     const homeTables = await registry.loadTables(ctx.options);
-    const tables = homeTables.map((table) => ({ ...table, fields: table.fields.map((field) => fieldByNames(table, field, homeTables)) }));
+    // Only the tables the person may read (D-138), each saying whether they may change it.
+    const reachOf = async (table) => [await gate.canReach(ctx, table, "read"), await gate.canReach(ctx, table, "change")];
+    const reach = await Promise.all(homeTables.map(reachOf));
+    const tables = homeTables
+      .map((table, index) => ({
+        ...table,
+        fields: table.fields.map((field) => fieldByNames(table, field, homeTables)),
+        canChange: reach[index][1]
+      }))
+      .filter((_table, index) => reach[index][0]);
     // The home's people come with them, for person fields' pickers and names.
-    if (request.query?.brief === "true") return { tables, people: await homePeople(ctx.options) };
+    if (request.query?.brief === "true") return { tables, people: await homePeople(ctx.options), canManage: ctx.canManage };
     const app = request.query?.app ? String(request.query.app) : null;
     const used = await apps.tablesUsed({ app }, ctx.options);
     const listed = app ? tables.filter((table) => used.has(table.id)) : tables;
@@ -258,6 +267,16 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       tables: listed.map((table, index) => ({ ...table, count: counts[index], usedBy: used.get(table.id) || [] })),
       people: await homePeople(ctx.options)
     };
+  }));
+  // Who may read and change a table's records (D-138): its owners and admins choose, among the home's people.
+  router.register("PUT", `${data}/tables/:key/access`, home, handle(async (request, ctx) => {
+    if (!ctx.canManage) throw forbidden("Only the home's owners and admins can choose who sees a table.", "apps_table_access_forbidden");
+    const input = body(request);
+    const members = new Set((await homePeople(ctx.options)).map((person) => String(person.id)));
+    if ((input.people || []).some((id) => !members.has(String(id)))) {
+      throw new GateError(400, "Everyone named must be in the home.", { code: "apps_table_access_people_unknown" });
+    }
+    return { table: await registry.chooseAccess(ctx.actor, request.params.key, input, ctx.options) };
   }));
   /** The Data tab's spreadsheet: records of one table, through the data gate (via "data"). */
   const dataCtx = (ctx) => ({ ...ctx, via: { kind: "data" } });

@@ -13,6 +13,7 @@ import { createRecordChecks } from "./recordChecks.js";
 import { createAuditReads } from "./auditReads.js";
 import { createRecordFiles } from "./recordFiles.js";
 import { createRelatedRecords } from "./relatedRecords.js";
+import { createTableGuard } from "./tableGuard.js";
 import {
   checkFields,
   fence,
@@ -78,8 +79,9 @@ const CALCULATED_TOTALS_MAX = 5000;
  * @param {number} [dependencies.calculatedTotalsMax] The most records a calculated field's sum or average is worked out
  *   from (see above); a test makes it small.
  * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
- *   Promise<Map<string, string>> }} dependencies.people the home's members, for person fields: who is in the home now
- *   (a person field holds only them) and their names (as a person field reads back)
+ *   Promise<Map<string, string>>, roleOf: (userId: string, options: object) => Promise<string | null> }} dependencies.people
+ *   the home's members, for person fields: who is in the home now (a person field holds only them) and their names (as a
+ *   person field reads back); and someone's role, for private tables (D-138)
  * @param {() => { write: Function, remove: Function, real: Function } | null} dependencies.recordFiles Database files'
  *   writer and reader, which the files feature plugs in at start (null until then: files can't be added)
  */
@@ -103,8 +105,9 @@ export function createDataGate({
   const homeOf = (ctx) => homeIdOf(ctx.options);
   const { membersByName, checkPeople, checkUnique, uniqueTakenIn, labelPeople } = createRecordChecks({ people, homeOf });
   const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
+  const guard = createTableGuard({ tableFor, roleOf: people.roleOf });
   const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
-  const relatedRecords = createRelatedRecords({ tableFor, read });
+  const relatedRecords = createRelatedRecords({ tableAs: guard.tableAs, canRead: guard.canRead, read });
 
   /** A table of the call's home by id, or by its live key. */
   async function tableFor(tableIdOrKey, options, { forWrite = false } = {}) {
@@ -165,10 +168,11 @@ export function createDataGate({
    */
   async function withLinks(ctx, api, tables, table, records) {
     await labelPeople(ctx, table, records);
+    await guard.hideRollups(ctx, table, tables, records);
     for (const field of table.fields.filter((entry) => entry.type === "link")) {
       const target = tables.find((entry) => entry.id === field.options?.target);
       const ids = [...new Set(records.map((record) => record[field.id]).filter(Boolean))];
-      const shown = target && labelled(ctx, target);
+      const shown = target && labelled(ctx, target) && (await guard.canRead(ctx, target));
       const found = shown && ids.length ? await rowsById(api, target, ids, { where: linkedRows(ctx, target) }) : new Map();
       for (const record of records) {
         const id = record[field.id];
@@ -194,7 +198,7 @@ export function createDataGate({
    * only their rows and never obsolete records, and gets readable fields only.
    */
   async function read(ctx, tableIdOrKey, { where = null, sort = [], page = {}, includeObsolete = false } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     const access = fence(ctx, table, "list");
     const api = await apiFor(ctx, tables, table);
     const size = Math.min(Math.max(Number(page.size) || 50, 1), PAGE_MAX);
@@ -223,7 +227,7 @@ export function createDataGate({
 
   /** One record. A visitor needs `get`; a record outside their rows, or obsolete, answers 404. */
   async function get(ctx, tableIdOrKey, id, { includeObsolete = true } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     const access = fence(ctx, table, "get");
     const api = await apiFor(ctx, tables, table);
     const row = access
@@ -244,7 +248,7 @@ export function createDataGate({
    * with their title when it's readable), for totals grouped by a link.
    */
   async function getMany(ctx, tableIdOrKey, ids) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     const access = fence(ctx, table);
     const api = await apiFor(ctx, tables, table);
     const rows = [...(await rowsById(api, table, ids, { where: linkedRows(ctx, table) })).values()];
@@ -300,10 +304,8 @@ export function createDataGate({
    * fail together), or a script run's (ctx.txOptions); otherwise each runs in its own.
    */
   const within = (ctx, given, work) => (given || ctx.txOptions ? work(given || ctx.txOptions) : withTransaction(ctx, work));
-
   // Open views re-read a table that changed (D-55): the notice goes out when the write commits.
   const dataChanged = (txOptions, ctx, table) => publishIn(txOptions, "apps-data", homeOf(ctx), { tables: [table.id] });
-
   /**
    * A change's audit entry and notice; a practice copy's change is only added to what the call
    * reports (D-71), as `{ table, id, action, changes }` by field id.
@@ -346,7 +348,7 @@ export function createDataGate({
    * is set to them; they get back only what they may read.
    */
   async function create(ctx, tableIdOrKey, input, { txOptions: given = null } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey, { forWrite: true });
     const access = fence(ctx, table, "create");
     const api = await apiFor(ctx, tables, table);
     if (access) {
@@ -369,7 +371,7 @@ export function createDataGate({
    * back only what they may read.
    */
   async function change(ctx, tableIdOrKey, id, input, action, given = null) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey, { forWrite: true });
     if (action === "restore") refuse(ctx);
     const access = fence(ctx, table, action === "obsolete" ? "delete" : "update");
     let values = input;
@@ -412,7 +414,7 @@ export function createDataGate({
   }
 
   async function update(ctx, tableIdOrKey, id, input, { txOptions = null } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey, { forWrite: true });
     const access = fence(ctx, table, "update");
     const values = cleanRecord(table, access ? visitorInput(access, table, ctx, input) : input);
     await checkLinks(await apiFor(ctx, tables, table), tables, table, values, new Map(), access ? ctx : null);
@@ -427,17 +429,16 @@ export function createDataGate({
 
   async function history(ctx, tableIdOrKey, id) {
     refuse(ctx);
-    const { table } = await tableFor(tableIdOrKey, ctx.options);
+    const { table } = await guard.tableAs(ctx, tableIdOrKey);
     return newestAudits({ tableId: table.id, recordId: String(id) }, 200, ctx.options);
   }
-
   /**
    * Grouped totals through json-rest-api's aggregate (2.2), so the same row policy applies as for
    * lists: the home's tenant, the page's filter, and obsolete records hidden. A visitor needs `list`,
    * and groups, sums and filters by readable fields only, over their rows.
    */
   async function totals(ctx, tableIdOrKey, { where = null, groupBy, by = null, measure = "count", field = null } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     where = fencedWhere(ctx, table, where, [groupBy, measure === "count" ? null : field]);
     const api = await apiFor(ctx, tables, table);
     const grouping = table.fields.find((entry) => entry.id === groupBy);
@@ -466,7 +467,7 @@ export function createDataGate({
 
   /** One figure across a table's matching records, whatever the groups: how many, and the sum or average. */
   async function grandTotal(ctx, tableIdOrKey, { where = null, measure = "count", field = null } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     where = fencedWhere(ctx, table, where, [measure === "count" ? null : field]);
     const api = await apiFor(ctx, tables, table);
     if (measure !== "count" && isCalculated(table.fields.find((entry) => entry.id === field))) {
@@ -526,7 +527,7 @@ export function createDataGate({
   /** How many live (not obsolete) records a table has. */
   async function count(ctx, tableIdOrKey) {
     refuse(ctx);
-    const { table } = await tableFor(tableIdOrKey, ctx.options);
+    const { table } = await guard.tableAs(ctx, tableIdOrKey);
     const api = await anyapi.instanceFor(homeOf(ctx));
     const result = await api.resources[table.id].aggregate({ measures: { count: { count: "*" } } }, {});
     return Number(result.data?.[0]?.count ?? 0);
@@ -607,7 +608,7 @@ export function createDataGate({
    */
   async function importRecords(ctx, tableIdOrKey, rows, { dryRun = false, firstRow = 2 } = {}) {
     refuse(ctx);
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
+    const { table, tables } = await guard.tableAs(ctx, tableIdOrKey, { forWrite: true });
     if (!Array.isArray(rows) || !rows.length) throw new GateError(400, "There are no rows to import.", { code: "apps_import_empty" });
     if (rows.length > IMPORT_MAX) {
       throw new GateError(400, `At most ${IMPORT_MAX} rows at a time.`, { code: "apps_import_too_many", params: { max: IMPORT_MAX } });
@@ -680,6 +681,7 @@ export function createDataGate({
     recordFile: files.fileOf,
     related: relatedRecords.related,
     tableFor,
+    canReach: guard.can,
     withTransaction
   });
 }

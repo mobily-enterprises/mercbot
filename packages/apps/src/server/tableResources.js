@@ -156,6 +156,8 @@ export const appTableResource = defineTableResource({
   ownership: "workspace",
   schema: {
     id: { type: "string", primary: true, maxLength: 24, noTrim: true, required: true },
+    // Who may read and change its records (D-138): { read, change, people }; null is everyone.
+    access: { type: "object", nullable: true, additionalProperties: true },
     createdAt: { type: "dateTime" },
     key: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     label: { type: "string", maxLength: 120, noTrim: true, required: true },

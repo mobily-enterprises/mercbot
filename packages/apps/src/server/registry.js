@@ -6,6 +6,7 @@ import { isFileField } from "../shared/formulas.js";
 import { STORAGE_TYPES, fieldStorage } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { fillRollup, rollupWhere } from "./rollups.js";
+import { ACCESS_LEVELS } from "../shared/tableAccess.js";
 import { LIMITED_TYPES, PATTERN_TYPES, UNIQUE_TYPES, patternProblem } from "../shared/fieldChecks.js";
 import { cleanValueOf } from "./validate.js";
 import { INDEXED_SLOTS, SLOTS } from "./schema.js";
@@ -574,8 +575,43 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
     return field;
   }
 
+  /**
+   * Who may read and who may change a table's records (D-138), as an owner or admin chooses: `read` and `change` each
+   * everyone, managers (owners and admins) or people (named, `people`: members' ids, owners and admins too); changing
+   * needs no less than reading. Audited.
+   */
+  async function chooseAccess(actor, tableIdOrKey, input, options) {
+    const read = String(input?.read || "everyone");
+    const change = String(input?.change || "everyone");
+    if (!ACCESS_LEVELS.includes(read) || !ACCESS_LEVELS.includes(change)) {
+      throw new RegistryError(400, `Who may read or change a table is one of: ${ACCESS_LEVELS.join(", ")}.`, { code: "apps_table_access_invalid" });
+    }
+    const people = [...new Set((input?.people || []).map(String))].slice(0, 100);
+    // Narrowest last: whoever may change must be among those who may read.
+    const rank = { everyone: 0, people: 1, managers: 2 };
+    if (rank[change] < rank[read]) {
+      throw new RegistryError(400, "Whoever may change a table's records must be able to read them: choose no more people to change than to read.", {
+        code: "apps_table_access_wider_change"
+      });
+    }
+    if ((read === "people" || change === "people") && !people.length) {
+      throw new RegistryError(400, "Name the people who may see or change it.", { code: "apps_table_access_people_missing" });
+    }
+    const named = read === "people" || change === "people" ? people : [];
+    const access = read === "everyone" && change === "everyone" ? null : { read, change, people: named };
+    const table = await appTables.withTransaction(options, async (txOptions) => {
+      const row = await tableOf(tableIdOrKey, txOptions);
+      await appTables.patch(row.id, { access }, { ...txOptions, returning: "none" });
+      await audit(actor, row.id, { changedAccess: { key: row.key, label: row.label, access: access ?? { read: "everyone", change: "everyone" } } }, txOptions);
+      return { id: row.id, key: row.key, access };
+    });
+    await changed(options);
+    return table;
+  }
+
   return Object.freeze({
     loadTables: tablesOf,
+    chooseAccess,
     changed,
     createTable,
     addField,

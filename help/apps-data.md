@@ -186,9 +186,14 @@ When you confirm, Mercbot does everything in one step: the field's data is kept,
 
 A removed field can't be brought back as it was. If you need it again, ask the Builder for a new field.
 
-## App data is the whole home's
+## Who can see a table
 
-Apps and their data have no private corner. Everyone in a home sees every app and view, reads and changes every table in the Data tab, and every bot in the home can too, in any chat. Anything that some members of the home must not read doesn't belong in the home's apps at all. For something only some of you should see, use a Private chat (see [Rooms, people and bots](/help/chats)).
+By default a table is the whole home's: everyone in the home can read and change its records, and so can every bot working for them. A home's owner or admin can make a table private: open it in the Data tab and press **Who can see it**.
+
+- **Who can see its records:** everyone in the home, owners and admins only, or owners, admins and people you choose.
+- **Who can change them:** the same choices, never wider than who can see them.
+
+A private table shows **Private** next to its name. For anyone not chosen, its records are out of reach everywhere: in apps' screens, the Data tab and its search, export and import, bots (a bot works as the person it's helping), scripts and jobs (a job works as the person who turned it on). A link to one of its records shows only its number, a total worked out from it stays empty, and a list that reads it says it isn't available. Owners and admins can always see and change every table.
 
 Public screens are different: visitors without a Mercbot account only reach what the app's visitor access lists.
 

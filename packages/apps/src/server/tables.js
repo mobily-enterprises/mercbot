@@ -29,6 +29,7 @@ export async function loadTables({ appTables, appFields }, options) {
     key: record.key,
     label: record.label,
     titleFieldId: record.titleFieldId,
+    access: record.access ?? null,
     obsolete: Boolean(record.obsoleteAt),
     fields: (byTable.get(record.id) || []).map(toField)
   }));

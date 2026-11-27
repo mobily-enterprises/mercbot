@@ -4,10 +4,11 @@
  * group is one read through the gate, so a visitor's fence holds and the cost follows the tables that link here, never
  * how many records do.
  * @param {object} dependencies the data gate's own reads
- * @param {Function} dependencies.tableFor
+ * @param {Function} dependencies.tableAs the gate's table lookup that keeps to private tables (D-138)
+ * @param {Function} dependencies.canRead whether a ctx may read a table's records
  * @param {Function} dependencies.read
  */
-export function createRelatedRecords({ tableFor, read }) {
+export function createRelatedRecords({ tableAs, canRead, read }) {
   /**
    * @param {object} ctx a gate ctx
    * @param {string} tableIdOrKey the record's table
@@ -15,9 +16,11 @@ export function createRelatedRecords({ tableFor, read }) {
    * @param {{ size?: number }} [page] how many of each group (default 10)
    */
   async function related(ctx, tableIdOrKey, id, { size = 10 } = {}) {
-    const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
+    const { table, tables } = await tableAs(ctx, tableIdOrKey);
     const groups = [];
+    // Only the tables they may read (D-138): a private table's records linking here stay out of sight.
     for (const other of tables.filter((entry) => !entry.obsolete)) {
+      if (!(await canRead(ctx, other))) continue;
       const links = other.fields.filter((field) => !field.obsolete && field.type === "link" && field.options?.target === table.id);
       for (const field of links) {
         const where = { plan: { kind: "compare", op: "=", field: { name: field.id }, value: "record" }, variables: { record: "string" }, values: { record: String(id) } };

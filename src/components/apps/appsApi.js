@@ -24,6 +24,8 @@ export const appsApi = {
   setBuilder: (botId) => request("/builder", { method: "PUT", body: { botId } }),
   // The home's tables with their counts and the apps using them; `{ app }` only that app's, `{ brief: true }` without either.
   tables: (params) => requestInHome(client, `/app-data/tables${queryString(params)}`),
+  // Who may read and change a table's records (D-138): its owners and admins choose.
+  setTableAccess: (table, access) => requestInHome(client, `/app-data/tables/${encodeURIComponent(table)}/access`, { method: "PUT", body: access }),
   activity: (filters) => requestInHome(client, `/app-activity${queryString(filters)}`),
   records: (table, params) => requestInHome(client, `${records(table)}${queryString(params)}`),
   createRecord: (table, values) => requestInHome(client, records(table), { method: "POST", body: { values } }),

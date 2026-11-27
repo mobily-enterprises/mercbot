@@ -433,7 +433,8 @@ export function createScripts({
       actor: { type: "script", id: row.id, name: row.summary.slice(0, 80) },
       via: { kind: "script", appId: row.appId, scriptId: row.id, script: row.key, trigger: via },
       ...(reach?.visitor ? { visitor: reach.visitor, access: reach.access } : {}),
-      ...(reach?.practice ? { practice: reach.practice } : {})
+      ...(reach?.practice ? { practice: reach.practice } : {}),
+      ...(row.kind === "job" ? { person: row.runsAsUserId ?? null } : {}) // private tables as its person (D-138)
     };
     const started = Date.now();
     const start = () => pool.run({
@@ -597,8 +598,7 @@ export function createScripts({
     }));
   }
 
-  // ---- Jobs: timetables and watches, claimed once across servers ----
-  // The call options of a job's run, in its script's home.
+  // ---- Jobs: timetables and watches, claimed once across servers; a run's call options are its script's home's ----
   const homeOf = (row) => ({ context: systemContext("due scripts").forWorkspace(row.workspaceId) });
 
   /** The next job whose timetable slot has come, taken with SKIP LOCKED and moved to its next slot. */

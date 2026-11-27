@@ -152,7 +152,11 @@ export function buildAppTools({
    * extensions that hold more about its records; and the shared tables the home doesn't have yet, for table_ensure.
    */
   async function dataTables() {
-    const tables = (await registry.loadTables(call)).filter((table) => !table.obsolete);
+    // Only the tables the person the bot works for may read (D-138).
+    const gateCtx = await ctx();
+    const live = (await registry.loadTables(call)).filter((table) => !table.obsolete);
+    const readable = await Promise.all(live.map((table) => gate.canReach(gateCtx, table, "read")));
+    const tables = live.filter((_table, index) => readable[index]);
     const links = tables.flatMap((table) => table.fields
       .filter((field) => !field.obsolete && field.type === "link")
       .map((field) => ({

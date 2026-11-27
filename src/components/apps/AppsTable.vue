@@ -8,7 +8,8 @@ import { appsApi, errorText } from "./appsApi.js";
 import { fileUrl } from "@/components/mercbot/filesApi.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { linksOf } from "./tableLinks.js";
-import { isCalculated, isRollup } from "@local/apps/shared";
+import SelectField from "@jskit-ai/http-web/client/components/SelectField";
+import { accessOf, isCalculated, isPrivate, isRollup } from "@local/apps/shared";
 import { actorName, showValue, whenText as when } from "./appRuntime.js";
 import { exportTable, importRows, matchColumns, readSheetFile } from "./sheets.js";
 import { useSnackbar } from "./useSnackbar.js";
@@ -37,6 +38,33 @@ const { snackbar, notify } = useSnackbar();
 const fieldsDialog = reactive({ open: false, removing: null });
 const importing = reactive({ open: false, file: null, rows: [], match: null, problem: "", errors: [], busy: false });
 const exporting = ref(false);
+// Who may see and change the table's records (D-138): the home's owners and admins choose.
+const canManage = ref(false);
+const LEVELS = [
+  { value: "everyone", title: "Everyone in the home" },
+  { value: "managers", title: "Owners and admins" },
+  { value: "people", title: "Owners, admins and people I choose" }
+];
+const access = reactive({ open: false, read: "everyone", change: "everyone", people: [], busy: false, problem: "" });
+const tableEntry = computed(() => tables.value.find((entry) => entry.key === key.value));
+const personItems = computed(() => people.value.map((person) => ({ value: String(person.id), title: person.name })));
+function openAccess() {
+  Object.assign(access, { open: true, problem: "", busy: false }, accessOf(tableEntry.value));
+}
+async function saveAccess() {
+  access.busy = true;
+  access.problem = "";
+  try {
+    const { table: saved } = await appsApi.setTableAccess(key.value, { read: access.read, change: access.change, people: access.people });
+    if (tableEntry.value) tableEntry.value.access = saved.access;
+    access.open = false;
+    notify("Saved.");
+  } catch (error) {
+    access.problem = errorText(error, "That didn't save.");
+  } finally {
+    access.busy = false;
+  }
+}
 
 const fields = computed(() => (table.value?.fields || []).filter((field) => !field.obsolete));
 // What this table links to, what links to it and what extends it (D-130), each opening that table.
@@ -92,6 +120,7 @@ onMounted(async () => {
   const read = await appsApi.tables({ brief: true }).catch(() => ({ tables: [], people: [] }));
   tables.value = read.tables;
   people.value = read.people || [];
+  canManage.value = Boolean(read.canManage);
 });
 let timer = null;
 watch(search, () => {
@@ -195,7 +224,9 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
     <header class="apps-table__bar">
       <ShellUpButton />
       <span class="text-subtitle-1 font-weight-medium">{{ table?.label }}</span>
+      <v-chip v-if="isPrivate(tableEntry)" size="x-small" variant="tonal" prepend-icon="$lock" class="ml-2" data-testid="apps-table-private">Private</v-chip>
       <v-spacer />
+      <v-btn v-if="canManage" variant="text" :disabled="!table" data-testid="apps-table-access" @click="openAccess">Who can see it</v-btn>
       <v-btn variant="text" :disabled="!table" @click="Object.assign(fieldsDialog, { open: true, removing: null })">Fields</v-btn>
       <v-btn variant="text" :disabled="!table" prepend-icon="$uploadArrow" @click="openImport">Import</v-btn>
       <v-menu>
@@ -287,6 +318,34 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
           </div>
           <div class="d-flex justify-end"><v-btn variant="text" @click="fieldsDialog.open = false">Close</v-btn></div>
         </template>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="access.open" max-width="520" :persistent="access.busy">
+      <v-card rounded="lg" class="pa-4">
+        <div class="text-subtitle-1 mb-2">Who can see {{ table?.label }}</div>
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          Anyone not chosen here can't open its records anywhere: in apps, here, through bots, searches, exports or scripts. Owners and admins always can.
+        </div>
+        <v-select v-model="access.read" :items="LEVELS" label="Who can see its records" variant="outlined" density="comfortable" class="mb-2" :disabled="access.busy" />
+        <v-select v-model="access.change" :items="LEVELS" label="Who can change them" variant="outlined" density="comfortable" class="mb-2" :disabled="access.busy" />
+        <SelectField
+          v-if="access.read === 'people' || access.change === 'people'"
+          v-model="access.people"
+          :items="personItems"
+          :loading="!people.length"
+          multiple
+          chips
+          label="People"
+          variant="outlined"
+          density="comfortable"
+          :disabled="access.busy"
+        />
+        <div v-if="access.problem" class="text-body-2 text-error mt-2" role="alert">{{ access.problem }}</div>
+        <div class="d-flex justify-end ga-2 mt-2">
+          <v-btn variant="text" :disabled="access.busy" @click="access.open = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" :loading="access.busy" @click="saveAccess">Save</v-btn>
+        </div>
       </v-card>
     </v-dialog>
 

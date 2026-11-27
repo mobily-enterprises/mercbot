@@ -218,9 +218,11 @@ const tabKey = computed(() => props.path);
           <tr v-if="!rows.length">
             <td :colspan="columns.length + 1" class="text-medium-emphasis">
               {{
-                runtime.attention[queryName]
-                  ? "This list needs attention: it uses a field that has been removed. Ask the Builder to tidy it."
-                  : list.search ? "Nothing matches that search." : "Nothing here yet."
+                runtime.attention[queryName] === "private"
+                  ? "This list isn't available to you: its table is private."
+                  : runtime.attention[queryName]
+                    ? "This list needs attention: it uses a field that has been removed. Ask the Builder to tidy it."
+                    : list.search ? "Nothing matches that search." : "Nothing here yet."
               }}
             </td>
           </tr>

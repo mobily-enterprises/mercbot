@@ -189,9 +189,10 @@ export function createScreenRuntime({
       data[name] = "record" in result ? result.record : result.totals || result.records || [];
       list.total = Number.isInteger(result.total) ? result.total : null;
       grandTotals[name] = result.grandTotal || null;
-    } catch {
+    } catch (error) {
       if (!quiet && !reading.signal.aborted) {
-        attention[name] = true;
+        // A private table's records (D-138) aren't the person's to see: the list says so, rather than "needs attention".
+        attention[name] = error?.status === 403 ? "private" : true;
         data[name] = screen.data[name]?.record ? null : [];
       }
     } finally {

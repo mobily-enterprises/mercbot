@@ -92,7 +92,7 @@ export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _ac
   const registry = createRegistry({ resources, anyapi, notices: QUIET, ...(trustMs === undefined ? {} : { trustMs }) });
   const practices = createPractices({ resources, anyapi, systemContext });
   const chats = records.chats ?? membersOn(home.knex);
-  const people = { activeIds: (options) => chats.everyoneIn(options), names: (ids, options) => chats.names(ids, options) };
+  const people = { activeIds: (options) => chats.everyoneIn(options), names: (ids, options) => chats.names(ids, options), roleOf: (userId, options) => chats.roleIn(userId, options) };
   const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, people, recordFiles: () => recordFiles, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes: home.workspaces });
   // Someone's role in the home, as scripts read it (createScripts' roleOf).
