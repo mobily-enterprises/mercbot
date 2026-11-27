@@ -104,7 +104,7 @@ tests (`npm run test:database`), the migration history (`npm run test:migrations
 the whole history replayed from empty builds the schema the tests run on, which they never replay themselves), the
 client tests (`npm run test:client`) and the browser tests (`npm run test:e2e`), which build the production app they
 serve. The Stack's Verification lists the same sections. While working, run only the files a change touches, and the
-whole suite once at the end:
+whole suite once at the end, with the person's OK:
 
 ```sh
 npm run test:files -- tests/server/keys.test.js tests/server/search.integration.js   # node files of either suite

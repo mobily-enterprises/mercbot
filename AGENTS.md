@@ -1,23 +1,8 @@
-# App Agent Instructions
+# Mercbot Agent Instructions
 
-Use current project context, JSKIT public APIs, and the official framework
-documentation as the source of truth for application work.
-
-Framework references:
-
-- `https://mobily-enterprises.github.io/jskit-ai/guide/`
-- `https://mobily-enterprises.github.io/jskit-ai/patterns/`
-
-Before implementation, read the narrow relevant source pattern completely. If
-its owner package is installed, prefer that version-matched package-owned copy.
-Do not install an unrelated runtime package only to read documentation.
-
-Pages start with useful content and actions. Do not add a page header, welcome
-heading, or standalone title unless the user asks for one.
-
-Copied pattern source is ordinary application source. Do not add generator
-provenance, receipts, completion ledgers, or tooling-operation history. Keep
-changes scoped to the user request and verify runtime behavior directly.
+JSKIT's guide (`https://mobily-enterprises.github.io/jskit-ai/guide/`) and its public APIs are the framework's source
+of truth; what follows is Mercbot's own. Pages start with useful content and actions, never a page header, welcome
+heading or standalone title unless the person asks for one.
 
 ## What Mercbot is
 
@@ -34,8 +19,7 @@ answer. Numbers never change; a later decision that changes an earlier one says 
 
 ## Practical rules
 
-- **Database:** PostgreSQL through JSKIT. This is JSKIT's first real use with
-  PostgreSQL, so expect bugs.
+- **Database:** PostgreSQL through JSKIT.
 - **JSKIT bugs:** patch the installed package in `node_modules` directly and
   keep a copy of every patch in `patches/` so it can be reapplied after
   `node_modules` is rebuilt, including after `npm ci` in deployment. Don't
@@ -59,7 +43,8 @@ answer. Numbers never change; a later decision that changes an earlier one says 
   [Test databases are prepared once](https://mobily-enterprises.github.io/jskit-ai/guide/framework/typed-features#test-databases-are-prepared-once), the
   [speed pass](https://mobily-enterprises.github.io/jskit-ai/guide/framework/speed-pass)); README's "Check changes" says how Mercbot's suites apply them. While
   working, run only the files a change touches (`npm run test:files -- <files>`, `npx vitest run <file>`,
-  `npx playwright test <spec>`); the whole suite (`npm run verify`, the Stack's Verification) runs once, at the end.
+  `npx playwright test <spec>`); the whole suite (`npm run verify`, the Stack's Verification) runs once, at the end,
+  with the person's OK.
   Each database test file and browser worker gets its own copy of a template migrated once
   (`tests/support/testDatabase.mjs`), so no test migrates. Tests never reach a real outside service: AI, mail, sign-in
   providers, Google Drive and Sedna are the stand-ins in `tests/support/` and `tools/standInModel.mjs`, and a server
