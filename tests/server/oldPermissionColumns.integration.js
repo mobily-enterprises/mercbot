@@ -54,6 +54,9 @@ test("the old permission columns keep nothing from anyone in the home", async (c
     await registry.loadTables(owner.options);
   }, /from "(apps|app_tables)"/u)).map((statement) => statement.sql);
   assert.ok(statements.some((sql) => /from "apps"/u.test(sql)) && statements.some((sql) => /from "app_tables"/u.test(sql)), "apps and tables were read");
-  assert.deepEqual(statements.filter((sql) => /"access"|"writers"/u.test(sql)), [], "no statement names apps.access or app_tables.writers");
+  // apps.access is any "access" in a statement on apps, or named with its table; app_tables.access is D-138's private
+  // tables, read on purpose.
+  const oldColumns = (sql) => /"writers"|"apps"\."access"/u.test(sql) || (/from "apps"/u.test(sql) && /"access"/u.test(sql));
+  assert.deepEqual(statements.filter(oldColumns), [], "no statement names apps.access or app_tables.writers");
   assert.equal((await gate.read(member, "salaries")).records.length, 2);
 });
