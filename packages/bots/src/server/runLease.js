@@ -8,6 +8,15 @@ import { settledWithin } from "./backgroundWork.js";
  */
 export const RUN_LEASE = Object.freeze({ seconds: 90, heartbeatMs: 20000, attempts: 3 });
 
+/** A run whose lease another server holds now, or whose row is gone: its result isn't posted. */
+export class RunTakenOver extends Error {
+  /** @param {string} what */
+  constructor(what) {
+    super(`${what}: its run is no longer this server's (another server took it over, or it was removed), so its result isn't posted.`);
+    this.name = "RunTakenOver";
+  }
+}
+
 /**
  * Renews a run's lease every `heartbeatMs` until stopped. `renew()` answers whether this server
  * still holds the run. The run is stopped at its next step (`signal` aborts with RunTakenOver) as
@@ -86,15 +95,6 @@ export async function handOverRuns(running, ms = HAND_OVER_MS) {
 export async function tellHandedOver(notices, topic, handed) {
   if (!handed || !notices) return;
   await notices.publish(topic, "all", {}).catch((error) => console.warn(`Telling the other servers of the runs handed over (${topic}) failed; their next scan finds them.`, error));
-}
-
-/** A run whose lease another server holds now, or whose row is gone: its result isn't posted. */
-export class RunTakenOver extends Error {
-  /** @param {string} what */
-  constructor(what) {
-    super(`${what}: its run is no longer this server's (another server took it over, or it was removed), so its result isn't posted.`);
-    this.name = "RunTakenOver";
-  }
 }
 
 /** A routine pauses after this many failed runs in a row (docs/usage-tracking-design.md, question 4). */
