@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import { pageMatchesMedia } from "@/browser.js";
 import { fileUrl, formatSize } from "@/components/mercbot/filesApi.js";
 
 // A record's file or picture field in a form (D-130): what it holds now (a picture as a thumbnail, a file as a link with
@@ -22,7 +23,7 @@ const picture = computed(() => props.field.type === "image");
 const href = computed(() => (props.current?.path ? fileUrl(null, props.current.path, { download: !picture.value, chat: null }) : ""));
 const label = computed(() => props.field.label + (props.field.options?.required ? " *" : ""));
 // A picture field on a phone or tablet also takes a photo with the camera (D-140).
-const touch = window.matchMedia("(pointer: coarse)").matches;
+const touch = pageMatchesMedia("(pointer: coarse)");
 const camera = ref(null);
 const photoTaken = (event) => {
   const file = event.target.files?.[0] || null;
