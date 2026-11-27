@@ -11,8 +11,8 @@ import { fileURLToPath } from "node:url";
 import knexLib from "knex";
 import { AI_KINDS } from "../../packages/account/src/server/providers/index.js";
 import { createServer } from "../../server.js";
-import { resolveRuntimeEnv } from "../../server/lib/runtimeEnv.js";
 import { testDatabaseConfig } from "../support/testDatabase.mjs";
+import { testServerEnv, withoutOutsideSettings } from "../support/testEnv.mjs";
 
 // A person's own copy (D-81), started as Mercbot starts (bin/server.js) on this computer's
 // loopback: it makes its key and its one person, opens with the key, and refuses every request, websocket included,
@@ -41,6 +41,9 @@ async function startCopy(env) {
   // Started as Mercbot starts, not as one of this run's test files.
   const own = { ...env, PORT: String(port), APP_PUBLIC_URL: `http://127.0.0.1:${port}` };
   delete own.NODE_TEST_CONTEXT;
+  // It loads .env as Mercbot starts: every setting there but the database's connection is set empty first, so the copy
+  // takes no outside service's key from it.
+  withoutOutsideSettings(own, path.join(ROOT, ".env"));
   const copy = spawn(process.execPath, ["bin/server.js"], {
     cwd: ROOT,
     env: own,
@@ -101,11 +104,17 @@ test("a person's own copy opens with its key, and refuses whatever breaks a rule
     await knex.destroy();
     await rm(dataDir, { recursive: true, force: true });
   });
-  const env = {
-    ...resolveRuntimeEnv(),
+  // As resolveRuntimeEnv resolves a start's settings, with only what this copy needs (testServerEnv).
+  const env = testServerEnv({
+    APP_ENV: "test",
+    NODE_ENV: "test",
+    AUTH_LOCAL_SESSION_SECRET: "single-user-test-only-session-secret",
+    DB_CLIENT: "pg",
+    SERVER_SURFACE: "all",
+    PORT: "0",
     MERCBOT_DATA_DIR: dataDir,
     HOST: "127.0.0.1"
-  };
+  });
   // Mercbot doesn't start without its kinds of AI (D-72); nothing here reaches them.
   for (const kind of Object.values(AI_KINDS)) Object.assign(env, { [kind.providerSetting]: Object.keys(kind.types)[0], [kind.keySetting]: "no-ai-in-this-test" });
 
@@ -270,7 +279,14 @@ test("a person's own copy opens with its key, and refuses whatever breaks a rule
   assert.equal(JSON.parse((await send(port, { url: "/api/session", headers: { cookie: cookieHeader(cookies) } })).body).authenticated, true);
   assert.equal(await knex("auth_local_users").where({ email: EMAIL }).count({ n: "*" }).first().then((row) => Number(row.n)), 1, "still one person");
 
-  // Off (as a copy built on Mercbot that serves many people starts it): the same settings on any address make a server, with no gate.
+  // Off (as a copy built on Mercbot that serves many people starts it): the same settings on any address make a server,
+  // with no gate: it answers without the key.
   const ungated = await createServer({ runtimeEnv: { ...env, HOST: "0.0.0.0" }, gate: false });
-  await ungated.close();
+  try {
+    await ungated.listen({ host: "127.0.0.1", port: 0 });
+    const answer = await send(ungated.server.address().port, { url: "/api/session" });
+    assert.deepEqual([answer.status, JSON.parse(answer.body).authenticated], [200, false], "no key asked for");
+  } finally {
+    await ungated.close();
+  }
 });

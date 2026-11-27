@@ -6,6 +6,7 @@ import { seal } from "../../packages/account/src/server/vaultCrypto.js";
 import { createServer, createServerWith, startServer } from "../../server.js";
 import { startFakeDrive } from "../support/fakeDrive.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 import { insertRows } from "./characterization/seed.mjs";
 import { testBot, testHome } from "./testHome.js";
 
@@ -18,7 +19,6 @@ import { testBot, testHome } from "./testHome.js";
 // loops' JSKIT drains (agent-runtime's runs, goals and summaries) each leave a 20 s timer as it closes, which would keep
 // the file alive past its bound.
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it with npm run test:database.");
-const withoutAi = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("AI_") && name !== "MERCBOT_TEST_AI_URL"));
 const settings = {
   AUTH_LOCAL_SESSION_SECRET: "server-roles-test-only-session-secret",
   DB_CLIENT: "pg",
@@ -28,7 +28,7 @@ const settings = {
   PORT: "0",
   SERVER_SURFACE: "all"
 };
-const runtimeEnv = Object.freeze({ ...withoutAi, ...settings });
+const runtimeEnv = Object.freeze(testServerEnv(settings));
 
 let knex;
 let userId;

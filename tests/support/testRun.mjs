@@ -16,8 +16,8 @@
 import { readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadEnvFile } from "../../server/lib/envFile.js";
 import { dropTestCopies, prepareTestTemplate } from "./testDatabase.mjs";
+import { withoutOutsideSettings } from "./testEnv.mjs";
 
 // Measured: a file's process ends 0.0–0.5 s after its last test on a busy machine.
 const LINGER_BOUND_SECONDS = 10;
@@ -63,8 +63,9 @@ export function testRun({ suite, fileBoundSeconds, summedBoundSeconds, databases
       process.env.MERCBOT_TEST_TIMES_FILE = timesFile;
       process.env.MERCBOT_TEST_FILE_BOUND_MS = String(fileBoundSeconds * 1000);
       process.env.MERCBOT_TEST_LINGER_BOUND_MS = String(LINGER_BOUND_SECONDS * 1000);
+      // From .env, the test database's connection and nothing of an outside service's; the shell's credentials emptied.
+      withoutOutsideSettings(process.env, ".env");
       if (!databases) return;
-      loadEnvFile();
       const { template, packageMigrations, phases } = await prepareTestTemplate();
       process.env.MERCBOT_TEST_TEMPLATE = template;
       process.env.MERCBOT_TEST_PACKAGE_MIGRATIONS = JSON.stringify(packageMigrations);
