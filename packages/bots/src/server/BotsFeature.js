@@ -5,6 +5,7 @@ import { createBotLoops } from "./botLoops.js";
 import { createBotsService } from "./botsService.js";
 import { NO_TEMPLATE_LINKS } from "./botTemplates.js";
 import { createAppConnected } from "./appConnected.js";
+import { createAppMessages } from "./appMessages.js";
 import { botsMeter, createChatModel } from "./model.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { useAddedSkills } from "./skills.js";
@@ -132,7 +133,11 @@ const BotsFeature = defineFeature({
           console.warn("Seating a home's people in its chats failed; it catches up at the home's next change of people.", error))
     });
     registerRoutes(http, { bots, approvals, notices, meter: botMeter, records, streams });
-    const appConnected = createAppConnected({ integrations, profiles, env, records, apps, approvals });
+    // Apps' scripts use connected apps through the bots' tools (D-136), and their jobs and public forms send (D-137).
+    const appConnected = Object.freeze({
+      ...createAppConnected({ integrations, profiles, env, records, apps, approvals }),
+      ...createAppMessages({ records, integrations, env, systemContext })
+    });
     return { bots, botLoops, appConnected };
   },
   async shutdown(_dependencies, { outputs }) {

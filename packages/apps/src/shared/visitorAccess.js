@@ -21,7 +21,7 @@ export const OPERATIONS = ["list", "get", "create", "update", "delete"];
 export const SETTINGS = ["can", "rows", "owner", "read", "write"];
 const DATA_REFERENCE = /^=data\.(\w+)$/u;
 // Settings of a part that hold other parts, steps or columns, walked on their own below.
-const STRUCTURE = new Set(["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick"]);
+const STRUCTURE = new Set(["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick", "onSubmit"]);
 
 const listOf = (value) => (Array.isArray(value) ? value : []);
 
@@ -148,6 +148,12 @@ export function screenUses(definition, tables) {
           for (const key of ["showIf", "required", "label"]) reads(entry?.[key], inner, `${at}.${key}`);
         });
       }
+      // What a form sends on submit reads what the visitor may read, besides the record they just added (D-137).
+      listOf(item.onSubmit).forEach((send, index) => {
+        for (const [kind, settings] of Object.entries(isObject(send) ? send : {})) {
+          for (const [key, value] of Object.entries(isObject(settings) ? settings : {})) reads(value, scope, `${path}.onSubmit[${index}].${kind}.${key}`);
+        }
+      });
       steps(item.do, scope, `${path}.do`);
       steps(item.onRowClick, inner, `${path}.onRowClick`);
       steps(item.onClick, inner, `${path}.onClick`);

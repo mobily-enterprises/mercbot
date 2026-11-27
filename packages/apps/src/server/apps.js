@@ -43,6 +43,8 @@ const toApp = (record) => ({
   draftVersionId: record.draftVersionId ? String(record.draftVersionId) : null,
   publicAt: record.publicAt ?? null,
   connectedAccess: record.connectedAccess ?? [],
+  // What its jobs and public forms may send (D-137), as owners and admins set it.
+  sending: record.sending ?? null,
   madeByBotId: record.madeByBotId ? String(record.madeByBotId) : null,
   madeByUserId: record.madeByUserId ? String(record.madeByUserId) : null,
   themeOverride: record.theme ?? null,

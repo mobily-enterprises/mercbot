@@ -61,7 +61,9 @@ export const hostFor = (kind) =>
           web: { fetch: true },
           connected: { actions: true, run: true },
           people: { me: true },
-          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true } })
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true } }),
+          // Sending without a button press (D-137): a job's, when the app's owners and admins switched it on.
+          ...(kind === "job" ? { notify: { member: true, email: true } } : {})
         };
 
 /**
@@ -282,6 +284,10 @@ export function createScriptChecks({ pool, ready }) {
               if (group === "ai") {
                 if (!Object.hasOwn(test.ai || {}, operation)) throw new Error(`no ai answer for ai.${operation} in this test`);
                 return test.ai[operation];
+              }
+              if (group === "notify") {
+                if (!Object.hasOwn(test.notify || {}, operation)) throw new Error(`no notify answer for notify.${operation} in this test`);
+                return test.notify[operation];
               }
               if (group === "docs") {
                 if (!Object.hasOwn(test.docs || {}, operation)) throw new Error(`no docs answer for docs.${operation} in this test`);

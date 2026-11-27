@@ -14,6 +14,7 @@ import {
 import { pageParamOf } from "../shared/check.js";
 import { expandLines } from "../shared/lines.js";
 import { isBoard, movedValues } from "../shared/boards.js";
+import { sendOnSubmit } from "./submitSends.js";
 import { calculate, calculatedFormulas, dataOnly, isCalculated, isWorkedOut, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
@@ -445,7 +446,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         const made = await gate.create(actx, table.id, input, { txOptions });
         const shown = formNode?.table === table.key ? (formNode.fields || []).map((entry) => (typeof entry === "string" ? entry : entry?.field)) : [];
         const files = live(table).filter((field) => isFileField(field) && shown.includes(field.key)).map((field) => field.key);
-        created.push({ table: table.key, id: String(made.id), ...(files.length ? { files } : {}) });
+        created.push({ table: table.key, id: String(made.id), values: input, ...(files.length ? { files } : {}) });
       } else {
         const target = referenced(step[kind].record);
         if (!target?.id) throw new GateError(404, "This button's record is missing.", { code: "apps_button_record_missing" });
@@ -529,6 +530,10 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         if (!dryRun && !practice) effects.push({ notify: `Sent to ${bot.name}` });
       }
     }
+    // What a create form sends once its button added the record (D-137): after every step succeeded, never in a preview.
+    const made = formNode?.onSubmit && !dryRun && !practice ? created.find((entry) => entry.table === formNode.table) : null;
+    const seen = { variables, scope, functions: loaded.functions };
+    if (made) effects.push(...(await sendOnSubmit(scripts, actx, loaded, formNode, made, seen)));
     // Tasks go out only once every step has succeeded, and never from a draft preview.
     const record = scope.form || scope.row;
     for (const { bot, task } of dryRun || practice ? [] : handoffs) {
@@ -549,7 +554,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     const wouldSend = handoffs.map(({ bot, task }) => ({ bot: bot.name, task }));
     return {
       effects,
-      ...(created.length ? { created } : {}),
+      ...(created.length ? { created: created.map(({ values: _values, ...entry }) => entry) } : {}),
       ...(dryRun ? { dryRun: true, wouldWrite: writes, wouldSend, wouldRun: scriptsRun } : {}),
       ...(practice ? { practice: { changes: practice.changes, wouldSend, simulated: practice.simulated } } : {})
     };

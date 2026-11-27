@@ -65,7 +65,11 @@ export function previewNotice(result) {
         ? `use ${entry.connected.app} (${entry.connected.action})`
         : entry.ai
           ? entry.ai.bot ? `ask ${entry.ai.bot} about ${entry.ai.items} item${entry.ai.items === 1 ? "" : "s"}` : "make a picture"
-          : `call ${entry.web?.url}`)
+          : entry.docs
+            ? `make the document ${entry.docs.pdf}`
+            : entry.sent
+              ? entry.sent.kind === "email" ? "send an email" : "notify members"
+              : `call ${entry.web?.url}`)
   ];
   return unsent.length ? `Practice data: nothing was sent. Once published, this would ${unsent.join(" and ")}.` : "";
 }

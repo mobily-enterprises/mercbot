@@ -39,7 +39,8 @@ function rewriteFormula(source, scope, map, report) {
     if (node.op === ".") {
       const [object, property] = node.args;
       const propertyStart = node.end - property.length;
-      if (object.op === "id" && (object.args === "row" || object.args === "form")) {
+      // `record`: the record a form just added, in what it sends on submit (D-137).
+      if (object.op === "id" && (object.args === "row" || object.args === "form" || object.args === "record")) {
         if (!(object.args === "form" && FORM_EXTRAS.has(property))) fieldAt(scope[object.args], property, propertyStart, node.end);
         return;
       }
@@ -231,6 +232,12 @@ function convertDefinition(definition, map) {
         const [converted, target] = tableRef(item.table, `${path}.table`);
         item.table = converted;
         inner = { ...scope, form: target };
+        // What it sends on submit sees the record it added (D-137).
+        listOf(item.onSubmit).forEach((send, index) => {
+          for (const [kind, settings] of entriesOf(send)) {
+            for (const [key, value] of entriesOf(settings)) settings[key] = formula(value, { ...scope, record: target }, `${path}.onSubmit[${index}].${kind}.${key}`);
+          }
+        });
       } else if (item.type === "form") {
         inner = { ...scope, form: queryTable(item.record, "record") };
       } else if (item.type === "lines") {
@@ -246,7 +253,7 @@ function convertDefinition(definition, map) {
         for (const key of ["title", "subtitle"]) if (item[key] !== undefined) item[key] = formula(item[key], inner, `${path}.${key}`);
       }
       for (const [key, value] of Object.entries(item)) {
-        if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick"].includes(key)) continue;
+        if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick", "onSubmit"].includes(key)) continue;
         if (BOARD_FIELDS[item.type] && ["title", "subtitle", ...BOARD_FIELDS[item.type]].includes(key)) continue;
         item[key] = formula(value, scope, `${path}.${key}`);
       }

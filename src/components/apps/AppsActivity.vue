@@ -98,6 +98,9 @@ function summary(event) {
   if (c.createdApp) return `created the app ${c.createdApp.name}`;
   if (c.publishedVersion) return `published version ${c.publishedVersion.number}${c.publishedVersion.summary ? `: ${c.publishedVersion.summary}` : ""}`;
   if (c.builder) return `made ${c.builder.name} the Builder`;
+  // Sending without a button press (D-137): switched on or off, and each send.
+  if (c.sending) return `set what ${c.sending.name} sends by itself: ${[c.sending.notify && "notices", c.sending.email && "email"].filter(Boolean).join(" and ") || "nothing"}`;
+  if (c.sent) return c.sent.kind === "email" ? `${c.sent.logged ? "logged (not sent, in this copy) " : "sent "}the email "${c.sent.subject}" from ${c.sent.app}` : `notified ${c.sent.to} ${c.sent.to === 1 ? "person" : "people"} from ${c.sent.app}`;
   if (c.publicApp) return c.publicApp.on ? `made ${c.publicApp.name} public` : `made ${c.publicApp.name} internal again`;
   // An account taken away with the person who connected it, when they're no longer in the home (D-111).
   if (c.departedAccount) {

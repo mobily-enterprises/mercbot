@@ -42,6 +42,10 @@ Records are by field name: links are the linked record's id, ` +
   `field } }) → { picture }: a picture made later into that record's file or picture field. Buttons and jobs only, when ` +
   `the app's owners allowed bots and pictures; per run 1 ai.work (100 items of 8,000 characters, a task of 2,000; 3 batches ` +
   `of an app at once) and 5 ai.picture. A screen shows the answers once they're in its records.
+- await notify.member({ to: "owners" | a person's id | [ids], text }) and await notify.email({ to: address | [addresses], ` +
+  `subject, text }) (jobs only): a notice from the home's main bot in their chat with it ("From <app>: <text>"), or an email ` +
+  `from the mailbox the app's owners chose; only when they switched it on for the app, within its daily limit, else an ` +
+  `error says so. A test gives them as notify: { member: answer, email: answer }.
 - await docs.pdf({ template, record: { table, id }, into: "a file field" | { table, id, field }, name }) → { file: { name, ` +
   `size } }: the record as a PDF in a file field (buttons and jobs, 3 a run). The template is HTML (up to 20,000 ` +
   `characters) with {{field}} for the record's values, shown as screens show them, and {{lines:table:link:field,field}} ` +

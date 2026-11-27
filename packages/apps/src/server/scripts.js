@@ -8,6 +8,7 @@ import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChe
 import { createScriptAi } from "./scriptAi.js";
 import { asDrafted } from "./scriptDrafts.js";
 import { createScriptDocs } from "./scriptDocs.js";
+import { createAppSending } from "./appSending.js";
 import { createScriptConnected } from "./scriptConnected.js";
 import { createScriptPeople } from "./scriptPeople.js";
 import { createScriptPool } from "./scriptPool.js";
@@ -117,6 +118,7 @@ export function createScripts({
   const { whoActed, personOfRun } = createScriptPeople({ roleOf });
   const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
   const documents = createScriptDocs({ gate });
+  const sending = createAppSending({ resources, connected });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
   let quickjs = null;
@@ -363,6 +365,7 @@ export function createScripts({
       if (group === "connected") return connectedCall(name, args);
       if (group === "ai") return aiCall(name, args);
       if (group === "docs") return docsCall(name, args);
+      if (group === "notify") return sending.fromRun(ctx, row.appId, name, args[0]);
       if (group === "people") return personOfRun(ctx, row);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);
@@ -595,7 +598,6 @@ export function createScripts({
   }
 
   // ---- Jobs: timetables and watches, claimed once across servers ----
-
   // The call options of a job's run, in its script's home.
   const homeOf = (row) => ({ context: systemContext("due scripts").forWorkspace(row.workspaceId) });
 
@@ -669,7 +671,6 @@ export function createScripts({
   }
 
   const appOf = (slug, options) => apps.find(slug, options);
-
   const close = () => pool.close();
 
   return Object.freeze({
@@ -692,6 +693,7 @@ export function createScripts({
     prune,
     forgetPerson,
     confirmConnected: connectedApps.confirm,
+    sending,
     connectedGuide,
     web,
     close

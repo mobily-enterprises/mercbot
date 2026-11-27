@@ -88,6 +88,9 @@ export const appsApi = {
   scripts: (slug) => request(`${app(slug)}/scripts`),
   setScriptEnabled: (slug, key, enabled) => request(`${app(slug)}/scripts/${encodeURIComponent(key)}/enabled`, { method: "PUT", body: { enabled } }),
   allowConnected: (slug, apps) => request(`${app(slug)}/connected-access`, { method: "PUT", body: { apps } }),
+  // What its jobs and public forms send without a button press (D-137).
+  sending: (slug) => request(`${app(slug)}/sending`),
+  setSending: (slug, sending) => request(`${app(slug)}/sending`, { method: "PUT", body: sending }),
   confirmConnected: (slug, id) => request(`${app(slug)}/connected-confirm/${encodeURIComponent(id)}`, { method: "POST" }),
   homeScripts: () => requestInHome(client, "/apps-scripts"),
   setWebAccess: (entries) => requestInHome(client, "/apps-web-access", { method: "PUT", body: { entries } })

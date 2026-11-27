@@ -80,6 +80,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const roleOf = (userId, options) => records.chats.roleIn(userId, options);
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
+  // The home's connected mailboxes an app's email may go from (D-137), for its owners and admins to choose.
+  const connectedMailboxes = (options) => connected().mailboxes(options);
   const runtime = zoned(createRuntime({ apps, gate, scripts, practices }), ["query", "action", "linkChoices", "move"]);
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
@@ -102,6 +104,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     watches,
     scripts,
     connectedAccess,
+    connectedMailboxes,
     installTemplate: installTemplateFor,
     templateSummaries,
     templateStatus: templateStatusFor,

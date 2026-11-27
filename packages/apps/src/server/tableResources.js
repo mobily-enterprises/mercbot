@@ -13,6 +13,9 @@ export const appResource = defineTableResource({
     // The connected apps (plugin ids, and "ai" for bots and pictures) its scripts may use, as owners and admins chose
     // (D-136); an app that has any is never public (ck_apps_connected_internal).
     connectedAccess: { type: "array" },
+    // What its jobs and public forms may send without a button press (D-137), as owners and admins set it: { notify,
+    // email, account, daily }; null is nothing.
+    sending: { type: "object", nullable: true, additionalProperties: true },
     createdAt: { type: "dateTime" },
     draftVersionId: { type: "id", nullable: true, search: true },
     icon: { type: "string", maxLength: 40, noTrim: true },
@@ -319,6 +322,22 @@ export const appConnectedConfirmResource = defineTableResource({
   }
 });
 
+/** app_send_counts
+ * what an app sent on a day without a button press, by what (D-137, appSending.js)
+ */
+export const appSendCountResource = defineTableResource({
+  name: "appSendCounts",
+  tableName: "app_send_counts",
+  ownership: "workspace",
+  schema: {
+    appId: { type: "string", maxLength: 24, noTrim: true, required: true, search: true },
+    count: { type: "integer" },
+    day: { type: "date", required: true, search: true },
+    what: { type: "string", maxLength: 300, noTrim: true, required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** app_practices
  * a draft's practice copy (D-71): its records are AnyAPI's, under the copy's own tenant
  */
@@ -354,5 +373,6 @@ export const TABLE_RESOURCES = Object.freeze([
   appJobResource,
   appWebAccessResource,
   appPracticeResource,
-  appConnectedConfirmResource
+  appConnectedConfirmResource,
+  appSendCountResource
 ]);

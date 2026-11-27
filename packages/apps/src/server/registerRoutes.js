@@ -9,6 +9,7 @@ import { scopeStyle } from "./appStyle.js";
 import { templateSummaries } from "./templates.js";
 import { CATALOG, needsOf } from "./tableCatalog.js";
 import { GateError } from "./validate.js";
+import { sendingOf } from "./appSending.js";
 
 /**
  * A request's answer: the work's result, or the error it raised as a 4xx with its message, code
@@ -478,6 +479,23 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       throw forbidden("Only the home's owners and admins can choose which connected apps scripts may use.", "apps_connected_manage_forbidden");
     }
     return { allowed: await appsRuntime.connectedAccess.allowConnected(ctx.actor, request.params.slug, body(request).apps, ctx.options) };
+  }));
+  // What an app's jobs and public forms may send without a button press (D-137): owners and admins switch it on, choose
+  // the mailbox and the daily limit; the Logic tab reads it with the home's mailboxes and today's counts.
+  router.register("GET", `${base}/:slug/sending`, home, appRoute(async (request, ctx) => {
+    const app = await apps.find(request.params.slug, ctx.options);
+    return {
+      sending: sendingOf(app),
+      today: await scripts.sending.today(app, ctx.options),
+      mailboxes: ctx.canManage ? await appsRuntime.connectedMailboxes(ctx.options) : [],
+      canManage: ctx.canManage
+    };
+  }));
+  router.register("PUT", `${base}/:slug/sending`, home, appRoute(async (request, ctx) => {
+    if (!ctx.canManage) throw forbidden("Only the home's owners and admins can choose what an app sends.", "apps_sending_manage_forbidden");
+    const app = await apps.find(request.params.slug, ctx.options);
+    apps.notAView(app, "send");
+    return { sending: await scripts.sending.choose(ctx.actor, app, body(request), ctx.options) };
   }));
   router.register("PUT", `${base}/:slug/scripts/:key/enabled`, home, appRoute((request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can switch scripts off or on.", "apps_script_switch_forbidden");

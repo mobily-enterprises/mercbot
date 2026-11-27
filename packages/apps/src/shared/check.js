@@ -4,6 +4,7 @@ import { closest, fieldsIn, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
 import { expandLines } from "./lines.js";
+import { checkOnSubmit } from "./onSubmit.js";
 import { BOARD_CATALOG, BOARD_READ_ONLY, ROW_FORMULAS, boardRow, checkBoard, isBoard } from "./boards.js";
 import { calculatedOrder, compileWhere } from "./where.js";
 
@@ -20,7 +21,7 @@ const CATALOG = {
   input: ["bind", "label", "icon", "inputType"],
   table: ["rows", "columns", "onRowClick", "rowActions", "search"],
   field: ["label", "value"],
-  form: ["record", "table", "fields", "buttons"],
+  form: ["record", "table", "fields", "buttons", "onSubmit"],
   totals: ["label", "rows"],
   chart: ["label", "kind", "rows", "measure"],
   tabs: ["tabs"],
@@ -677,6 +678,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
           for (const key of ["showIf", "required"]) formula(`${path}.fields[${index}].${key}`, item[key], formVariables, "bool");
         });
         checkNodes(`${path}.buttons`, node.buttons, formVariables, depth + 1);
+        if (node.onSubmit !== undefined) checkOnSubmit(`${path}.onSubmit`, node.onSubmit, node.table ? table : null, { report, formula, variables });
       }
     }
     if (node.type === "dialog" && (typeof node.key !== "string" || !node.key)) {

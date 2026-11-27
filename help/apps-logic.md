@@ -147,6 +147,15 @@ The app's **Logic** tab has **Connected apps its scripts may use**: a switch for
 
 In a draft's preview, a button reads for real but only pretends to change anything, and the preview says what it would have done.
 
+### Sending by itself: notices and email
+
+Some things need to go out without anyone pressing a button: a reminder the day before a booking, a thank-you to someone who signed up on a public form, a note to the owners when a new order comes in. An app's **jobs** and **public forms** can do two kinds of sending, each switched on for the app by a home's owner or admin, in the app's **Logic** tab under **What it sends by itself**:
+
+- **Notify members.** A message to people in the home, from the home's main bot, in their own chat with it ("From Bookings: Kim's booking is tomorrow"). It shows as unread and reaches their phone like any message.
+- **Send email.** An email from one of the home's connected Gmail or Outlook mailboxes, the one the owner or admin chooses.
+
+Each has a daily limit for the app (50 unless you choose another, up to 500), and a public form emails any one address at most 3 times a day, so nobody can use your form to flood someone's inbox. Until it's switched on, the app sends nothing. Every send is in the app's activity. In a draft's preview, nothing is sent: the preview says what would have been. On a copy of Mercbot that isn't live, emails are only logged, never sent.
+
 ### Documents
 
 A button's or a job's script can turn a record into a PDF and keep it in one of the record's file fields, such as an invoice with its lines, ready to download or attach to an email draft. The Builder writes the page: the record's values, shown as the app shows them, and a table of its line items. Up to 3 documents a run. In a draft's preview, nothing is made. Documents need the server's office apps; where they aren't installed, the button says so.

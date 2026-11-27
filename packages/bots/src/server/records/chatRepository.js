@@ -186,6 +186,12 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   const everyoneIn = (options) => memberships.activeMemberIds(homeOf(options), passedOn(options));
 
   /** Someone's role in the home ("owner", "admin", "member" or another the home gives), or null when they aren't in it. */
+  /** The home's owners and admins (user ids): whom an app's notice "to owners" reaches (D-137). */
+  async function managersIn(options) {
+    const members = await memberships.listActiveByWorkspaceId(homeOf(options), passedOn(options));
+    return members.filter((member) => ["owner", "admin"].includes(member.roleSid)).map((member) => String(member.userId));
+  }
+
   async function roleIn(userId, options) {
     if (!isId(userId)) return null;
     return (await memberships.findActiveByWorkspaceIdAndUserId(homeOf(options), String(userId), passedOn(options)))?.roleSid ?? null;
@@ -671,6 +677,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     names,
     isHomeMember,
     everyoneIn,
+    managersIn,
     roleIn,
     people,
     peopleOf,

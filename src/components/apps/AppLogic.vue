@@ -1,14 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { jobSchedule } from "@local/apps/shared";
+import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import MercbotSwitch from "@/components/mercbot/MercbotSwitch.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { whenText } from "@/components/apps/appRuntime.js";
 
 // The Logic tab of an app's details (D-35, scripts): what each script does in plain words, when it
 // runs, its code and tests (read-only: only the Builder changes scripts), recent runs and errors,
-// the coding loop's rounds, and "Ask Builder to fix"; and which connected apps its scripts may use (D-136), which the
-// home's owners and admins choose.
+// the coding loop's rounds, and "Ask Builder to fix"; which connected apps its scripts may use (D-136), and what its jobs
+// and public forms may send without a button press (D-137), which the home's owners and admins choose.
 const props = defineProps({ slug: { type: String, required: true } });
 const emit = defineEmits(["ask"]);
 const scripts = ref(null);
@@ -63,6 +64,28 @@ async function load() {
     problem.value = errorText(error, "The scripts couldn't load.");
   }
 }
+// What its jobs and public forms send by themselves (D-137): notices to members, email from a chosen mailbox, a daily limit.
+const sending = ref(null);
+async function loadSending() {
+  try {
+    sending.value = await appsApi.sending(props.slug);
+  } catch {
+    sending.value = null;
+  }
+}
+async function setSending(change) {
+  const next = { ...sending.value.sending, ...change };
+  if (next.email && !next.account) next.account = sending.value.mailboxes[0]?.id ?? null;
+  saving.value = true;
+  try {
+    sending.value.sending = (await appsApi.setSending(props.slug, next)).sending;
+  } catch (error) {
+    problem.value = errorText(error, "That didn't work.");
+  } finally {
+    saving.value = false;
+  }
+}
+const mailboxItems = computed(() => (sending.value?.mailboxes || []).map((mailbox) => ({ value: mailbox.id, title: mailbox.address })));
 async function allow(id, on) {
   const wanted = on ? [...connected.value.allowed, id] : connected.value.allowed.filter((entry) => entry !== id);
   saving.value = true;
@@ -86,7 +109,10 @@ function askToFix(script) {
   const error = lastError(script);
   emit("ask", `script "${script.key}" (${script.summary})${error ? `, which failed with "${error.error}"` : ""}: `);
 }
-onMounted(load);
+onMounted(() => {
+  load();
+  loadSending();
+});
 </script>
 
 <template>
@@ -181,6 +207,67 @@ onMounted(load);
         }}
       </p>
     </section>
+    <section v-if="sending" class="app-logic__connected" data-testid="app-sending">
+      <h3 class="mb-set-group app-logic__group">What it sends by itself</h3>
+      <div class="mb-set-card">
+        <div class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">Notify members</span>
+            <span class="mb-set-row__description">Jobs and forms can message people in the home, from the home's main bot. Today: {{ sending.today.notices }}.</span>
+          </span>
+          <MercbotSwitch :model-value="sending.sending.notify" label="Notify members" :disabled="!sending.canManage || saving" @update:model-value="(on) => setSending({ notify: on })" />
+        </div>
+        <div class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">Send email</span>
+            <span class="mb-set-row__description">Jobs and public forms can send email from one of the home's mailboxes. Today: {{ sending.today.emails }}.</span>
+          </span>
+          <MercbotSwitch
+            :model-value="sending.sending.email"
+            label="Send email"
+            :disabled="!sending.canManage || saving || (!sending.sending.email && !mailboxItems.length)"
+            @update:model-value="(on) => setSending({ email: on })"
+          />
+        </div>
+        <div v-if="sending.canManage && (sending.sending.email || sending.sending.notify)" class="mb-set-row d-flex flex-wrap ga-3">
+          <SelectField
+            v-if="sending.sending.email"
+            :model-value="sending.sending.account"
+            :items="mailboxItems"
+            :loading="!sending.mailboxes"
+            label="From"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="app-logic__field"
+            :disabled="saving"
+            @update:model-value="(account) => setSending({ account })"
+          />
+          <v-text-field
+            :model-value="sending.sending.daily"
+            type="number"
+            min="1"
+            max="500"
+            label="Each a day, at most"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="app-logic__field"
+            :disabled="saving"
+            @change="(event) => setSending({ daily: Number(event.target.value) })"
+          />
+        </div>
+      </div>
+      <p class="text-caption text-medium-emphasis app-logic__note">
+        {{
+          !sending.canManage
+            ? "Only the home's owners and admins can change these."
+            : !mailboxItems.length
+              ? "To send email, connect a Gmail or Outlook mailbox in Connect apps."
+              : "Each send is in the app's activity. A public form emails one address at most 3 times a day."
+        }}
+      </p>
+    </section>
   </div>
 </template>
 
@@ -203,6 +290,9 @@ onMounted(load);
 }
 .app-logic__group {
   font-weight: 400;
+}
+.app-logic__field {
+  max-width: 300px;
 }
 .app-logic__note {
   max-width: 636px;
