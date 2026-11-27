@@ -12,7 +12,8 @@ import {
 } from "../shared/formulas.js";
 import { pageParamOf } from "../shared/check.js";
 import { expandLines } from "../shared/lines.js";
-import { calculate, calculatedFormulas, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
+import { isBoard, movedValues } from "../shared/boards.js";
+import { calculate, calculatedFormulas, dataOnly, isCalculated, isWorkedOut, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
 
@@ -287,9 +288,16 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     return { variables: { ...page.variables, me: ME }, values: { ...page.values, me } };
   };
 
+  /** The part a path points at ("content/1"), or undefined. */
+  function nodeAt(screen, path) {
+    let node = screen;
+    for (const part of String(path || "").split("/").filter(Boolean)) node = Array.isArray(node) ? node[Number(part)] : node?.[part];
+    return node;
+  }
+
   /**
    * Finds the steps a path points at ("content/1/buttons/0/do"), with the table row and form
-   * around them. Only `do` and `onRowClick` lists can be run.
+   * around them. Only `do`, `onRowClick` and a card's `onClick` lists can be run.
    */
   function stepsAt(screen, path) {
     const parts = String(path || "").split("/").filter(Boolean);
@@ -298,12 +306,12 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     let formNode = null;
     for (const part of parts) {
       if (node === null || typeof node !== "object") break;
-      if (node.type === "table") tableNode = node;
+      if (node.type === "table" || isBoard(node)) tableNode = node;
       if (node.type === "form") formNode = node;
       node = Array.isArray(node) ? node[Number(part)] : Object.hasOwn(node, part) ? node[part] : undefined;
     }
     const last = parts.at(-1);
-    if (!Array.isArray(node) || !["do", "onRowClick"].includes(last)) {
+    if (!Array.isArray(node) || !["do", "onRowClick", "onClick"].includes(last)) {
       throw new GateError(404, "That isn't a button of this screen.", { code: "apps_button_not_found" });
     }
     return { steps: node, tableNode, formNode };
@@ -392,7 +400,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       if (!target) throw new GateError(404, "This form's record is missing.", { code: "apps_form_record_missing" });
       // Only the fields this form shows can be written through it; a calculated one only shows (D-78).
       const shown = new Set((formNode.fields || []).map((entry) => (typeof entry === "string" ? entry : entry.field)));
-      const allowed = live(target.table).filter((field) => shown.has(field.key) && !isCalculated(field));
+      const allowed = live(target.table).filter((field) => shown.has(field.key) && !isWorkedOut(field));
       formValues = Object.fromEntries(
         allowed.filter((field) => Object.hasOwn(values || {}, field.key)).map((field) => [field.key, values[field.key]])
       );
@@ -539,8 +547,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
    */
   async function linkChoices(ctx, { slug, version, screen: screenKey, path, field: fieldKey, search = "", loaded: given = null }) {
     const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
-    let node = loaded.screen;
-    for (const part of String(path || "").split("/").filter(Boolean)) node = Array.isArray(node) ? node[Number(part)] : node?.[part];
+    const node = nodeAt(loaded.screen, path);
     const shown = (node?.type === "form" ? node.fields || [] : []).map((entry) => (typeof entry === "string" ? entry : entry?.field));
     // A create form names its table; an edit form its record, one of the screen's data ({ record: table, id }).
     const recordQuery = loaded.screen.data?.[String(node?.record || "").replace(/^=data\./u, "")];
@@ -564,9 +571,37 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     return { items: records.map((record) => ({ value: String(record.id), title: String(record[target.titleFieldId] ?? `#${record.id}`) })) };
   }
 
+  /**
+   * A card moved on a board, calendar or timeline (`path`: the part; boards.js): its record (`row`) takes the column's
+   * choice, or its dates move by `to` days, through the data gate as an edit of those fields (its checks, the table's
+   * rules, a visitor's access, a draft's practice copy). A view, and a part with `move: false`, only show. Answers
+   * `{ dryRun }` when a draft has nothing to preview on, as its buttons do.
+   */
+  async function move(ctx, { slug, version, screen: screenKey, path, row: rowId, to, loaded: given = null }) {
+    const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
+    if (loaded.app.kind === "view") throw new GateError(403, "A view only shows things.", { code: "apps_view_read_only" });
+    const node = nodeAt(loaded.screen, path);
+    if (!isBoard(node) || node.move === false) {
+      throw new GateError(404, "That isn't a board, calendar or timeline whose cards move.", { code: "apps_move_not_found" });
+    }
+    const table = loaded.tableNamed(loaded.screen.data?.[DATA_REFERENCE.exec(String(node.rows))?.[1]]?.from);
+    if (!table) throw new GateError(409, "This part's table has been removed.", { code: "apps_form_table_removed" });
+    const record = await gate.get(actx, table.id, String(rowId ?? ""));
+    let values;
+    try {
+      values = movedValues(node, table, record, to);
+    } catch (error) {
+      throw new GateError(400, error.message, { code: "apps_move_invalid" });
+    }
+    if (!ctx.visitor && version === "draft" && !actx.practice) return { dryRun: true };
+    await gate.update(actx, table.id, record.id, values);
+    return { moved: true };
+  }
+
   return Object.freeze({
     linkChoices,
     query,
-    action
+    action,
+    move
   });
 }

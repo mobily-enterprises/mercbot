@@ -49,6 +49,16 @@ You don't need to know which parts an app is made of. Say what you want to see a
 
 Ask for line items wherever one record holds a list of others: an invoice or a quote and its lines, an order and its items, a trip and its stops. The record's screen then lists its own lines, with **Edit** (a small form in a dialog) and **Remove** on each, and a form below to add one, already linked to the record.
 
+### Boards, calendars and timelines
+
+An app's screen can show records as cards you move around:
+
+- A **board** has a column for each choice of a field, such as a deal's stage. Drag a card to another column, or use its **⋮** menu, and the record takes that choice.
+- A **calendar** shows a month (or a week) with each record on the day of its date, such as visits or due dates. Drag a card to another day, or pick a date in its menu, and its date moves; an end date moves with it.
+- A **timeline** shows four weeks, each record a bar from its start to its end, such as jobs or bookings, in lanes if you like (by crew, say). Move a bar and its start and end move together.
+
+A move is an ordinary change of the record: if the table's rules refuse it (say, a deal can't be won without an amount), the card goes back and you're told why. On a phone, boards and timelines scroll sideways and a calendar shows one week as a list. Ask the Builder for one, for example "show deals as a board by stage".
+
 ## Preview, then publish
 
 Every change to an app goes through two stages: draft, then publish.

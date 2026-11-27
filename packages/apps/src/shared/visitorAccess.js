@@ -1,4 +1,5 @@
 import { calculatedFrom, isCalculated, isRollup, isWorkedOut } from "./calculated.js";
+import { BOARD_FIELDS, MOVED_FIELDS, ROW_FORMULAS, isBoard } from "./boards.js";
 import { fieldsIn, isObject } from "./definitions.js";
 import { VISITOR, celSchema, checkFormula, isFormula } from "./formulas.js";
 import { compileWhere } from "./where.js";
@@ -20,7 +21,7 @@ export const OPERATIONS = ["list", "get", "create", "update", "delete"];
 export const SETTINGS = ["can", "rows", "owner", "read", "write"];
 const DATA_REFERENCE = /^=data\.(\w+)$/u;
 // Settings of a part that hold other parts, steps or columns, walked on their own below.
-const STRUCTURE = new Set(["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick"]);
+const STRUCTURE = new Set(["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick"]);
 
 const listOf = (value) => (Array.isArray(value) ? value : []);
 
@@ -102,6 +103,19 @@ export function screenUses(definition, tables) {
         // A row's click and its buttons load the row's record.
         if (item.onRowClick || item.rowActions) note("can", inner.row, "get", path);
       }
+      if (isBoard(item)) {
+        // A board's, calendar's or timeline's cards (boards.js): their fields and words are read; a card that moves
+        // changes its fields, so the visitor must be able to change them, unless the part says `move: false`.
+        inner = { ...scope, row: queryTable(item.rows, "list") };
+        if (item.onClick) note("can", inner.row, "get", path);
+        for (const key of BOARD_FIELDS[item.type]) {
+          if (typeof item[key] !== "string") continue;
+          note("read", inner.row, item[key], `${path}.${key}`);
+          if (item.move !== false && MOVED_FIELDS[item.type].includes(key)) note("write", inner.row, item[key], `${path}.${key}`);
+        }
+        if (item.move !== false) note("can", inner.row, "update", path);
+        for (const key of ROW_FORMULAS) reads(item[key], inner, `${path}.${key}`);
+      }
       if (item.type === "form" && typeof item.table === "string") {
         // A new record's form holds what the visitor types, never a stored record.
         form = { table: item.table, creating: true };
@@ -111,7 +125,7 @@ export function screenUses(definition, tables) {
         inner = { ...scope, form: form.table };
       }
       for (const [key, value] of Object.entries(item)) {
-        if (STRUCTURE.has(key)) continue;
+        if (STRUCTURE.has(key) || (isBoard(item) && [...ROW_FORMULAS, ...BOARD_FIELDS[item.type]].includes(key))) continue;
         if (isObject(value)) for (const [name, inside] of Object.entries(value)) reads(inside, scope, `${path}.${key}.${name}`);
         else reads(value, scope, `${path}.${key}`);
       }
@@ -131,6 +145,7 @@ export function screenUses(definition, tables) {
       }
       steps(item.do, scope, `${path}.do`);
       steps(item.onRowClick, inner, `${path}.onRowClick`);
+      steps(item.onClick, inner, `${path}.onClick`);
       listOf(item.rowActions).forEach((child, index) => node(child, inner, `${path}.rowActions[${index}]`));
       listOf(item.buttons).forEach((child, index) => node(child, inner, `${path}.buttons[${index}]`));
       listOf(item.content).forEach((child, index) => node(child, scope, `${path}.content[${index}]`));

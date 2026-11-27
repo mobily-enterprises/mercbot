@@ -32,7 +32,8 @@ const runtime = createScreenRuntime({
   screenKey: props.screenKey,
   params: props.params,
   onEffects: noEffects,
-  onError: noEffects
+  onError: noEffects,
+  readOnly: true
 });
 const screenAround = useScreenSignal();
 if (screenAround.aborted) runtime.stop();

@@ -98,9 +98,11 @@ export function screenLocation(screens, base, key, params = {}) {
  * @param {Record<string, any> | null} [options.screens] The app's screens, where a copy of a view is drawn from.
  * @param {{ id: string, name: string } | null} [options.me] The member using it, as formulas read `me`.
  * @param {Array<{ id: string, name: string }>} [options.people] The home's people, for person fields.
+ * @param {boolean} [options.readOnly] A view's screen, which only shows: its cards don't move.
  */
 export function createScreenRuntime({
-  slug, version, tables, screen, screens = null, screenKey, params, onEffects, onError, api = appsApi, visitor = null, functions = null, me = null, people = []
+  slug, version, tables, screen, screens = null, screenKey, params, onEffects, onError, api = appsApi, visitor = null, functions = null, me = null, people = [],
+  readOnly = false
 }) {
   const state = reactive({});
   for (const [name, def] of Object.entries(screen.state || {})) state[name] = def.default ?? (def.type === "double" ? 0 : def.type === "bool" ? false : "");
@@ -215,6 +217,25 @@ export function createScreenRuntime({
     return items;
   }
 
+  /**
+   * A card moved on a board, calendar or timeline (`path`: the part): to a board's choice, or by `to` days. The screen
+   * reads its lists again either way, so a refused move goes back where it was; answers whether it moved.
+   */
+  async function move(path, row, to) {
+    busy.value = true;
+    try {
+      const result = await api.move(slug, { version, screen: screenKey, path, row, to, state: { ...state }, params });
+      onEffects(result);
+      return true;
+    } catch (error) {
+      onError(error);
+      return false;
+    } finally {
+      busy.value = false;
+      await loadAll({ quiet: true });
+    }
+  }
+
   async function run(path, { row = null, formValues = null } = {}) {
     busy.value = true;
     try {
@@ -247,8 +268,11 @@ export function createScreenRuntime({
 
   // A member on the live app adds files and pictures to records (D-130); a visitor doesn't, nor a draft's practice data.
   const attachesFiles = !visitor && version !== "draft";
+  // Cards move where the screen's routes can move them, never in a view (it only shows).
+  const moves = Boolean(api.move) && !readOnly;
   return {
     slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
-    rowScope, load, loadAll, reloadChanged, run, linkChoices, lists, browse, followState, stop, signal: reading.signal, version, attachesFiles
+    rowScope, load, loadAll, reloadChanged, run, move, moves, linkChoices, lists, browse, followState, stop, signal: reading.signal, version,
+    attachesFiles
   };
 }

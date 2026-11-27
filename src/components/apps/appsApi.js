@@ -68,6 +68,7 @@ export const appsApi = {
   query: (slug, body, options = {}) => request(`${app(slug)}/query`, { method: "POST", body, signal: options.signal }),
   action: (slug, body) => post(`${app(slug)}/action`, body),
   linkChoices: (slug, body) => post(`${app(slug)}/link-choices`, body),
+  move: (slug, body) => post(`${app(slug)}/move`, body),
   publish: (slug) => post(`${app(slug)}/publish`),
   // A draft preview's practice data starts again from the live records (D-71).
   resetPractice: (slug) => post(`${app(slug)}/practice/reset`),

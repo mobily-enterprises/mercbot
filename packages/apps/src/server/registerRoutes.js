@@ -160,6 +160,13 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     home,
     appRoute((request, ctx) => runtime.action(ctx, { ...body(request), slug: request.params.slug }))
   );
+  // A card moved on a board, calendar or timeline: its record changes through the gate (D-140).
+  router.register(
+    "POST",
+    `${base}/:slug/move`,
+    home,
+    appRoute((request, ctx) => runtime.move(ctx, { ...body(request), slug: request.params.slug }))
+  );
   // The records a form's link field can be set to, through the gate (its first 100, or those whose title has `search`).
   router.register(
     "POST",

@@ -1,10 +1,11 @@
-export { ME, celSchema, evaluateFormula, isFileField, isFormula, isTimeZone, plainValue, formatDate, formatMoney, formulaValue, showValue, formulaRecord, FIELD_REFERENCE, refersToRemovedField, useTimeZoneSource } from "./formulas.js";
+export { ME, homeDay, celSchema, evaluateFormula, isFileField, isFormula, isTimeZone, plainValue, formatDate, formatMoney, formulaValue, showValue, formulaRecord, FIELD_REFERENCE, refersToRemovedField, useTimeZoneSource } from "./formulas.js";
 export { ICONS, checkView, viewBody, viewDefinition } from "./check.js";
 export { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "./where.js";
 export { CALCULATED_TYPES, calculate, calculatedFormulas, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, isRollup, isWorkedOut, ROLLUP_MEASURES, rollupByNames, storedFieldIds, withCalculated } from "./calculated.js";
 export { withNamedFormulas } from "./namedFormulas.js";
 export { jobSchedule } from "./schedules.js";
 export { expandLines } from "./lines.js";
+export { BOARD_FIELDS, isBoard, shiftDays } from "./boards.js";
 
 /**
  * The most records one read of a table returns (D-35): the data gate never asks for more, and its

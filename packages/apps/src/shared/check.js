@@ -4,6 +4,7 @@ import { closest, fieldsIn, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
 import { expandLines } from "./lines.js";
+import { BOARD_CATALOG, BOARD_READ_ONLY, ROW_FORMULAS, boardRow, checkBoard, isBoard } from "./boards.js";
 import { calculatedOrder, compileWhere } from "./where.js";
 
 // The save check (D-35): an app is saved only when every part, setting, table, field, screen and
@@ -26,7 +27,9 @@ const CATALOG = {
   dialog: ["key", "title", "content"],
   view: ["view", "copy", "screen", "params"],
   // Line items (lines.js): the shown record's child records, added, edited and removed in place.
-  lines: ["record", "table", "link", "columns", "fields", "label", "add"]
+  lines: ["record", "table", "link", "columns", "fields", "label", "add"],
+  // Boards, calendars and timelines (boards.js): cards moved to change their records.
+  ...BOARD_CATALOG
 };
 // What a view (D-55) and an app's copy of one may hold: parts that only show things.
 const READ_ONLY = {
@@ -40,29 +43,15 @@ const READ_ONLY = {
   field: CATALOG.field,
   totals: CATALOG.totals,
   chart: CATALOG.chart,
-  tabs: CATALOG.tabs
+  tabs: CATALOG.tabs,
+  ...BOARD_READ_ONLY
 };
 const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit", "groupBy", "by", "sum", "avg", "grandTotal"]);
 // The periods a date field's totals can be grouped by (D-140), in the home's time zone.
 export const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
 const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set"];
-export const ICONS = [
-  "search",
-  "edit",
-  "back",
-  "save",
-  "add",
-  "open",
-  "check",
-  "close",
-  "person",
-  "mail",
-  "phone",
-  "calendar",
-  "chart",
-  "star"
-];
+export const ICONS = ["search", "edit", "back", "save", "add", "open", "check", "close", "person", "mail", "phone", "calendar", "chart", "star"];
 const CHOICES = {
   size: ["headline", "title", "body"],
   tone: ["success", "neutral", "warning", "danger", "primary"],
@@ -283,6 +272,7 @@ function checkPublicScreen(base, screen, { screens, report, tableNamed }) {
     if (node?.type === "view") report(at, "a public screen can't show a view yet.");
     steps(`${at}.do`, node?.do, form);
     steps(`${at}.onRowClick`, node?.onRowClick, form);
+    steps(`${at}.onClick`, node?.onClick, form);
     nodes(`${at}.rowActions`, node?.rowActions, form);
     nodes(`${at}.content`, node?.content, form);
     (node?.tabs || []).forEach((tab, tabIndex) => nodes(`${at}.tabs[${tabIndex}].content`, tab?.content, form));
@@ -614,6 +604,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         report(`${path}.${key}`, "must be words, a number, or a formula.");
         continue;
       }
+      if (isBoard(node) && ROW_FORMULAS.includes(key)) continue; // over the card's record: checkBoard
       if (CHOICES[key] && !isFormula(value) && !CHOICES[key].includes(value)) {
         report(`${path}.${key}`, `must be one of: ${CHOICES[key].join(", ")}.`);
       }
@@ -649,6 +640,14 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         report(`${path}.search`, 'is true, or the search box\'s label such as "Find a contact".');
       }
       if (node.search && (fromScript || !table)) report(`${path}.search`, "only a list of a table's records can be searched.");
+    }
+    if (isBoard(node)) {
+      const totalled = Boolean(screenData[DATA_REFERENCE.exec(String(node.rows || ""))?.[1]]?.groupBy);
+      const table = totalled ? null : records(node.rows, "list", `${path}.rows`);
+      const rowVariables = boardRow(variables, table);
+      if (table) rowTables.set(rowVariables.row, table);
+      checkBoard(path, node, { table, report, formula, rowVariables });
+      checkSteps(`${path}.onClick`, node.onClick, rowVariables);
     }
     if (node.type === "totals" || node.type === "chart") {
       const name = DATA_REFERENCE.exec(String(node.rows || ""))?.[1];

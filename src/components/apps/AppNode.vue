@@ -7,6 +7,10 @@ import { APP_FORM_KEY, APP_SCREEN_KEY, NO_APP_FORM, useAppArea } from "./screenK
 
 // Chart.js loads only on screens that show a chart.
 const AppChart = defineAsyncComponent(() => import("./AppChart.vue"));
+// Boards, calendars and timelines (D-140) load only on screens that show one.
+const AppBoard = defineAsyncComponent(() => import("./AppBoard.vue"));
+const AppCalendar = defineAsyncComponent(() => import("./AppCalendar.vue"));
+const AppTimeline = defineAsyncComponent(() => import("./AppTimeline.vue"));
 // Views load only on screens that show one, and they draw AppNode themselves.
 const AppViewPart = defineAsyncComponent(() => import("./AppViewPart.vue"));
 
@@ -249,6 +253,10 @@ const tabKey = computed(() => props.path);
     </v-card>
 
     <AppViewPart v-else-if="node.type === 'view'" :node="node" :path="path" :scope="scope" />
+
+    <AppBoard v-else-if="node.type === 'board'" :node="node" :path="path" />
+    <AppCalendar v-else-if="node.type === 'calendar'" :node="node" :path="path" />
+    <AppTimeline v-else-if="node.type === 'timeline'" :node="node" :path="path" />
 
     <div v-else-if="node.type === 'tabs'">
       <v-tabs v-model="runtime.dialogs[tabKey]" color="primary" class="mb-4">

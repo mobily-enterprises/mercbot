@@ -79,7 +79,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const roleOf = (userId, options) => records.chats.roleIn(userId, options);
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
-  const runtime = zoned(createRuntime({ apps, gate, scripts, practices }), ["query", "action", "linkChoices"]);
+  const runtime = zoned(createRuntime({ apps, gate, scripts, practices }), ["query", "action", "linkChoices", "move"]);
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });

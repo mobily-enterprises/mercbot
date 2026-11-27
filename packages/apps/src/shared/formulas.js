@@ -114,12 +114,18 @@ export function isTimeZone(zone) {
   }
 }
 
-/** Today's date (YYYY-MM-DD, like date fields) in the home's time zone, and the current moment (ISO 8601). */
-const today = () => {
+/** The day (YYYY-MM-DD, like date fields) a date is, or a moment falls on in the home's time zone; "" for none. */
+export function homeDay(value) {
+  if (!value) return "";
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(text)) return text;
   const zone = zoneOf() || "UTC";
   return new Intl.DateTimeFormat("en-CA", { timeZone: isTimeZone(zone) ? zone : "UTC", year: "numeric", month: "2-digit", day: "2-digit" })
-    .format(new Date());
-};
+    .format(new Date(text));
+}
+
+/** Today's date (YYYY-MM-DD, like date fields) in the home's time zone, and the current moment (ISO 8601). */
+const today = () => homeDay(new Date().toISOString());
 const now = () => new Date().toISOString();
 
 // Every formula runs in a copy of this environment: CEL plus our few functions. Its size is bounded and it always

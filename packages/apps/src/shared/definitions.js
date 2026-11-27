@@ -1,4 +1,5 @@
 import { Environment } from "@marcbachmann/cel-js";
+import { BOARD_FIELDS } from "./boards.js";
 
 // App definitions are stored by permanent table and field ids and shown by name (D-35): the Builder
 // and the renderer always see current names, so renaming a field never touches an app, and
@@ -233,9 +234,15 @@ function convertDefinition(definition, map) {
         item.table = converted;
         if (typeof item.link === "string") item.link = field(target, item.link, `${path}.link`);
         inner = { ...scope, row: target, form: target };
+      } else if (BOARD_FIELDS[item.type]) {
+        // A board's, calendar's or timeline's fields (boards.js), and its card words over the row.
+        inner = { ...scope, row: queryTable(item.rows, "list") };
+        for (const key of BOARD_FIELDS[item.type]) if (typeof item[key] === "string") item[key] = field(inner.row, item[key], `${path}.${key}`);
+        for (const key of ["title", "subtitle"]) if (item[key] !== undefined) item[key] = formula(item[key], inner, `${path}.${key}`);
       }
       for (const [key, value] of Object.entries(item)) {
-        if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick"].includes(key)) continue;
+        if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick"].includes(key)) continue;
+        if (BOARD_FIELDS[item.type] && ["title", "subtitle", ...BOARD_FIELDS[item.type]].includes(key)) continue;
         item[key] = formula(value, scope, `${path}.${key}`);
       }
       if (item.type === "view" && item.params && typeof item.params === "object") {
@@ -258,6 +265,7 @@ function convertDefinition(definition, map) {
       }
       steps(item.do, scope, `${path}.do`);
       steps(item.onRowClick, inner, `${path}.onRowClick`);
+      steps(item.onClick, inner, `${path}.onClick`);
       listOf(item.rowActions).forEach((child, index) => node(child, inner, `${path}.rowActions[${index}]`));
       listOf(item.buttons).forEach((child, index) => node(child, inner, `${path}.buttons[${index}]`));
       listOf(item.content).forEach((child, index) => node(child, scope, `${path}.content[${index}]`));
