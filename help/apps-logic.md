@@ -110,16 +110,18 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 
 **How much it can do in one run**
 
-| Limit | Most scripts | Rules on saving |
-|---|---|---|
-| Its own working time | 1 second | Half a second |
-| Memory | 32 MB | 16 MB |
-| Longest run, including waiting | 30 seconds | 10 seconds |
-| Record calls | 50 reads and writes | 20 reads (rules only read) |
-| Web calls | 5 | None |
-| Connected-app calls | 5 | None |
+| Limit | Buttons and screens' data | Jobs | Rules on saving |
+|---|---|---|---|
+| Its own working time | 1 second | 5 seconds | Half a second |
+| Memory | 32 MB | 32 MB | 16 MB |
+| Longest run, including waiting | 30 seconds | 60 seconds | 10 seconds |
+| Record calls | 50 reads and writes | 200 reads and writes | 20 reads (rules only read) |
+| Web calls | 5 | 5 | None |
+| Connected-app calls | 5 | 5 | None |
 
-Formula functions are smaller still: a tenth of a second and 8 MB, with no record or web calls. If a script goes over a limit, the run stops and is marked **Failed** with the reason, such as using too much memory. A job's own changes never set the same job off again, so a job can't trigger itself in a loop.
+Formula functions are smaller still: a tenth of a second and 8 MB, with no record or web calls. If a script goes over a limit, the run stops and is marked **Failed** with the reason, such as using too much memory.
+
+**All or nothing.** A run's changes to records are kept only if the whole run succeeds. If a script fails halfway, for example after adding two records and before updating a third, none of them stay, and neither does any bot work or picture it asked for. What it did outside the app can't be undone this way: a web call it made, or a change in a connected app such as a saved email draft. A job's own changes never set the same job off again, so a job can't trigger itself in a loop.
 
 ## Outside web services
 

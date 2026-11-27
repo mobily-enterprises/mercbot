@@ -13,7 +13,7 @@ export const SCRIPT_GUIDE =
 Define \`async ` +
   `function main(input)\` (a function script: a plain, synchronous \`function main(arg1, arg2, …)\`, pure: no records, no ` +
   `web).
-Only JSON goes in and out. Limits per run: 1 s of running time, 32 MB, 50 record calls, 5 web calls.
+Only JSON goes in and out. Limits per run: 1 s of running time, 32 MB, 50 record calls, 5 web calls; a job has 5 s, 200 record calls and 60 s in all. A run's record changes are all or nothing: if it throws or fails, none of its writes stay (nor ai work it queued), so a script can throw to undo what it did; web calls and connected apps' changes aren't undone.
 Record functions ` +
   `(not in functions; rules only read):
 - await records.list(table, { where: "=formula over the table's fields, values in params", ` +

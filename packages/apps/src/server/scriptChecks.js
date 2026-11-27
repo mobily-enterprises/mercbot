@@ -14,6 +14,8 @@ const MAX_TESTS = 20;
 export const LIMITS = {
   run: { cpuMs: 1000, wallMs: 30000, memory: 32 * 1024 * 1024, data: 50, web: 5, connected: 5 },
   rule: { cpuMs: 500, wallMs: 10000, memory: 16 * 1024 * 1024, data: 20, web: 0, connected: 0 },
+  // A job works through more records, with nobody waiting on it (D-140).
+  job: { cpuMs: 5000, wallMs: 60000, memory: 32 * 1024 * 1024, data: 200, web: 5, connected: 5 },
   test: { cpuMs: 1000, wallMs: 10000, memory: 32 * 1024 * 1024 }
 };
 export const PAGE = 100;

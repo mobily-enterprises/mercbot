@@ -73,9 +73,12 @@ export function createScriptAi({ resources, systemContext, registry, homeBots })
       return app;
     }
 
-    /** Queues one job as the run's person, waking a runner on any server. */
+    /**
+     * Queues one job as the run's person, waking a runner on any server: in the run's transaction (D-140), so a run
+     * that fails queues nothing.
+     */
     async function queue(call, job) {
-      return appJobs.withTransaction(passedOn(call), async (txOptions) => {
+      return appJobs.withTransaction({ ...ctx.txOptions, ...passedOn(call) }, async (txOptions) => {
         const created = await appJobs.create(job, { ...txOptions, returning: "id" });
         await publishIn(txOptions, "apps-jobs", "all", {});
         return String(created);

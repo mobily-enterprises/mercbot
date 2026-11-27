@@ -39,6 +39,8 @@ const SCRIPT_FIELDS = [
 ];
 // Run rows written per statement: 7 values each, well under PostgreSQL's 65,535 parameters.
 const RUNS_PER_INSERT = 1000;
+// The kinds of script whose run changes records all or nothing, in one transaction (D-140): rules only read.
+const WHOLE_RUNS = new Set(["action", "job", "source"]);
 
 /**
  * A record as scripts see it: id and fields by name; links and people as their id, tags as the list, a file or
@@ -63,6 +65,22 @@ function scriptValue(field, value) {
 
 
 
+
+/**
+ * A button's, a job's or a screen's data script's run in one transaction (D-140), which its reads see and its queued AI
+ * work joins (ctx.txOptions): a run that fails leaves none of its record changes (web calls and connected apps' changes
+ * aren't records, and stay).
+ */
+async function wholeRun(gate, ctx, start) {
+  return gate.withTransaction(ctx, async (txOptions) => {
+    ctx.txOptions = txOptions;
+    try {
+      return await start();
+    } finally {
+      delete ctx.txOptions;
+    }
+  });
+}
 
 /**
  * A home's scripts: rules on saving, buttons' and screens' scripts, formula functions and
@@ -404,7 +422,7 @@ export function createScripts({
    * writes, and its row, are its own, outside any transaction the caller holds.
    */
   async function execute(row, input, via, reach, runs, options, out = null) {
-    const limits = row.kind === "rule" ? LIMITS.rule : LIMITS.run;
+    const limits = row.kind === "rule" ? LIMITS.rule : row.kind === "job" ? LIMITS.job : LIMITS.run;
     const ctx = {
       // A button's changes in connected apps waiting for its person to confirm (scriptConnected.js), for runNamed's caller.
       ...(out ? { confirms: out.confirms } : {}),
@@ -415,19 +433,22 @@ export function createScripts({
       ...(reach?.practice ? { practice: reach.practice } : {})
     };
     const started = Date.now();
+    const start = () => pool.run({
+      code: row.code,
+      input,
+      cpuMs: limits.cpuMs,
+      memory: limits.memory,
+      wallMs: limits.wallMs,
+      host: hostFor(row.kind),
+      call: realHost(ctx, limits, row)
+    });
+    const practiced = ctx.practice?.changes?.length ?? 0;
     let outcome;
     try {
-      const result = await pool.run({
-        code: row.code,
-        input,
-        cpuMs: limits.cpuMs,
-        memory: limits.memory,
-        wallMs: limits.wallMs,
-        host: hostFor(row.kind),
-        call: realHost(ctx, limits, row)
-      });
+      const result = WHOLE_RUNS.has(row.kind) ? await wholeRun(gate, ctx, start) : await start();
       outcome = { ok: true, value: result.value, calls: result.calls, logs: result.logs };
     } catch (error) {
+      if (ctx.practice?.changes) ctx.practice.changes.length = practiced;
       if (!(error instanceof ScriptError)) throw error;
       outcome = { ok: false, error: error.message, calls: error.calls || 0, logs: error.logs || [] };
     }

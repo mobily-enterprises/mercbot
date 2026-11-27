@@ -91,9 +91,10 @@ test("ai for scripts: allowed apps, buttons and jobs, the main bot, limits, prev
   }
 
   // ---- At most three batches of an app at once, counted in the database ----
-  // Three are waiting: the first two buttons' and the first of "twice", queued before its second call was refused (as a
-  // script's record writes before an error are kept).
-  assert.equal((await jobs()).filter((job) => job.kind === "ai_batch").length, 3);
+  // Two are waiting, the first two buttons': "twice" queued its first in the run its second call failed, and a run that
+  // fails leaves nothing it queued (D-140). A third button makes three.
+  assert.equal((await jobs()).filter((job) => job.kind === "ai_batch").length, 2);
+  await press("judge", { id: mail.id });
   await assert.rejects(press("judge", { id: mail.id }), /already has 3 batches/u);
   await knex("app_jobs").where({ app_id: appId }).update({ status: "done" });
   await press("judge", { id: mail.id });

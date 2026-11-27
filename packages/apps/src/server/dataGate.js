@@ -28,6 +28,23 @@ import {
 } from "./visitorAccess.js";
 
 const IMPORT_MAX = 500;
+// The record store's calls that read or write rows, which a run's transaction joins (boundTo).
+const ROW_CALLS = new Set(["query", "queryAll", "get", "aggregate", "post", "postMany", "patch", "patchMany", "patchWhere"]);
+
+/**
+ * A home's record store with every row call joined to `trx` (unless the call names its own): a script's run in one
+ * transaction (ctx.txOptions, D-140) reads what it wrote and writes all or nothing.
+ */
+function boundTo(api, trx) {
+  const bind = (resource) => new Proxy(resource, {
+    get(target, name) {
+      const value = target[name];
+      if (!ROW_CALLS.has(name) || typeof value !== "function") return value;
+      return (params = {}, ...rest) => value.call(target, { transaction: trx, ...params }, ...rest);
+    }
+  });
+  return { ...api, resources: new Proxy(api.resources, { get: (target, key) => (target[key] ? bind(target[key]) : target[key]) }) };
+}
 // A calculated field's sum or average is worked out from the records themselves (D-78), read a page
 // at a time: past this many, the total is refused rather than slow every view that shows it.
 const CALCULATED_TOTALS_MAX = 5000;
@@ -105,15 +122,15 @@ export function createDataGate({
   }
 
   /**
-   * The AnyAPI instance a ctx reads and writes `table` in: the home's, or its practice copy's, which first gets the
-   * table, those its links point to (their labels are read with it) and those whose roll-ups it changes (D-140).
+   * The AnyAPI instance a ctx reads and writes `table` in (in a script run's transaction, ctx.txOptions, D-140): the home's,
+   * or its practice copy's, which first gets the table, those its links point to and those whose roll-ups it changes.
    */
   async function apiFor(ctx, tables, table) {
-    if (!ctx.practice) return anyapi.instanceFor(homeOf(ctx));
     const linked = table.fields.filter((field) => field.type === "link").map((field) => tables.find((entry) => entry.id === field.options?.target));
-    const readied = new Set([table, ...linked.filter(Boolean), ...rollupTables(tables, table)]);
+    const readied = ctx.practice ? new Set([table, ...linked.filter(Boolean), ...rollupTables(tables, table)]) : [];
     for (const each of readied) await practices.ensure(ctx.practice, tables, each, ctx.options);
-    return anyapi.practiceFor(homeOf(ctx), ctx.practice.id, tables);
+    const api = ctx.practice ? await anyapi.practiceFor(homeOf(ctx), ctx.practice.id, tables) : await anyapi.instanceFor(homeOf(ctx));
+    return ctx.txOptions ? boundTo(api, ctx.txOptions.trx) : api;
   }
 
   const toRecord = (table, row) => {
@@ -280,9 +297,9 @@ export function createDataGate({
 
   /**
    * Writes join the given `txOptions` (from withTransaction: several steps of one button succeed or
-   * fail together); otherwise each runs in its own.
+   * fail together), or a script run's (ctx.txOptions); otherwise each runs in its own.
    */
-  const within = (ctx, given, work) => (given ? work(given) : withTransaction(ctx, work));
+  const within = (ctx, given, work) => (given || ctx.txOptions ? work(given || ctx.txOptions) : withTransaction(ctx, work));
 
   // Open views re-read a table that changed (D-55): the notice goes out when the write commits.
   const dataChanged = (txOptions, ctx, table) => publishIn(txOptions, "apps-data", homeOf(ctx), { tables: [table.id] });
@@ -390,7 +407,7 @@ export function createDataGate({
       await followed(ctx, api, tables, table, [[before, after]], txOptions);
       return after;
     });
-    if (!given && replaced.length) await files.removeAll(ctx, replaced);
+    if (!given && !ctx.txOptions && replaced.length) await files.removeAll(ctx, replaced);
     return access ? project(access, toRecord(table, row)) : toRecord(table, row);
   }
 
