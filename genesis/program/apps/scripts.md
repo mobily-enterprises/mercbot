@@ -21,6 +21,12 @@ everything they read or write goes through the data gate, audited as the script.
 - `src/components/apps/AppsScripts.vue`
 - `src/components/apps/scriptFunctions.js`
 - `migrations/20261113120000_baseline.cjs`
+- `packages/apps/src/server/scriptDrafts.js`
+- `packages/apps/src/server/scriptPeople.js`
+- `packages/apps/src/server/scriptSchedule.js`
+- `packages/apps/src/server/scriptDocs.js`
+- `packages/apps/src/shared/schedules.js`
+- `migrations/20261205130000_app_scripts_drafts.cjs`
 
 ## Public contract
 
@@ -37,7 +43,9 @@ everything they read or write goes through the data gate, audited as the script.
   create and update by anyone; `{ refuse }` stops the save with that message, `{ set }` fills
   fields; a failing rule stops the save; rules only read), `function` (settings `{ params }`; pure
   and synchronous; formulas call it by key on the server and in the browser, never in filters),
-  `job` (settings `{ every, at, day, timeZone }` or `{ watch: { table, on, condition } }`; claimed
+  `job` (settings `{ every, at, day, days, dayOfMonth, timeZone }`, `every` 15min, hour, day, week or month
+  (`scriptSchedule.js`, described in words by `shared/schedules.js` `jobSchedule`), or `{ watch: { table, on, condition } }`,
+  given up to 100 changes a run with how many more; claimed
   once across servers by the watches loop; a job's own writes don't set it off again).
 - Sandbox: fresh QuickJS runtime per run in pooled worker threads (2 warm, 4 top-level runs per
   server; runs started while another script's call is answered skip the queue); 1 s of the
@@ -61,7 +69,30 @@ everything they read or write goes through the data gate, audited as the script.
   all of its rows' rule runs together once the rows are checked, a dry or failed import's too;
   `GET /api/w/:slug/apps/:app/scripts` returns an app's scripts, runs and coding-loop rounds.
 
+- **Drafts (D-139, `scriptDrafts.js`):** saving or removing a script writes the app's draft row (`app_scripts.draft`,
+  `removed`; unique app, key and draft); the live app runs live rows only, a draft's preview the draft's (rules
+  included). `apps.publish` copies each draft onto its live row in the publish's transaction and keeps the live scripts
+  on the version (`app_versions.scripts`); `apps.restore` makes a version's scripts live again. Switching off or on acts
+  on the live row at once.
+- **All or nothing (D-140):** a button's, a job's and a screen's data script's run is one transaction (`wholeRun`,
+  `WHOLE_RUNS`); the gate's writes and the record store's calls join it (`boundTo`), and so does queued AI work. A
+  job's budget (`LIMITS.job`) is 5 s, 60 s and 200 record calls.
+- **Who acted (D-140, `scriptPeople.js`):** a rule's `actor` is `{ type, id, name, role }`, and buttons', screens' and
+  jobs' scripts get `people.me()` (null for a visitor); the role comes from the request's membership, else the home's
+  (`roleOf`, a required collaborator).
+- **Values (D-140):** scripts read tags as a list, a file or picture as `{ name, size, type }` and a link as its id.
+- **Documents (D-140, `scriptDocs.js`):** `docs.pdf({ template, record, into, name })` for buttons and jobs, 3 a run:
+  the template's `{{field}}` and `{{lines:table:link:fields}}` filled and escaped, made a PDF through the gate
+  (`gate.makeDocument`, the files feature's `pdf` plug-in, 503 `apps_documents_unavailable` without the office apps).
+- `notify.member` and `notify.email` for jobs are sending.md's.
+
 ## Proved by
 
 - `tests/server/appsSandbox.test.js`
 - `tests/server/appsScripts.integration.js`
+- `tests/server/appsScriptDrafts.integration.js`
+- `tests/server/appsWholeRuns.integration.js`
+- `tests/server/appsWhoActed.integration.js`
+- `tests/server/appsScriptValues.integration.js`
+- `tests/server/appsDocs.test.js`
+- `tests/server/appsDocs.integration.js`

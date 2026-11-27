@@ -405,9 +405,10 @@ their rows.
 Owns each home's mini-apps (D-35): the tables and fields its Builder bot makes, the records
 everyone and every bot shares, the audit of every change, the app definitions with their drafts
 and versions, the screens that run them, bots' watches and the tasks they queue for bots, and
-public screens and the visitor access that fences them, who may use what, how apps look, templates, and scripts with the
-web addresses they may call, and the shared tables' catalog every home builds on, with the Contacts and To-dos apps
-each home starts with (D-130). Records are stored with json-rest-api's AnyAPI, one tenant per
+public screens and the visitor access that fences them, who may use what (with private tables, D-138), how apps look,
+templates, scripts with the web addresses they may call (saved into an app's draft, D-139), what an app sends by
+itself (D-137), and the shared tables' catalog every home builds on, with the Contacts and To-dos apps each home starts
+with (D-130). Records are stored with json-rest-api's AnyAPI, one tenant per
 home; nothing is ever deleted. A record's files and pictures are set only through its data gate, which has the files
 subsystem write them to the home's Database files.
 
@@ -429,6 +430,7 @@ subsystem write them to the home's Database files.
 - `genesis/program/apps/views.md`
 - `genesis/program/apps/practice.md`
 - `genesis/program/apps/connected.md`
+- `genesis/program/apps/sending.md`
 
 ### Data owned
 
@@ -448,6 +450,7 @@ subsystem write them to the home's Database files.
 - Table `database` `default` `app_web_access`
 - Table `database` `default` `app_practices`
 - Table `database` `default` `app_connected_confirms`
+- Table `database` `default` `app_send_counts`
 - Table `database` `default` `any_records`
 - Table `database` `default` `any_links`
 - Table `database` `default` `any_resource_configs`

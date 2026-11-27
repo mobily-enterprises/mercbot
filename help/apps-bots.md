@@ -13,7 +13,7 @@ Any bot in your home, not just the Builder, can:
 - **mark a record obsolete**, which hides it but keeps it, so it can be restored
 - **set up watches** in the chat where you ask (below)
 
-Bots can work with every table in the home, whatever the app and table settings say about people. Only the Builder changes the tables themselves or the apps.
+A bot works as the person it's helping: in a chat, whoever asked; for a watch, the person who set it up. So it reaches every table that person can, and none of the private tables they can't (see [Who can see a table](/help/apps-data#who-can-see-a-table)). Only the Builder changes the tables themselves or the apps.
 
 ## Asking a bot to read or add records
 
@@ -117,7 +117,7 @@ A bot only hears about a public submission if it is watching that table. Even th
 No. Nobody can delete a record. A bot can mark one obsolete, which you can see with **Show obsolete** in the Data tab and undo with **Restore**.
 
 ### Will a bot see records from an app I can't open?
-Yes. Bots can read every table in the home. Keep anything that shouldn't reach your bots out of the home's apps.
+Yes, unless its table is private. Apps don't fence records; tables do. A bot helping you reads every table you can, so a home's owner or admin makes a table private to keep its records to some people, and their bots.
 
 ### Can a watch send emails by itself?
 A watch's run follows the bot's usual rules, so it stops for you before anything that sends something as you, pays or books. See [Approvals, safety and privacy](/help/approvals-and-privacy).

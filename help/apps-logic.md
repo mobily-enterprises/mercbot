@@ -8,7 +8,7 @@ Formulas are short calculations inside an app. The Builder uses them for:
 
 - **calculated values**, such as a person's age from a date of birth, or an amount shown as money
 - **show if**, so a part only appears when it makes sense, such as an **Approve** button only on pending requests
-- **filters**, so a list shows only matching records, such as open deals or items below their reorder level
+- **filters**, so a list shows only matching records, such as open deals, or items whose quantity is at or below their reorder level (a filter can compare two of a record's fields)
 - **labels and messages**, such as "Saved Maria Rossi"
 
 Formulas are deliberately simple. They can compare, combine and format values, and use a few ready-made helpers: today's date, the current time, formatting a date or an amount, counting the days or years since a date, adding days or months to a date (31 January plus a month is the end of February), the days between two dates, and the Monday of a date's week or the first of its month. Today's date follows the home's time zone, which owners and admins choose under **Apps** → **Look**; until they do, it's UTC.
@@ -54,7 +54,7 @@ A rule on saving applies to every change to its table: from any app's screens, t
 2. Mercbot's coding helper writes the code and a set of tests, and runs the tests in the same fenced-in space scripts always run in.
 3. If a test fails, the failure goes back and the code is improved. This happens at most five times, within about a minute and a half.
 4. The script is saved only if **every test passes**. Otherwise nothing is saved, and the Builder tries again with a clearer description.
-5. Rules on saving and jobs start working as soon as they're saved. A new button, screen data or formula function takes effect once the Builder uses it in the app, through a draft you preview and publish as usual. A change to a script that's already in use, though, takes effect as soon as it's saved, without a new version of the app.
+5. The script is saved into the app's draft, like a screen change: the draft's preview runs it, and the live app keeps the published script until you press **Publish**. This goes for rules on saving and jobs too. See [Scripts are part of the draft](/help/apps-versions#scripts-are-part-of-the-draft).
 
 ## The Logic tab
 
@@ -119,6 +119,8 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 | Web calls | 5 | 5 | None |
 | Connected-app calls | 5 | 5 | None |
 
+A job that runs when records change gets up to 100 of the changes since its last run, and how many more there were. It isn't given the others again, so a job that must handle every record reads the table itself.
+
 Formula functions are smaller still: a tenth of a second and 8 MB, with no record or web calls. If a script goes over a limit, the run stops and is marked **Failed** with the reason, such as using too much memory.
 
 **All or nothing.** A run's changes to records are kept only if the whole run succeeds. If a script fails halfway, for example after adding two records and before updating a third, none of them stay, and neither does any bot work or picture it asked for. What it did outside the app can't be undone this way: a web call it made, or a change in a connected app such as a saved email draft. A job's own changes never set the same job off again, so a job can't trigger itself in a loop.
@@ -151,7 +153,7 @@ In a draft's preview, a button reads for real but only pretends to change anythi
 
 Some things need to go out without anyone pressing a button: a reminder the day before a booking, a thank-you to someone who signed up on a public form, a note to the owners when a new order comes in. An app's **jobs** and **public forms** can do two kinds of sending, each switched on for the app by a home's owner or admin, in the app's **Logic** tab under **What it sends by itself**:
 
-- **Notify members.** A message to people in the home, from the home's main bot, in their own chat with it ("From Bookings: Kim's booking is tomorrow"). It shows as unread and reaches their phone like any message.
+- **Notify members.** A message to people in the home, from the home's main bot, in each person's chat with that bot, the one **Message** opens on its card ("From Bookings: Kim's booking is tomorrow"). It shows as unread and reaches their phone like any message.
 - **Send email.** An email from one of the home's connected Gmail or Outlook mailboxes, the one the owner or admin chooses.
 
 Each has a daily limit for the app (50 unless you choose another, up to 500), and a public form emails any one address at most 3 times a day, so nobody can use your form to flood someone's inbox. Until it's switched on, the app sends nothing. Every send is in the app's activity. In a draft's preview, nothing is sent: the preview says what would have been. On a copy of Mercbot that isn't live, emails are only logged, never sent.

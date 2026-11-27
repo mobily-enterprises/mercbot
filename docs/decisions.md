@@ -993,6 +993,8 @@ above) still refuses, and links still never come from a Host header. Since 2026-
 *Amended by D-112 (2026-11-22): a chat can be Private, opened only by its people; apps, tables, views, connections
 and the vault stay the whole home's.*
 
+*Amended by D-138 (2026-11-27): owners and admins can make a table private.*
+
 No private apps and no private data inside a home: everyone in it sees and changes everything. Public apps are the
 only security boundary, through a declared visitor allowlist that the server enforces and that defaults to nothing;
 there is no other security inside Mercbot. This replaces D-35's third-stage permissions (an app for chosen people, a
@@ -4575,6 +4577,8 @@ columns, the everyone chat Rooms' first row with no block while it's the only pi
 
 ## D-136 — Apps use connected apps, bots and pictures directly, as the person, internal only (2026-11-26)
 
+*Amended by D-137 (2026-11-27): jobs and public forms may notify members and send email, switched on per app.*
+
 The owner: "if I have Gmail connected, and want a mini app that scans the emails and shows the urgent ones… why waste
 AI on something mechanical?", then: every connected app ("the lot"), Sedna's rule of who may send kept by the connector
 that knows who is using the app, apps that can hand items to a bot (the home's default one) in one session of several
@@ -4607,3 +4611,98 @@ the group's, and Sedna is the connector that limits who you send as; and apps th
 Proved by `tests/server/appConnected.test.js`, `appAiWork.test.js`, `appsConnected.integration.js`,
 `appsAi.integration.js` and `appsCanary.integration.js` (the Canary app end to end, with stand-ins for Gmail, the model
 and the picture service).
+
+## D-137 — Jobs and public forms may send, switched on per app by an owner or admin (2026-11-27)
+
+*Amends D-136's "only a button changes anything" for two kinds of sending; everything else a job or a screen does with
+connected apps still only reads.*
+
+The owner chose: "Jobs and public forms may notify members in Mercbot and send email, each turned on per app by an
+owner or admin, with daily limits." A reminder the day before a booking, a thank-you to someone who signed up and a
+note to the owners about a new order all go out with nobody pressing a button.
+
+- **Off until an owner or admin switches it on, per app** (`apps.sending` { notify, email, account, daily }, the Logic
+  tab's "What it sends by itself", `PUT …/apps/:slug/sending`, audited): notify members; send email from one of the
+  home's connected Gmail or Outlook mailboxes, chosen there; a daily limit of 1 to 500 (50).
+- **Two sends** (`packages/apps/src/server/appSending.js`): a notice, "From <app>: …", the home's main bot's message in
+  each person's own chat with it, as them (to members by id, up to 20, or "owners", the owners and admins); and an
+  email to 1 to 10 addresses with a subject and a text. Jobs call `notify.member` and `notify.email`; a create form's
+  `onSubmit` (up to 3 sends, its formulas seeing the added record as `record`) runs after its button's steps succeed,
+  on a public screen reading only what visitors may read besides that record (`submitSends.js`).
+- **Limits counted in the database** (`app_send_counts`, under the counter row's lock, the UTC day): the app's daily
+  limit for each kind (each person a notice reaches counts one), and a public form's email at most 3 a day to one
+  address, so a visitor can't use it to mail someone over and over. The record a form made stays whatever a send does.
+- **Each send is in the app's activity.** Outside production an email is logged, not sent (D-69); a draft's preview
+  only says what it would send. The bots make both (`packages/bots/src/server/appMessages.js`, on
+  `mercbot.app-connected`). D-136's internal-only rule stays for connected apps and AI.
+
+Proved by `tests/server/appsSending.integration.js`, `appsSending.test.js` and `appMessages.test.js`.
+
+## D-138 — Owners and admins can make a table private (2026-11-27)
+
+*Amends D-66: a table can be kept to some people. Apps, views, connections and the vault stay the whole home's, and
+public apps keep their visitor access.*
+
+The owner chose, per table: everyone, owners and admins only, or named people.
+
+- **Who reads and who changes, each a level** (`app_tables.access`, null is everyone; `registry.chooseAccess` through
+  `PUT /app-data/tables/:key/access`, owners and admins, audited): everyone in the home; owners and admins only; or
+  owners, admins and people chosen from the home. Changing is never wider than reading. Owners and admins always reach
+  every table.
+- **One place keeps to it: the data gate** (`tableGuard.js`, `shared/tableAccess.js`), so every way in does: apps'
+  screens, the Data tab with its search, export and import, views, bots (as the person they're helping; a watch as
+  the person who set it up), scripts, rules and jobs (as the job's person; none once they leave the home), related
+  records, links and roll-ups. Refused with "<Table> is private" (`apps_table_private`); a link into an unreadable
+  table shows its number only, a roll-up over one reads empty, and lists of tables leave it out.
+- **The cost doesn't grow:** who the caller is is read once a call, and the access comes with the cached tables.
+- A public app's visitors keep to its visitor access (D-66), private or not.
+
+Proved by `tests/server/appsPrivateTables.integration.js`, with the same queries at 1 private table and 50.
+
+## D-139 — Scripts belong to an app's draft (2026-11-27)
+
+Until now a saved script was live at once, so a change to one in use reached everyone before anyone tried it. Now a
+script goes through Draft → Publish like a screen.
+
+- Saving or removing a script writes the app's draft (`app_scripts.draft` and `removed`; `scriptDrafts.js`); the
+  draft's preview runs the draft's scripts and rules, the live app only the published ones.
+- Publishing copies each draft script onto the live one in the publish's transaction (a job gets its next slot, a
+  watch keeps its place); the version keeps the scripts it published (`app_versions.scripts`), and restoring a
+  version brings them back. Versions from before leave scripts as they are.
+- Switching a script off or on still acts on the live script at once. The Logic tab marks "Draft" and "Removed in
+  draft".
+
+Proved by `tests/server/appsScriptDrafts.integration.js`.
+
+## D-140 — Apps that can do real work (2026-11-27)
+
+The research of 2026-11-27 found where everyday apps hit a wall (a form couldn't pick a deal's contact, a list
+stopped at 100 records, an invoice couldn't add up its lines, no calendar or board, no PDF). The owner: "Fix
+EVERYTHING." What apps can do now, each through the same data gate, checks and rules as before:
+
+- **Scripts see tags as a list and a file or picture as { name, size, type }**, never its stored path.
+- **Links:** a form's link field is a searchable picker of what the person (or a visitor's access) can read; a public
+  create form may preset a link from the screen's own parameter.
+- **Lists** page past 100 records, sort by a stored column and search their text fields, within the screen's filter.
+- **Dates:** `addDays`, `addMonths`, `daysBetween`, `startOfWeek`, `startOfMonth`; "today" in the home's time zone
+  (`app_settings.time_zone`, owners and admins); totals of a date field by week, month or year.
+- **Jobs** every 15 minutes, on chosen weekdays, or monthly on a day or the last day.
+- **Who acted:** a rule's `actor` is { type, id, name, role }, and scripts get `people.me()`.
+- **Filters** compare two of a record's fields, and calculated numbers made of arithmetic filter and sort in the
+  database.
+- **Parts:** line items (`lines`), boards, calendars and timelines where moving a card changes its record, and
+  pictures shown small.
+- **Roll-up fields:** a stored sum, count, smallest or largest of linked records, kept up to date in the write's
+  transaction by a fixed number of queries.
+- **Forms:** files and pictures when adding a record (a public form 3 files of 10 MB), taking a photo on a phone,
+  `min`, `max`, `pattern` and `unique` field checks on every save, and `if`, `set` and `confirm` for buttons.
+- **Documents:** `docs.pdf` makes a record a PDF in its file field through the office apps; an app's email drafts
+  carry up to 3 record files.
+- **All or nothing:** a button's, a job's or a screen's data script's run is one transaction, queued AI work with it;
+  a job's budget is 5 s, 60 s and 200 record calls.
+- **The Builder** knows each of them and when to use it.
+
+Proved by the tests of each: `appsScriptValues`, `appsLinkChoices`, `appsLists`, `appsDates`, `appsFieldFilters`,
+`appsWhoActed`, `appsLines`, `appsRollups`, `appsBoards`, `appsForms`, `appsDocs` and `appsWholeRuns` (database, in
+`tests/server`), with `appsDates.test.js`, `appsLines.test.js`, `appsBoards.test.js`, `appsForms.test.js`,
+`appsDocs.test.js`, `appsSandbox.test.js`, `appsWhere.test.js` and `builderInstructions.test.js`.

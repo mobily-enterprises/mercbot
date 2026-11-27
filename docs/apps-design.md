@@ -126,8 +126,8 @@ deleted, only marked obsolete.
 
 - **Apps and screens are JSON**, checked against a strict schema, with a read-only YAML view.
   Screens are built from a **whitelisted catalog of parts** that wrap Vuetify: layout (rows,
-  grids, tabs, dialogs, steppers), data parts (tables, lists, record views, forms, totals, later
-  charts) and basics (text, chips, buttons, inputs). Screens hold no JavaScript (logic lives in
+  grids, tabs, dialogs, steppers), data parts (tables, lists, record views, forms, totals,
+  charts, line items, boards, calendars and timelines) and basics (text, chips, buttons, inputs). Screens hold no JavaScript (logic lives in
   scripts); since 2026-10-30 each app may carry **its own CSS**, written by the Builder (below).
 - **Formulas use CEL** (`@marcbachmann/cel-js`, which has a type checker), and start with `=`.
   They're pure: they always finish and have no side effects. They're used for calculated values,
@@ -144,8 +144,11 @@ deleted, only marked obsolete.
     (`=price * quantity`), stored by ids. It is never stored: the data gate works it out on every
     read, and a form while the person types, so it never goes stale. It uses only the record's
     fields and the built-ins (a table is every app's), none that loops over a list or matches a
-    pattern, as it runs for every record shown. Filters, sorts and groups run in SQL, so they can't
-    use one yet; a sum or average of one is worked out from the records (up to 5,000).
+    pattern, as it runs for every record shown. Filters, sorts and groups run in SQL: a calculated
+    number or money field made of arithmetic over number fields is filtered and sorted in the
+    database (D-140); others can't be, and none is grouped by. A sum or average of one is worked
+    out from the records (up to 5,000). A **roll-up** (D-140) is the stored kind: a number totalling
+    linked records, kept up to date by every write of them.
   - A **named formula** is an app's own (`"formulas": { "with_vat": { "params": ["amount"],
     "formula": "=amount * 1.2" } }`), callable like a script function from any of the app's
     formulas except filters. It sees only its parameters, and one use sets off at most 1,000.
@@ -171,16 +174,20 @@ For logic that formulas can't express, and that shouldn't go to a bot each time:
   1. a stack limit of 256 KB or less (larger limits crashed Node on deep recursion)
   2. one worker thread per run, with a **watchdog** that kills it. QuickJS's own time limit
      misses runaway memory use and loops while it waits on the database.
-  3. the only way out is our data functions (read, create, update, mark obsolete), with JSON in
-     and out
-  4. a budget of data calls per run, and fair-use limits per account
-- Called by an action step, a watch or a routine. A failing script shows a friendly message in
-  place, and its Logic entry turns red.
+  3. the only way out is our host calls, with JSON in and out: records (read, create, update,
+     mark obsolete), the web addresses the home allows, and what owners and admins switch on for
+     the app (connected apps, bots and pictures, sending); documents for buttons and jobs
+  4. a budget of data calls per run: 50 for a button or a screen's data, 200 for a job, 20 reads
+     for a rule on saving (D-140)
+- Called by a button, a screen's data, a rule on saving, a formula, or a job on a timetable or
+  when records change. A failing script shows a friendly message in place, and its Logic entry
+  turns red. A run's record changes are all or nothing (D-140), and scripts are saved into the
+  app's draft (D-139).
 - The DeepSeek coding loop for writing scripts comes later.
 
 ## Templates
 
-A template bundles tables and fields, screens, watches and roles, and optional sample data. It
+A template bundles tables and fields, screens, and optional sample data. It
 can be installed in one click, or through the Builder, who adapts it. Updates only ever add, so
 customised screens are kept. A name clash reuses the existing table, or the Builder renames it.
 The Builder writes templates, and we review them with automatic screenshots. Templates are data,

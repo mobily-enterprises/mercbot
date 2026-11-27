@@ -45,6 +45,14 @@ home, with every change audited and nothing ever deleted (D-35).
 - `src/components/apps/linkPickers.js`
 - `src/components/apps/AppsActivity.vue`
 - `src/components/apps/sheets.js`
+- `packages/apps/src/server/rollups.js`
+- `packages/apps/src/server/tableGuard.js`
+- `packages/apps/src/server/homeZone.js`
+- `packages/apps/src/server/periodTotals.js`
+- `packages/apps/src/shared/fieldChecks.js`
+- `packages/apps/src/shared/tableAccess.js`
+- `migrations/20261204120000_app_settings_time_zone.cjs`
+- `migrations/20261205150000_app_tables_access.cjs`
 
 ## Public contract
 
@@ -151,6 +159,33 @@ home, with every change audited and nothing ever deleted (D-35).
   next (a recursive loose index scan), each with their latest entry's type and name, and one
   actor's page reads only their entries, so neither grows with the home's history.
 
+- **Roll-ups (D-140):** a number or money field with `rollup { from, link, measure: sum|count|min|max, field?,
+  where? }` (stored by ids, `rollupByNames` gives names back) is a stored column, so filters, sorts and groups use it.
+  `rollups.js` follows every create, change, move, mark-obsolete, restore and import of the records it totals, in the
+  write's transaction (`dataGate.js` `followed`): one grouped read per roll-up filter, one read of the parents and one
+  bulk write of those that changed, whatever how many records each totals; a roll-up of roll-ups follows, three tables
+  up at most. Nobody sets one (400 `apps_field_rollup`; imports skip it). `registry.addField` checks it
+  (`apps_rollup_invalid`, `apps_rollup_new_table` in `createTable`) and works it out for every record.
+- **Field checks (D-140, `shared/fieldChecks.js`):** `min`/`max` (number, money in cents, date), `pattern` with
+  `patternMessage` (text, phone; `patternProblem` refuses back-references, nested repeats and over 200 characters) and
+  `unique` (text without case, email, phone, url, number), kept on every save, change and import (400
+  `apps_value_out_of_range`, 409 `apps_value_unique_taken` under the same locks as a unique link). `registry.changeChecks`
+  changes them (`apps_field_check_invalid`, `apps_field_unique_shared` while two live records share a value).
+- **Private tables (D-138):** `app_tables.access` { read, change, people } (null is everyone), set by owners and admins
+  (`registry.chooseAccess`, `PUT /app-data/tables/:key/access`, 403 for others; change never wider than read,
+  `apps_table_access_wider_change`; `apps_table_access_people_missing`; audited). `tableGuard.js` reads who a ctx is
+  once (a member's or a bot's person from the call, a job's runs-as person, none once they left) and every gate read,
+  get, totals, count, history, related, create, change, import and file goes through `tableAs` (403
+  `apps_table_private`); a link into an unreadable table is `{ id, label: null }`, a roll-up over one reads empty,
+  related records leave it out, and table lists leave it out (`gate.canReach`). A visitor keeps to visitor access.
+- **The home's time zone (D-140):** `app_settings.time_zone` (null is UTC), chosen by owners and admins
+  (`PUT /api/w/:home/apps-time-zone`, audited); `homeZone.js` holds it (kept a minute a home) around every gate call
+  and screen query, so `today()` in a filter follows it. Totals group a date field by day, week, month or year
+  (`periodTotals.js`: groups read by day, 200 days a read, at most 4,000, folded into the newest 100 periods).
+- **Filters (D-140):** a comparison of two of a record's fields, or of arithmetic over number fields and calculated
+  number or money fields made of it, compiles to a `compareExpr` plan built from fixed SQL pieces (`sqlPlan.js`); such a
+  calculated field also sorts in the database (`calculatedOrder`).
+
 ## Proved by
 
 - `tests/server/appsRegistry.integration.js`
@@ -168,3 +203,9 @@ home, with every change audited and nothing ever deleted (D-35).
 - `tests/server/appsStarter.integration.js`
 - `tests/client/fieldValues.vitest.js`
 - `tests/client/tableLinks.vitest.js`
+- `tests/server/appsRollups.integration.js`
+- `tests/server/appsForms.test.js`
+- `tests/server/appsPrivateTables.integration.js`
+- `tests/server/appsDates.test.js`
+- `tests/server/appsDates.integration.js`
+- `tests/server/appsFieldFilters.integration.js`

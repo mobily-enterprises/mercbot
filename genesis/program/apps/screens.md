@@ -24,6 +24,13 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `src/pages/w/[workspaceSlug]/apps/data/[table].vue`
 - `packages/apps/src/shared/namedFormulas.js`
 - `src/components/apps/askInChat.js`
+- `packages/apps/src/shared/lines.js`
+- `packages/apps/src/shared/boards.js`
+- `src/components/apps/AppBoard.vue`
+- `src/components/apps/AppBoardCard.vue`
+- `src/components/apps/AppCalendar.vue`
+- `src/components/apps/AppTimeline.vue`
+- `src/components/apps/useBoardCards.js`
 
 ## Public contract
 
@@ -78,6 +85,26 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   every group, shown as a Total line by totals and chart parts). The `view` part shows one of the home's
   views (views.md).
 
+- **Link pickers (D-140):** `POST …/apps/:slug/link-choices` (`runtime.linkChoices`) answers a form's link field's
+  records through the gate, the first 100 or those whose title has the search (404 `apps_link_field_not_found` for a
+  field the form doesn't show or isn't a link); a visitor's reach only what visitor access lists. A public create preset
+  may be exactly one of the screen's own params (`pageParamOf`).
+- **Lists (D-140):** a list query takes the person's `page`, `sort` (a stored field, "-" for descending; an unknown one
+  keeps the screen's) and `search` (stored text fields, ANDed with the query's where); a table part sorts by a column
+  showing one stored field, pages past its rows ("101–200 of 250") and shows a search box when it sets `search`.
+- **Line items (D-140, `shared/lines.js` `expandLines`):** a `lines` part stands for a list query of the shown record's
+  child records, a table with Edit and Remove, an add form presetting the link and an edit dialog; the server and the
+  browser run the screen expanded, so paths agree; `checkLines` validates it (never on a public screen).
+- **Boards, calendars and timelines (D-140, `shared/boards.js`):** over a list query of a table's records; moving a
+  card (`runtime.move`, `POST …/apps/:slug/move`) changes its record through the gate as an edit, a board's to a
+  column's choice, a calendar's or a timeline's by whole days; `move: false` keeps cards still; a view only shows them.
+- **Buttons (D-140):** `if { when, then, else }`, `set` (a declared screen value from a formula, applied by the browser,
+  visitors too), `confirm` (the browser asks first) and "=row" as a row action's record. A create form's file and
+  picture fields go onto the record once its button made it (`created`; a visitor's only for that record, 3 files of
+  10 MB), and a picture field takes a photo on a phone. A plain reference to a picture field shows the picture, small,
+  to members (`showsPictures`); a visitor sees its name.
+- A create form's `onSubmit` sends (D-137) are sending.md's.
+
 ## Proved by
 
 - `tests/server/appsRuntime.integration.js`
@@ -85,3 +112,10 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `tests/client/appExit.vitest.js`
 - `tests/e2e/apps.spec.ts`
 - `tests/e2e/app-exit.spec.ts`
+- `tests/server/appsLinkChoices.integration.js`
+- `tests/server/appsLists.integration.js`
+- `tests/server/appsLines.test.js`
+- `tests/server/appsLines.integration.js`
+- `tests/server/appsBoards.test.js`
+- `tests/server/appsBoards.integration.js`
+- `tests/server/appsForms.integration.js`

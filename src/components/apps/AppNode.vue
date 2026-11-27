@@ -5,6 +5,7 @@ import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue"
 import { isCalculated } from "@local/apps/shared";
 import { FIELD_REFERENCE, ICON_PATHS, groupLabel, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY, NO_APP_FORM, useAppArea } from "./screenKeys.js";
+import { fileUrl } from "@/components/mercbot/filesApi.js";
 
 // Chart.js loads only on screens that show a chart.
 const AppChart = defineAsyncComponent(() => import("./AppChart.vue"));
@@ -51,6 +52,14 @@ function shown(setting, scope = props.scope, record = null, table = null) {
   }
   const result = value(setting, scope);
   return result === undefined || result === null || result === "" ? "—" : String(result);
+}
+
+// A plain reference to a picture field shows the picture, small, where the person can open the home's files.
+function pictureOf(setting, record, table) {
+  const key = FIELD_REFERENCE.exec(String(setting || ""))?.[1];
+  const field = key && record && table?.fields.find((entry) => entry.key === key);
+  const picture = field?.type === "image" && runtime.showsPictures ? record[key] : null;
+  return picture?.path ? { src: fileUrl(null, picture.path, { download: false, chat: null }), name: picture.name } : null;
 }
 
 // `field` parts: "=data.<query>.<field>" reads the record directly.
@@ -208,7 +217,17 @@ const tabKey = computed(() => props.path);
         <tbody v-else>
           <tr v-for="(record, rowIndex) in rows" :key="record.id ?? rowIndex" :class="{ 'app-clickable': node.onRowClick }" @click="openRow(record)">
             <td v-for="column in columns" :key="column.label">
-              <v-chip v-if="column.display === 'chip'" size="small" variant="tonal">{{ shown(column.value, rowScope(record), record, rowScope(record).table) }}</v-chip>
+              <v-img
+                v-if="pictureOf(column.value, record, rowScope(record).table)"
+                :src="pictureOf(column.value, record, rowScope(record).table).src"
+                :alt="pictureOf(column.value, record, rowScope(record).table).name"
+                width="40"
+                height="40"
+                cover
+                rounded="sm"
+                class="bg-surface-container-low"
+              />
+              <v-chip v-else-if="column.display === 'chip'" size="small" variant="tonal">{{ shown(column.value, rowScope(record), record, rowScope(record).table) }}</v-chip>
               <template v-else>{{ shown(column.value, rowScope(record), record, rowScope(record).table) }}</template>
             </td>
             <td v-if="node.rowActions?.length" class="text-right text-no-wrap">
@@ -238,6 +257,16 @@ const tabKey = computed(() => props.path);
     <div v-else-if="node.type === 'field'" class="py-2">
       <div class="text-caption text-medium-emphasis">{{ value(node.label) }}</div>
       <v-skeleton-loader v-if="fieldSource && isLoading(fieldSource.name)" type="text" width="180" />
+      <v-img
+        v-else-if="pictureOf(node.value, fieldSource?.record, fieldSource?.table)"
+        :src="pictureOf(node.value, fieldSource?.record, fieldSource?.table).src"
+        :alt="pictureOf(node.value, fieldSource?.record, fieldSource?.table).name"
+        width="160"
+        height="160"
+        cover
+        rounded="lg"
+        class="bg-surface-container-low"
+      />
       <div v-else class="text-body-1">{{ shown(node.value, scope, fieldSource?.record, fieldSource?.table) }}</div>
     </div>
 

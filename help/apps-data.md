@@ -50,7 +50,7 @@ Each field has a type, which decides what it holds and how it's shown.
 | Web address | A link starting with http:// or https:// | The link |
 | Long text | Notes of up to 20,000 characters | The notes |
 | File | A document or any other file | Its name and size, as a link |
-| Picture | A PNG, JPEG, GIF or WebP picture | A small picture |
+| Picture | A PNG, JPEG, GIF or WebP picture | A small picture (its name on a public screen) |
 
 A field can also be required, so a record can't be saved without it. To see a table's fields, open the table and press **Fields**: each field is listed with its name and type.
 
@@ -121,7 +121,7 @@ Changes you make here are the same as changes made through an app's screens. The
 
 ### Who can change a table
 
-Everyone in the home can read and change every table's records, add to them, import into them and mark them obsolete, and so can every bot in the home. There is no setting to keep a table to some people. Every change is kept, with who made it, in the record's history.
+Unless a home's owner or admin has made a table private (see [Who can see a table](#who-can-see-a-table)), everyone in the home can read and change its records, add to them, import into them and mark them obsolete, and so can every bot working for them. Every change is kept, with who made it, in the record's history.
 
 ## Related records
 
@@ -161,6 +161,7 @@ What to know:
 
 - Each row becomes a **new** record. Import never changes or replaces existing records.
 - Every row is checked first. **If any row has a problem, nothing is added.** Mercbot lists the problem rows by their row number in your file, so you can fix them and try again.
+- A large file goes in 500 rows at a time, every part checked before any is added. Only if a part fails as it's being added, for example because someone just took a value that must be unique, do the parts before it stay.
 - Amounts can be written as you'd write them, such as $1,250.50. Yes/no fields accept the usual yes and no words. Dates with a time keep only the day. A link can be given as the linked record's title, and a person as their name. A date and time without a time zone is read as UTC.
 - File and picture columns are left out: files go onto records one at a time.
 - The activity trail shows each imported record as coming from an import of your file, by name.

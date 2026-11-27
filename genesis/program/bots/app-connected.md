@@ -6,6 +6,7 @@ for one person with no chat, and the runner that does the AI work scripts queue.
 ## Sources
 
 - Main: `packages/bots/src/server/appConnected.js`
+- `packages/bots/src/server/appMessages.js`
 - `packages/bots/src/server/appAiWork.js`
 - `packages/bots/src/server/BotsFeature.js`
 - `packages/bots/src/server/botLoops.js`
@@ -31,8 +32,17 @@ for one person with no chat, and the runner that does the AI work scripts queue.
 - The Builder's script guide names the `connected` and `ai` calls, and each prompt says which connected apps the app may
   use (with each action's inputs) and whether it may use bots and pictures.
 
+- What apps send by themselves (D-137, `appMessages.js`): `notifyMembers` posts the home's main bot's message in each
+  person's own chat with it, as that person (unread and push like any message); `sendEmail` sends from the chosen
+  mailbox through Gmail or Outlook, logged instead outside production (`sendOrSimulate`, D-69), and refuses a mailbox
+  no longer connected (`apps_email_mailbox_gone`); `mailboxes`, `members` and `managers` (`chats.managersIn`) answer
+  the apps' settings and checks.
+- An app's mail draft may carry up to 3 of its records' files (`attach`, D-140), read through the data gate as the
+  person (`gate.recordFile`, 3 MB each); a bot's tool doesn't offer it (`attachOf`, `apps_connected_attach_invalid`).
+
 ## Proved by
 
 - `tests/server/appConnected.test.js`
 - `tests/server/appAiWork.test.js`
 - `tests/server/appsScriptWriter.integration.js`
+- `tests/server/appMessages.test.js`

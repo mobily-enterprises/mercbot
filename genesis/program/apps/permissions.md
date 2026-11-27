@@ -1,7 +1,8 @@
 # Permissions in a home
 
-Nothing inside a home is private (D-66): every member sees every app and view and changes every
-table. Owners and admins only choose the home's settings. Public apps are the only boundary.
+Every member sees every app and view (D-66) and changes every table, unless an owner or admin made the table private
+(D-138, data.md). Owners and admins otherwise only choose the home's settings. Public apps are the boundary to the
+outside.
 
 ## Sources
 
@@ -17,13 +18,14 @@ table. Owners and admins only choose the home's settings. Public apps are the on
 
 - Every member of a home lists, opens and uses every app and view; an app's routes answer 404
   only when the home has no such app. Every bot sees every view (`view_list`, `view_get`, search).
-- Every member reads, creates, changes, marks obsolete, restores and imports into every table;
-  every change is audited with who made it.
+- Every member reads, creates, changes, marks obsolete, restores and imports into every table that isn't private
+  (D-138: owners, admins and chosen people only; data.md); every change is audited with who made it.
 - Anyone in the home may retire a view or bring it back. Only the Builder changes a view an app
   shows, so apps don't break.
 - Owners and admins (`workspace.settings.update`) choose the Builder, make an app public, set the
   home's and an app's look, switch scripts off and on, choose the web addresses scripts may call,
-  and install templates. On a public app they alone narrow visitor access at once and publish or
+  and install templates; and (since 2026-11-27) the home's time zone for apps, what an app sends by itself (D-137,
+  sending.md) and who can see and change each table (D-138). On a public app they alone narrow visitor access at once and publish or
   restore a version that lets visitors reach more (D-66, `public.md`); everyone sees the list.
 - No answer carries `access`, `writers` or `editors`. The access, share, writers and apps-people
   routes are gone, and there are no `app_members` or `app_table_editors` tables (D-78); the `apps.access` and
@@ -35,3 +37,4 @@ table. Owners and admins only choose the home's settings. Public apps are the on
 - `tests/server/appsPermissions.integration.js`
 - `tests/server/appsMemberRoutes.test.js`
 - `tests/server/oldPermissionColumns.integration.js`
+- `tests/server/appsPrivateTables.integration.js`

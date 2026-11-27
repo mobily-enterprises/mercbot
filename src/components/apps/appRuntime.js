@@ -272,7 +272,9 @@ export function createScreenRuntime({
   }
 
   // A member on the live app adds files and pictures to records (D-130); a visitor doesn't, nor a draft's practice data.
+  // A member sees a record's pictures; a visitor can't open the home's files.
   const attachesFiles = !visitor && version !== "draft";
+  const showsPictures = !visitor;
   // Files and pictures chosen in a create form go onto the record once its button made it (D-140): a member's through
   // the Data routes, a visitor's through the public app's, which takes them only for the record their submission made.
   const filesOnNew = attachesFiles || Boolean(api.attachNew);
@@ -282,6 +284,6 @@ export function createScreenRuntime({
   return {
     slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
     rowScope, load, loadAll, reloadChanged, run, move, moves, linkChoices, lists, browse, followState, stop, signal: reading.signal, version,
-    attachesFiles, filesOnNew, attachNew
+    attachesFiles, filesOnNew, attachNew, showsPictures
   };
 }
