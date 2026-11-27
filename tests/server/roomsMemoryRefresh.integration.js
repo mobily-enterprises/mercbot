@@ -3,6 +3,7 @@ import test from "node:test";
 import { ROOMS_MEMORY_LIMITS } from "../../packages/bots/src/server/roomsMemory.js";
 import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
 import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
+import { moduleClock } from "../support/moduleClock.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
 
 // When a bot's rooms memory is refreshed, and how (D-113; B2's test 3): soon once a public chat's new words pass the
@@ -149,17 +150,29 @@ test("on a serving server, a refresh asked for now runs at once, not at its loop
 
 test("a slow write keeps its lease, renewed past its first end, so no other server takes it over", async (context) => {
   const lease = { seconds: 2, heartbeatMs: 200 };
+  // The server's beats and its own steady clock (runLease.js) move with this test, a beat at a time once the last
+  // renewal has reached the database, so a busy machine's slow queries never make it give the run up; the lease itself
+  // ends on the database's clock, in real time.
+  const clock = moduleClock(context, "bots/src/server/runLease.js");
   let checked = null;
   const f = await gardenHome(context, async () => {
     // Waits, renewing, until the lease it was first given has run out by the database's clock.
     const { rows: [first] } = await f.kit.knex.raw("select claimed_until from rooms_memory_queue where bot_id = ?", [f.chef]);
+    let renewedTo = first.claimed_until;
+    let landed = true;
     const deadline = Date.now() + 15000;
     for (;;) {
-      const { rows: [now] } = await f.kit.knex.raw("select now() > ?::timestamptz as past, claimed_until > now() as held from rooms_memory_queue where bot_id = ?", [first.claimed_until, f.chef]);
+      if (landed) {
+        await clock.advance(lease.heartbeatMs);
+        landed = false;
+      }
+      const { rows: [now] } = await f.kit.knex.raw("select now() > ?::timestamptz as past, claimed_until > now() as held, claimed_until from rooms_memory_queue where bot_id = ?", [first.claimed_until, f.chef]);
       if (now.past) {
         checked = { held: now.held, other: await f.kit.records.roomsMemory.claim("another server", 60, { context: f.kit.systemContext("memory refresh test") }) };
         break;
       }
+      // A renewal moves the lease's end on: the next beat comes once it has.
+      if (now.claimed_until > renewedTo) [renewedTo, landed] = [now.claimed_until, true];
       assert.ok(Date.now() < deadline, "the first lease ends within the test's time");
       await new Promise((resolve) => setTimeout(resolve, 100));
     }

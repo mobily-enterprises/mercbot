@@ -5,13 +5,14 @@ const HELPER = import.meta.filename;
 
 /**
  * Holds every setTimeout and setInterval that `file` (the end of its path, as a stack names it) calls itself until
- * `advance(ms)` passes their time; every other timer (the database driver's, the test's own) runs as usual. A held
- * timer answers unref, ref and hasRef as Node's do, and clearing it takes it away. The mocks end with the test.
+ * `advance(ms)` passes their time, and answers its own performance.now() with the moved clock; every other timer and
+ * reading (the database driver's, the test's own) runs as usual. A held timer answers unref, ref and hasRef as Node's
+ * do, and clearing it takes it away. The mocks end with the test.
  * @param {import("node:test").TestContext} context
  * @param {string} file
  */
 export function moduleClock(context, file) {
-  const real = { setTimeout, setInterval, clearTimeout, clearInterval };
+  const real = { setTimeout, setInterval, clearTimeout, clearInterval, now: performance.now.bind(performance) };
   const pending = new Set();
   const made = [];
   const held = new WeakSet();
@@ -45,6 +46,7 @@ export function moduleClock(context, file) {
   context.mock.method(globalThis, "setInterval", (work, ms, ...args) => (ours() ? hold(work, ms, args, true) : real.setInterval(work, ms, ...args)));
   context.mock.method(globalThis, "clearTimeout", clear(real.clearTimeout));
   context.mock.method(globalThis, "clearInterval", clear(real.clearInterval));
+  context.mock.method(performance, "now", () => (ours() ? now : real.now()));
 
   const due = (end) => [...pending].filter((timer) => timer.at <= end).sort((a, b) => a.at - b.at)[0];
   return {
