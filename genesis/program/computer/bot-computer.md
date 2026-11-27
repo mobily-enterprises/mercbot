@@ -336,7 +336,7 @@ The person sees the whole desktop through noVNC. `POST
 …/computer/ticket?chat=` (anyone who can open the chat, computer awake) returns a
 one-time ticket valid for 30 seconds; the page opens
 `/api/computer-vnc?ticket=…` as a WebSocket, which the server relays to that
-bot's x11vnc socket. Watching is view-only; Take over sends mouse and keys through
+bot's x11vnc socket. A page that gives up while its ticket is checked, or once it was refused, ends its own socket only, never the server, and leaves no socket to another server open behind it. Watching is view-only; Take over sends mouse and keys through
 the same connection. `GET …/computer/stream` sends state and address as server-sent events, ending with its page. The bot's own browsing uses Stagehand
 (DeepSeek through our client-model adapter) and the page; a screenshot-and-click
 mode can be added beside it later.
@@ -373,6 +373,7 @@ for Stagehand's AI.
 - `tests/e2e/page-status.spec.ts`
 - `tests/server/computers.integration.js`
 - `tests/server/cdpBridge.test.js`
+- `tests/server/vncBridge.test.js`
 - `tests/server/gateway.test.js`
 - `tests/server/codingSandbox.test.js`
 - `tests/server/codingHandoff.test.js`

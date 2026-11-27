@@ -118,6 +118,8 @@ export function singleUserServer(key) {
         const body = page(refusal);
         const head = Object.entries({ ...HEADERS, "content-length": Buffer.byteLength(body), connection: "close" })
           .map(([name, value]) => `${name}: ${value}`).join("\r\n");
+        // Node takes the HTTP server's error listener off an upgrade's socket: a reset ends this one alone.
+        socket.on("error", () => socket.destroy());
         socket.end(`HTTP/1.1 ${refusal.status} ${http.STATUS_CODES[refusal.status]}\r\n${head}\r\n\r\n${body}`);
         return true;
       }

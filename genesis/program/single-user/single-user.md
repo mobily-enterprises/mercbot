@@ -29,7 +29,7 @@ pages' sealed frames (`/api/pages/<signed token>/…`, credentialless) and Conne
 `mercbot_key` cookie and moves to `/` from its own page; a change or websocket whose Origin isn't
 `http://<Host>` gets 403; anything else without the key's cookie gets 401 and a page saying "Open Mercbot with
 `mercbot open`"; sign-in, registration, sign-out, passwords, security settings, invitations and members' changes get
-404. The person is signed in with JSKIT's own sessions, again whenever the key's cookie comes without one. Their
+404. A refused websocket its page then resets ends that socket alone, never the server. The person is signed in with JSKIT's own sessions, again whenever the key's cookie comes without one. Their
 password is derived from the key, so a restart with a new key changes it and ends every session of the old one. The
 browser has no Sign out, Add another account or Settings → Home; a copy built on Mercbot adds them (`extensions.js`).
 

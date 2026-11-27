@@ -48,6 +48,9 @@ export function attachVncBridge(httpServer, computers) {
   httpServer.on("upgrade", async (request, socket, head) => {
     const url = new URL(request.url, "http://localhost");
     if (url.pathname !== PATH) return;
+    // Node takes the HTTP server's error listener off an upgrade's socket. A page that gives up while its ticket is
+    // checked resets it: that ends this socket alone, never the server.
+    socket.on("error", () => socket.destroy());
     const ticket = url.searchParams.get("ticket") || "";
     const target = await computers.findScreen(ticket).catch(() => null);
     if (!target) {
@@ -69,6 +72,11 @@ export function attachVncBridge(httpServer, computers) {
         socket.end("HTTP/1.1 502 Bad Gateway\r\n\r\n");
         return;
       }
+    }
+    // A page gone meanwhile leaves nothing open behind it.
+    if (socket.destroyed) {
+      other?.close();
+      return;
     }
     wss.handleUpgrade(request, socket, head, (ws) => (other ? relay(ws, other) : toScreen(ws, target)));
   });

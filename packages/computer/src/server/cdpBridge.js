@@ -103,6 +103,8 @@ export function createCdpBridge() {
       const target = rest.slice(64);
       const socketPath = KEY.test(key) ? routes.get(key) : undefined;
       if (!socketPath || !target.startsWith("/devtools/") || !fromThisMachine(socket, request.headers)) {
+        // Node takes the HTTP server's error listener off an upgrade's socket: a reset ends this one alone.
+        socket.on("error", () => socket.destroy());
         socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
         return;
       }
