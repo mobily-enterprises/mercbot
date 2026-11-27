@@ -46,6 +46,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm exec --no -- playwright install --with-deps chromium
-      - run: npm run db:prepare
+      # No npm run db:prepare: nothing verify runs reads the development database, and the migrations already run
+      # twice, once for the tests' template and once in the migration history check.
       - run: psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" -c "CREATE DATABASE $TEST_DB_NAME"
       - run: npm run verify
