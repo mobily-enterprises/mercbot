@@ -356,7 +356,7 @@ test("Invite puts the home's people and bots into a public room its people are i
     await inviteButton(page).click();
     const fromOutside = page.getByRole("dialog", { name: "Invite a bot" });
     await expect(fromOutside.getByText(`Everyone in the home can open “${title}” already. A bot you invite answers here, and can be taken out again.`)).toBeVisible();
-    await fromOutside.getByLabel("Bots").click();
+    await fromOutside.getByRole("combobox", { name: "Bots" }).click();
     await expect(page.getByText("Every bot is in this room already.")).toBeVisible();
     await page.keyboard.press("Escape");
     if (await fromOutside.isVisible()) await fromOutside.getByRole("button", { name: "Cancel" }).click();
