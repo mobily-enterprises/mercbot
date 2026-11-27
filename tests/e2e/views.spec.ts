@@ -113,6 +113,10 @@ test("an app shows a shared view and its own copy, and asks before the copy take
   // Not now: it stays quiet for this version, through a reload.
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(asking).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator(".app-node--view")).toHaveCount(2);
+  await expect(asking).toHaveCount(0);
+  // This browser forgetting it (its storage cleared), the app asks again.
   await page.evaluate(() => window.localStorage.removeItem("mercbot.view-copies-skipped"));
   await page.reload();
   await expect(asking).toBeVisible();

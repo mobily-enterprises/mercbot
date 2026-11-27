@@ -238,7 +238,10 @@ test("the home's look applies to its apps", async ({ page }, testInfo) => {
   await page.locator(".apps-look__form").getByRole("button", { name: "Save" }).click();
   await expect(page.locator(".v-snackbar__content")).toHaveText("Saved. Every app in this home uses the new look.");
   await page.goto(`${HOME}/apps/contacts`);
-  await expect(page.locator(".v-theme--app-light-0b7a5b").first()).toBeVisible();
+  const themed = page.locator(".v-theme--app-light-0b7a5b").first();
+  await expect(themed).toBeVisible();
+  // Its primary colour is the look's (Vuetify's theme variable is the colour's red, green and blue).
+  expect(await themed.evaluate((element) => getComputedStyle(element).getPropertyValue("--v-theme-primary").trim())).toBe("11,122,91");
   await page.screenshot({ path: testInfo.outputPath("themed-app.png") });
 });
 

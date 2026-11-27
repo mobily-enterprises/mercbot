@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { TestInfo } from "@playwright/test";
-import { connectTestDb, directChat, expect, homeApi, makeChat, openShell, shell, test, type Page } from "./harness";
+import { connectTestDb, directChat, expect, homeApi, makeChat, openShell, shell, test, textContrast, type Page } from "./harness";
 
 // What a bot knows (D-107): the Knowledge section of its card's Details tab (beside its direct chat,
 // D-112), under its Instructions. Each test makes its own bot in the owner's fixture home, its direct chat with no
@@ -215,6 +215,10 @@ test("Knowledge looks like the rest of the app, on a desktop and a phone, light 
         await page.emulateMedia({ colorScheme: scheme });
         await openKnowledge(page, bot);
         await expect(piece(page, bot, "Shop guide")).toContainText("Searched first");
+        // The section's summary reads clearly in each scheme (WCAG's 4.5:1 for body text).
+        const summary = section(page, bot).locator(".mb-knowledge__summary p").first();
+        await expect(summary).toBeVisible();
+        expect(await textContrast(summary), `the summary reads clearly (${device}, ${scheme})`).toBeGreaterThanOrEqual(4.5);
         const box = await section(page, bot).boundingBox();
         expect(box && box.x >= 0 && box.x + box.width <= width + 1, `the section fits the ${device}'s width`).toBe(true);
         await page.screenshot({ path: shot(info, `knowledge-${device}-${scheme}.png`) });
