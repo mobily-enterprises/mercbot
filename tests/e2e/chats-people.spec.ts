@@ -98,10 +98,13 @@ async function openNewRoom(page: Page) {
   return newRoom;
 }
 
-/** Picks `names` in an open Invite dialog's field, then Add. */
+/**
+ * Picks `names` in an open Invite dialog's field, then Add. The field is found as the combobox it is: its loading bar
+ * is named "Loading options for <label>" (JSKIT's SelectField), which a label match would find as well.
+ */
 async function invite(page: Page, dialog: ReturnType<Page["getByRole"]>, field: string, names: string[]) {
   for (const name of names) {
-    await dialog.getByLabel(field).fill(name);
+    await dialog.getByRole("combobox", { name: field }).fill(name);
     await page.getByRole("option", { name: new RegExp(name, "u") }).click();
   }
   // The field's menu closes, so it covers nothing, then Add.
@@ -340,7 +343,7 @@ test("Invite puts the home's people and bots into a public room its people are i
     await inviteButton(page).click();
     const inviting = page.getByRole("dialog", { name: "Invite", exact: true });
     await expect(inviting.getByText(`Everyone in the home can open “${title}” already. Whoever you invite joins it, so it's in their list; a bot answers here.`)).toBeVisible();
-    await inviting.getByLabel("People and bots").click();
+    await inviting.getByRole("combobox", { name: "People and bots" }).click();
     await expect(page.getByRole("option")).toHaveText([/Ben Rossi/u, /Shopper/u]);
     await invite(page, inviting, "People and bots", ["Shopper"]);
     await expect(chip(page, title)).toContainText("Public · You, Chef and Shopper");

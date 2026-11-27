@@ -215,7 +215,7 @@ test("a private room opens Invite at once, which invites a bot; Bots' + opens Ad
     expect([room.kind, room.people.map((person: { userId: string }) => String(person.userId)), room.bots]).toEqual(["private", [home.owner], []]);
     const invite = page.getByRole("dialog", { name: "Invite", exact: true });
     await expect(invite.getByRole("heading", { name: "Invite", exact: true })).toBeVisible();
-    await invite.getByLabel("People and bots").fill("Chef");
+    await invite.getByRole("combobox", { name: "People and bots" }).fill("Chef");
     await page.getByRole("option", { name: /Chef/u }).click();
     await invite.locator(".mb-invite__note").click();
     const added = answered(page, "POST", `/api${home.path}/chats/${room.id}/bots`);
@@ -230,7 +230,7 @@ test("a private room opens Invite at once, which invites a bot; Bots' + opens Ad
     // On a phone Invite fills the screen, and its picker stays one field high, never stretched to the screen's height.
     await page.setViewportSize({ width: 390, height: 844 });
     await shell.chat(page).getByRole("button", { name: "Invite", exact: true }).click();
-    await expect(invite.getByLabel("People and bots")).toBeVisible();
+    await expect(invite.getByRole("combobox", { name: "People and bots" })).toBeVisible();
     expect((await invite.locator(".v-input").first().boundingBox())?.height).toBeLessThan(80);
     await invite.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(invite).toBeHidden();
