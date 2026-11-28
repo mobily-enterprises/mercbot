@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toChatRow } from "../../src/components/mercbot/chatDirectory.js";
 import { chatMenuItems, chatQuestion, chatRights, inviteChoices, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
-import { checkExtensions } from "../../src/components/mercbot/shellChat.js";
+import { checkExtensions, showsIntroSlides } from "../../src/components/mercbot/shellChat.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
 import { galleryChips, galleryView } from "../../src/components/templates/galleryView.js";
 
@@ -240,5 +240,11 @@ describe("what a copy built on Mercbot adds (extensions.js)", () => {
     expect(() => checkExtensions({ peopleActions: [{ component: {} }] })).not.toThrow();
     expect(() => checkExtensions({ peopleActions: [], teamActions: [] })).toThrow("extensions.teamActions is gone: use peopleActions, the People section's +.");
     expect(() => checkExtensions({ peopleActions: [{ component: {} }, { component: {} }] })).toThrow("at most one");
+  });
+
+  it("opens a person's first home on the intro slides unless the copy has first-run screens of its own (D-142)", () => {
+    expect(showsIntroSlides(1, { introSlides: true })).toBe(true);
+    expect(showsIntroSlides(1, { introSlides: false })).toBe(false);
+    expect(showsIntroSlides(2, { introSlides: true }), "a second home never shows them (D-36)").toBe(false);
   });
 });

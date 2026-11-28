@@ -286,7 +286,8 @@ export function createScreenRuntime({
   // Files and pictures chosen in a create form go onto the record once its button made it (D-140): a member's through
   // the Data routes, a visitor's through the public app's, which takes them only for the record their submission made.
   const filesOnNew = attachesFiles || Boolean(api.attachNew);
-  const attachNew = (made, field, file) => (api.attachNew ? api.attachNew(slug, { field, file }) : appsApi.attachFile(made.table, made.id, field, file));
+  const attachNew = (made, field, file, onProgress) =>
+    (api.attachNew ? api.attachNew(slug, { field, file, onProgress }) : appsApi.attachFile(made.table, made.id, field, file, onProgress));
   // Cards move where the screen's routes can move them, never in a view (it only shows).
   const moves = Boolean(api.move) && !readOnly;
   return {

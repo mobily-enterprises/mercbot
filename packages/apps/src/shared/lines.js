@@ -1,3 +1,5 @@
+import { isFormula } from "./formulas.js";
+
 // Line items (D-140): a record's screen shows its child records and adds, edits and removes them in place, such as an
 // invoice's lines or an order's items. The Builder writes one part:
 //   { "type": "lines", "record": "=data.invoice", "table": "invoice_lines", "link": "invoice",
@@ -7,6 +9,8 @@
 // has Edit (it sets the screen value of the line being edited and opens a dialog with an edit form of it) and Remove
 // (the row marked obsolete); an add form below adds a line already linked to the record. The record's id is the one its
 // own query reads (`=params.id`), so the lines follow it.
+
+const DATA_REFERENCE = /^=data\.(\w+)$/u;
 
 /** The screen values, queries and dialog keys a lines part at `index` (in screen order) adds. */
 const namesOf = (index) => ({ list: `lines_${index}`, edited: `line_${index}`, dialog: `line_${index}` });
@@ -97,4 +101,44 @@ export function expandLines(screen) {
   };
   const content = expand(screen.content || []);
   return count ? { ...screen, data, state, content } : screen;
+}
+
+/**
+ * A screen's line items (lines.js): each names one of the screen's single-record queries, whose id is a formula of the
+ * page; a table; and a link field of that table pointing at the record's table. Its fields are the table's own, never
+ * the link (the record sets it) or a calculated one. Never on a public screen.
+ */
+export function checkLines(base, screen, { tableNamed, report }) {
+  let whole = true;
+  const refuse = (path, message) => {
+    whole = false;
+    report(path, message);
+  };
+  const walk = (path, list) => (Array.isArray(list) ? list : []).forEach((node, index) => {
+    const at = `${path}[${index}]`;
+    walk(`${at}.content`, node?.content);
+    (Array.isArray(node?.tabs) ? node.tabs : []).forEach((tab, tabIndex) => walk(`${at}.tabs[${tabIndex}].content`, tab?.content));
+    if (node?.type !== "lines") return;
+    if (screen.public === true) refuse(at, "line items are for the home's people: a public screen can't have them.");
+    const queryName = DATA_REFERENCE.exec(String(node.record || ""))?.[1];
+    const query = queryName ? screen.data?.[queryName] : null;
+    if (!query?.record || !isFormula(query.id)) {
+      return refuse(`${at}.record`, 'must be "=data.<query>" naming one of this screen\'s single-record queries, such as one with "id": "=params.id".');
+    }
+    const table = tableNamed(node.table);
+    if (!table) return refuse(`${at}.table`, "needs an existing table: the one its lines are records of.");
+    const link = table.fields.find((field) => !field.obsolete && field.key === node.link);
+    const parent = tableNamed(query.record);
+    if (!link || link.type !== "link" || link.options?.target !== parent?.id) {
+      return refuse(`${at}.link`, `must be a link field of ${table.key} pointing at ${query.record}, the shown record's table.`);
+    }
+    if (!Array.isArray(node.fields) || !node.fields.length) refuse(`${at}.fields`, "lists the fields people type for each line.");
+    (Array.isArray(node.fields) ? node.fields : []).forEach((entry, fieldIndex) => {
+      const key = typeof entry === "string" ? entry : entry?.field;
+      if (key === node.link) refuse(`${at}.fields[${fieldIndex}]`, `${key} links each line to the record: it's set by itself, so leave it out.`);
+    });
+    if (node.add !== undefined && typeof node.add !== "boolean") refuse(`${at}.add`, "is true or false (whether people add lines here).");
+  });
+  walk(`${base}.content`, screen?.content);
+  return whole;
 }

@@ -81,9 +81,14 @@ everything they read or write goes through the data gate, audited as the script.
   jobs' scripts get `people.me()` (null for a visitor); the role comes from the request's membership, else the home's
   (`roleOf`, a required collaborator).
 - **Values (D-140):** scripts read tags as a list, a file or picture as `{ name, size, type }` and a link as its id.
+- **An app's own bot (D-144):** `ai.work` and `ai.picture` with the bot "default" (or none) go to the app's bot
+  (`apps.bot_id`, a template's, D-144) while it's in the home, else the home's main bot; a bot named is that bot.
 - **Documents (D-140, `scriptDocs.js`):** `docs.pdf({ template, record, into, name })` for buttons and jobs, 3 a run:
   the template's `{{field}}` and `{{lines:table:link:fields}}` filled and escaped, made a PDF through the gate
   (`gate.makeDocument`, the files feature's `pdf` plug-in, 503 `apps_documents_unavailable` without the office apps).
+  `docs.text({ record, field })` (D-143), 3 a run: the record's file read as the run (`gate.recordFileText`), text,
+  Markdown and CSV as they are, documents, spreadsheets, presentations and PDFs by the files feature's `text` plug-in;
+  `{ name, text, more }`, at most 1,000,000 characters; another kind is 415 `apps_file_not_text`.
 - `notify.member` and `notify.email` for jobs are sending.md's.
 
 ## Proved by
@@ -96,3 +101,4 @@ everything they read or write goes through the data gate, audited as the script.
 - `tests/server/appsScriptValues.integration.js`
 - `tests/server/appsDocs.test.js`
 - `tests/server/appsDocs.integration.js`
+- `tests/server/appsStudy.integration.js`

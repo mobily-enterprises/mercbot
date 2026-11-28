@@ -38,7 +38,11 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   the stamp is the same in every locale (`tests/server/toolsStore.test.js`). No root. The install runs in gVisor through
   `scripts/toolbox-run.sh`, which keeps the sandbox off the build's own output (gVisor shuts down an
   inherited socket, as Publish's output is, when its sandbox ends) and says which failed: the host
-  refusing the sandbox, the install inside it, or the build's own output closing (status 141).
+  refusing the sandbox, the install inside it, or the build's own output closing (status 141). The toolbox's own
+  programs run from where it's built, so a store on a file system mounted `noexec` (a home folder often is) keeps the
+  toolbox in `.tools/store` instead (`tools_exec_allowed` in `tools-store.sh`, asked of the store's nearest folder
+  that exists, since a new store isn't made yet), and access lists the toolbox's files inherit from the host's folders
+  are removed (setfacl, else Python), as gVisor can't keep them.
 - **Mount points:** every toolbox has the folders sandboxes are given folders at (`TOOLBOX_MOUNT_POINTS`,
   `gvisor.js`: `/files/chat`, `/files/bot`, `/files/shared`, `/files/db`, `/runs`, `/gateway` and the rest) from when
   it's made: `makeStoreToolbox` makes them, and `build-toolbox.sh` runs `scripts/toolbox-mount-points.mjs`

@@ -1,4 +1,4 @@
-import { FIELD_REFERENCE, celSchema, evaluateFormula, formulaRecord, isFormula, plainValue, refersToRemovedField, showValue } from "../shared/formulas.js";
+import { FIELD_REFERENCE, celSchema, evaluateFormula, formulaRecord, isFormula, plainValue, progressPercent, refersToRemovedField, showValue } from "../shared/formulas.js";
 import { withNamedFormulas } from "../shared/index.js";
 import { GateError } from "./validate.js";
 
@@ -236,6 +236,11 @@ export function createTrial({ apps, runtime, scripts }) {
             ...(result.grandTotal ? { grandTotal: text(result.grandTotal) } : {})
           };
         }
+        case "progress":
+          return {
+            progress: shown(node.label, `${path}/label`, scope),
+            percent: progressPercent(evaluate(node.value, `${path}/value`, scope), node.max === undefined ? 100 : evaluate(node.max, `${path}/max`, scope))
+          };
         case "tabs":
           return { tabs: (node.tabs || []).map((tab, place) => ({ title: tab?.title, parts: describe(tab?.content, `${path}/tabs/${place}/content`, scope) })) };
         case "dialog":

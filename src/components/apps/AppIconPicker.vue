@@ -6,7 +6,8 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { askBuilder } from "./askInChat.js";
 import { errorText } from "./appsApi.js";
 import { appGlyph } from "./appRuntime.js";
-import { iconGroups, iconWords } from "./appIconChoices.js";
+import AppTile from "./AppTile.vue";
+import { iconGroups, iconWords, lookToSave, startingLook } from "./appIconChoices.js";
 import { APP_COLOURS } from "@/theme/palettes.js";
 
 // Choosing an app's picture and colour (D-141): the pictures by group with a search, the tile colours, and a preview.
@@ -18,6 +19,8 @@ const props = defineProps({
   slug: { type: String, required: true },
   icon: { type: String, required: true },
   color: { type: String, required: true },
+  // A bot's picture on the tile, shown until a set picture is chosen.
+  picture: { type: String, default: null },
   saving: { type: Boolean, required: true }
 });
 const emit = defineEmits(["update:open", "save", "failed"]);
@@ -26,11 +29,11 @@ const paths = usePaths();
 const { xs } = useDisplay();
 
 const search = ref("");
-const chosen = ref({ icon: props.icon, color: props.color });
+const chosen = ref(startingLook(props));
 watch(() => props.open, (open) => {
   if (open) {
     search.value = "";
-    chosen.value = { icon: props.icon, color: props.color };
+    chosen.value = startingLook(props);
   }
 });
 const groups = computed(() => iconGroups(search.value));
@@ -50,7 +53,7 @@ async function draw() {
   <v-dialog :model-value="open" :fullscreen="xs" max-width="640" scrollable @update:model-value="emit('update:open', $event)">
     <v-card class="app-icon-picker">
       <v-card-title class="d-flex align-center ga-3 pa-4">
-        <v-avatar :color="chosen.color" size="48" rounded="lg"><v-icon :icon="appGlyph(chosen.icon)" color="white" size="28" /></v-avatar>
+        <AppTile :icon="chosen.icon || icon" :color="chosen.color" :picture="chosen.icon ? null : picture" :size="48" />
         <span class="app-icon-picker__name">{{ name }}</span>
       </v-card-title>
       <v-card-text class="pt-0">
@@ -86,17 +89,17 @@ async function draw() {
           <div class="text-body-2 text-on-surface-variant mb-1">{{ entry.group }}</div>
           <div class="d-flex flex-wrap ga-1">
             <button
-              v-for="picture in entry.names"
-              :key="picture"
+              v-for="glyph in entry.names"
+              :key="glyph"
               type="button"
-              :aria-label="iconWords(picture)"
-              :aria-pressed="chosen.icon === picture"
-              :title="iconWords(picture)"
+              :aria-label="iconWords(glyph)"
+              :aria-pressed="chosen.icon === glyph"
+              :title="iconWords(glyph)"
               class="app-icon-picker__icon"
-              :class="{ 'app-icon-picker__icon--on': chosen.icon === picture }"
-              @click="chosen = { ...chosen, icon: picture }"
+              :class="{ 'app-icon-picker__icon--on': chosen.icon === glyph }"
+              @click="chosen = { ...chosen, icon: glyph }"
             >
-              <v-avatar :color="chosen.color" size="36" rounded="lg"><v-icon :icon="appGlyph(picture)" color="white" size="22" /></v-avatar>
+              <v-avatar :color="chosen.color" size="36" rounded="lg"><v-icon :icon="appGlyph(glyph)" color="white" size="22" /></v-avatar>
             </button>
           </div>
         </section>
@@ -105,7 +108,7 @@ async function draw() {
         <v-btn variant="text" prepend-icon="$smartToy" :disabled="saving" @click="draw">Ask the Builder to draw one</v-btn>
         <v-spacer />
         <v-btn variant="text" :disabled="saving" @click="close">Cancel</v-btn>
-        <v-btn variant="flat" color="primary" :disabled="saving" @click="emit('save', chosen)">{{ saving ? "Saving…" : "Save" }}</v-btn>
+        <v-btn variant="flat" color="primary" :disabled="saving" @click="emit('save', lookToSave(chosen))">{{ saving ? "Saving…" : "Save" }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -330,7 +330,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       const screens = loaded.definition.screens;
       const allowed = (step) => {
         const [kind] = Object.keys(step || {});
-        if (["notify", "openDialog", "closeDialog", "set"].includes(kind)) return true;
+        if (["notify", "celebrate", "openDialog", "closeDialog", "set"].includes(kind)) return true;
         if (kind === "if") return [...(step.if?.then || []), ...(step.if?.else || [])].every(allowed);
         if (kind === "go") return screens[step.go?.screen]?.public === true;
         if (kind === "create") {
@@ -480,6 +480,9 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         effects.push({ go: { screen: step.go.screen, params: Object.fromEntries(goParams) } });
       } else if (kind === "notify") {
         effects.push({ notify: String(evaluate(step.notify) ?? "") });
+      } else if (kind === "celebrate") {
+        // Confetti and its words (D-143), drawn by the browser.
+        effects.push({ celebrate: String(evaluate(step.celebrate) ?? "").slice(0, 500) });
       } else if (kind === "openDialog" || kind === "closeDialog") {
         effects.push({ [kind]: step[kind] });
       } else if (kind === "set") {
@@ -553,7 +556,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
    * key), the first 100 or those whose title has `search`, read through the gate, so a visitor gets only rows their
    * access lets them read (D-66) and a draft's preview its practice copy. Answers `{ items: [{ value, title }] }`.
    */
-  async function linkChoices(ctx, { slug, version, screen: screenKey, path, field: fieldKey, search = "", loaded: given = null }) {
+  async function linkChoices(ctx, { slug, version, screen: screenKey, path, field: fieldKey, search = "", state, params, loaded: given = null }) {
     const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
     const node = nodeAt(loaded.screen, path);
     const shown = (node?.type === "form" ? node.fields || [] : []).map((entry) => (typeof entry === "string" ? entry : entry?.field));
@@ -567,6 +570,15 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     }
     const { table: target } = await gate.tableFor(field.options?.target, actx.options);
     const text = String(search || "").trim().toLowerCase().slice(0, 100);
+    // Choices from one of the screen's lists (D-144): what that query reads with the page's values, searched as a list is.
+    const entry = (node.fields || []).find((item) => (typeof item === "string" ? item : item?.field) === key);
+    const list = DATA_REFERENCE.exec(String(entry?.choices || ""))?.[1];
+    if (list) {
+      const page = withVisitor(pageValues(loaded.screen, state, params), ctx.visitor, ctx.actor);
+      const { records = [] } = await runQuery(actx, loaded, page, list, 1, { search: text });
+      const title = target.fields.find((item) => item.id === target.titleFieldId)?.key;
+      return { items: records.map((record) => ({ value: String(record.id), title: String(record[title] ?? `#${record.id}`) })) };
+    }
     // Its title, case-insensitively, as the Data tab's search looks.
     const where = text
       ? {

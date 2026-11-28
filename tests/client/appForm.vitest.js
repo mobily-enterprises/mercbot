@@ -79,7 +79,7 @@ describe("a live app's form with a picture field", () => {
     await picture["onUpdate:chosen"](file);
     await picture["onUpdate:current"](null);
     expect(calls.api).toEqual([
-      ["attachFile", "graphics", "5", "picture", file],
+      ["attachFile", "graphics", "5", "picture", file, expect.any(Function)],
       ["updateRecord", "graphics", "5", { picture: null }]
     ]);
   });
@@ -95,7 +95,7 @@ describe("a live app's form with a picture field", () => {
     finish();
     await Promise.all([first, second]);
     calls.uploading = null;
-    expect(calls.api).toEqual([["attachFile", "graphics", "5", "picture", { name: "one.png" }]]);
+    expect(calls.api).toEqual([["attachFile", "graphics", "5", "picture", { name: "one.png" }, expect.any(Function)]]);
   });
 });
 

@@ -138,7 +138,9 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
 
   function listen(key) {
     if (listening.has(key)) return;
-    listening.set(key, notices.subscribe("apps-registry", key, () => forget(key)));
+    // Another server's change: this one's own forgot its cache as it was made (changed), so hearing it again would only
+    // make the next read load the tables twice.
+    listening.set(key, notices.subscribe("apps-registry", key, (change) => change?.from !== anyapi.origin && forget(key)));
     if (listening.size <= MAX_HOMES) return;
     const [oldest, stop] = listening.entries().next().value;
     listening.delete(oldest);
@@ -162,11 +164,15 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
     return fresh.tables;
   }
 
-  /** Every change to tables or fields: the home's cached tables go, here and (by the notice) elsewhere. */
-  async function changed(options) {
+  /**
+   * Every change to tables or fields: the home's cached tables go, here and (by the notice, which names this server)
+   * elsewhere. `inPlace` is a change this server's AnyAPI instance has already (a table declared, a field's slot added),
+   * which it keeps.
+   */
+  async function changed(options, { inPlace = false } = {}) {
     const homeId = homeIdOf(options);
     forget(homeId);
-    await notices.publish("apps-registry", homeId, {}).catch((error) => console.warn("Publishing a change notice failed; other servers catch up on their next read.", error));
+    await notices.publish("apps-registry", homeId, { from: anyapi.origin, inPlace }).catch((error) => console.warn("Publishing a change notice failed; other servers catch up on their next read.", error));
   }
 
   /** A live table of the home by id or key, or null. */
@@ -414,7 +420,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       anyapi.drop(homeId);
       throw slotsFull(error, key);
     });
-    await changed(options);
+    await changed(options, { inPlace: true });
     return table;
   }
 
@@ -480,7 +486,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       anyapi.drop(homeId);
       throw slotsFull(error, tableKey);
     });
-    await changed(options);
+    await changed(options, { inPlace: true });
     return field;
   }
 

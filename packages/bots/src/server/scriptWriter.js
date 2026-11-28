@@ -37,7 +37,7 @@ Records are by field name: links are the linked record's id, ` +
 - await people.me() → { id, name, role } (buttons, screens' data and jobs: the person pressing, opening or the job's ` +
   `person; null for a public app's visitor). A test gives it as me: { id, name, role }.
 - await ai.bots() → [{ name, isMain }]; await ai.work({ bot: "default" | "a bot's name", task, items: [{ record: { table, id }, ` +
-  `text }], into: "a text field" }) → { batch, queued, bot }: the bot ("default" is the home's main one) answers every item ` +
+  `text }], into: "a text field" }) → { batch, queued, bot }: the bot ("default" is the app's own bot when it came with one, else the home's main one) answers every item ` +
   `later, in one session, writing each answer into that field of its record; await ai.picture({ prompt, into: { table, id, ` +
   `field } }) → { picture }: a picture made later into that record's file or picture field. Buttons and jobs only, when ` +
   `the app's owners allowed bots and pictures; per run 1 ai.work (100 items of 8,000 characters, a task of 2,000; 3 batches ` +
@@ -50,6 +50,9 @@ Records are by field name: links are the linked record's id, ` +
   `size } }: the record as a PDF in a file field (buttons and jobs, 3 a run). The template is HTML (up to 20,000 ` +
   `characters) with {{field}} for the record's values, shown as screens show them, and {{lines:table:link:field,field}} ` +
   `for a table of its line items. A test gives it as docs: { pdf: answer }.
+- await docs.text({ record: { table, id }, field }) → { name, text, more }: the words of a record's file (text, Markdown, ` +
+  `Word, spreadsheet, presentation or PDF; buttons and jobs, 3 a run), at most 1,000,000 characters, more when there were ` +
+  `others; a file of another kind is an error saying so. A test gives it as docs: { text: answer }.
 - console.log(…) ` +
   `lines are kept with the run.
 What main returns, by kind:

@@ -4,12 +4,12 @@ Templates are ready-made apps you can add to your home in a moment and then shap
 
 ## Browse the templates
 
-Open **Apps** and choose the **Templates** tab. There are 62 templates. Each one shows:
+Open **Apps** and choose the **Templates** tab. There are 63 templates. Each one shows:
 
 - its picture, colour and name
 - a **Public** badge if it's made to be used by people outside your home
 - a sentence on what it's for, and what it can do (**Line items**, **Board**, **Calendar**, **Timeline**, **Public page**, **Sends email**)
-- what an owner or admin has to switch on for it, when it needs something (Canary needs Gmail and AI)
+- what an owner or admin has to switch on for it, when it needs something (Canary needs Gmail and AI, Study needs AI)
 - how many screens it has and which tables it uses
 
 The chips at the top keep the templates for one kind of use: **Corporate** (27), **Small business** (39), **Family** (24) or **Personal** (24); many templates are for more than one. **Search templates** finds the ones whose name, description or tables have every word you type. Both stay as they are when you come back to the tab.
@@ -88,6 +88,7 @@ Each template is listed once, under the kind of use it's mainly for.
 | **Reading list** | Books you want to read, are reading and have read, with ratings, notes and who you lent them to. | Personal |
 | **School and activities** | Homework, trips, forms to sign, payments and clubs for each child, on a calendar and a to-do list. | — |
 | **Shopping list** | One shopping list for the whole home, by aisle: add what's needed, tick it off in the shop. Meal planner adds to the same list. | Personal |
+| **Study** | Upload your books and say what you want to learn: it reads them, writes their contents and makes you a fun course of units, short lessons and quizzes, with stars and progress, that you can change any time. Needs AI. | Personal |
 | **Trip planner** | Each trip's bookings day by day, its costs against the budget, and a packing list to tick off. | Personal |
 | **Wish list** | Everyone's wishes in one place, with roughly what each costs and where to find it, so presents are easy to choose. | Personal |
 
@@ -120,14 +121,25 @@ Everyone else in the home can ask the Builder instead: "Install the Leave reques
 - **Screens and navigation**: lists, forms for adding and editing, single records, and charts or totals where they help
 - **Visitor access** for the public templates, such as letting visitors add enquiries but read nothing
 - **Totals that keep themselves up to date**, such as an invoice's total of its lines or an expense claim's total of its items, shown on its list
-- **Scripts**, for the templates that need them: invoices, quotes and orders keep each line's amount as its quantity times its price, and Canary reads new email every hour and has a bot judge it. They go into the app's draft with it, and are live once you publish.
+- **Scripts**, for the templates that need them: invoices, quotes and orders keep each line's amount as its quantity times its price, Canary reads new email every hour and has a bot judge it, and Study reads your books and writes your courses with its own bot, Learner. They go into the app's draft with it, and are live once you publish.
 - **Sample records**, only if you choose **With sample data**, for most templates
+
+## Study: courses from your books
+
+**Study** turns the books you learn from into a course of your own. It comes with its own bot, **Learner**, a friendly tutor: installing Study adds Learner to your home's bots (or uses the Learner your home already has), and Learner does all of Study's reading and writing. You can also chat with Learner about a lesson. Once an owner or admin has switched on **AI: bots and pictures** for Study in its **Logic** tab and it's published:
+
+1. **Books.** Add a book with its file (a text, Word or PDF file). Learner reads it in parts and writes the book's contents: a heading and a short summary for every part. A long book is read up to about its first 280 pages. A book you no longer want, or one that couldn't be read, goes with **Put this book away** on its page, its contents with it.
+2. **Learn.** Say what you want to learn, in your own words, pick one of your books if you like and how much you know already, and press **Make my course**. Only books whose contents are written are offered. The course page shows how far it has got: first **Planning the units and lessons**, then a bar counting the lessons as they're written ("4 of 12 lessons written") with a rough time left, filling in by itself. In a few minutes the course is there: units, each with a few short lessons written from your book, each lesson with a quiz, and a picture on its cover.
+3. **Lessons and quizzes.** **Continue** opens the next lesson. Each quiz shows one question at a time; a right answer gets a cheer, and finishing a lesson celebrates your score. Every right answer is a star. Your progress shows on the course, each unit and the **Progress** screen.
+4. **Change it any time.** On the course's **Change the course** tab, change what you want to learn or say what should change, and press **Plan again**: lessons that keep their title keep your progress, new ones are written for you and show as **New**, and ones the new plan leaves out are put away. You can also change one lesson (it's written again with a new quiz and starts fresh as New), add a lesson (on its unit's page, **Add a lesson**) or a unit (**Add a unit**), move them up or down, or put them away.
+
+Study keeps its books in the same **Books** table as **Reading list**, so a book on your reading list can be studied too once you add its file.
 
 ## What a template leaves out
 
 - **Your data.** Apart from optional samples, a template adds no records. Your existing records are never touched.
 - **Watches.** If you want a bot to react to new records, ask for it after installing.
-- **What it needs switched on.** A template that uses a connected app or AI (Canary) says so when it's installed; an owner or admin switches them on for the app in its **Logic** tab.
+- **What it needs switched on.** A template that uses a connected app or AI (Canary, Study) says so when it's installed; an owner or admin switches them on for the app in its **Logic** tab.
 - **Settings.** The app's look stays as you set it.
 
 ## Templates and the tables you already have
@@ -158,7 +170,26 @@ Templates improve over time, but an app you installed doesn't change by itself: 
 ## Questions
 
 ### Can I install the same template twice?
-Yes. You get a second app. It reuses the same tables, so both apps show the same records.
+Yes, as a copy. Once you have an app from a template, its card on the Templates tab says **In your home**, with
+**Open** and **Install another copy**. A copy is named apart, such as "Study copy 2", and you choose how it starts:
+
+- **Share with the first one:** both show the same things.
+- **Start fresh:** it keeps its own things, separate from the first.
+
+You choose once: it can't be changed later. Some apps offer only one of the two: an app whose things are all shared
+with your other apps (such as the CRM's contacts and deals) can only share, and an app that does work on its own in
+the background (such as Study, or Canary's hourly check) can only start fresh, since two apps on the same things would
+each do that work.
+
+### Does my app get better when its template does?
+Yes, while you haven't changed it: an app made from a template follows it, and takes each improvement by itself, the
+next time you open Apps. Once you, or the Builder, change its screens or scripts, it's a **fork**: it keeps your
+changes, and when its template improves it says **Update available**. Ask the Builder to merge the update: it
+brings in the template's changes as a draft, keeping yours, and you publish it. Changing an app's picture, colour or
+name doesn't make it a fork.
+
+### Can I see how much of a file has uploaded?
+Yes. While a file or picture goes up, its field shows a bar and how much has gone, such as "Uploading… 42%".
 
 ### Why can't I see Install?
 Only a home's owners and admins install templates from this tab. Ask the Builder to install one for you.

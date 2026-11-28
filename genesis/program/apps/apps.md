@@ -68,10 +68,12 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   older names among them; `createApp` draws an unknown one as `apps`), and `apps.color`, set by anyone in the home
   (`appIcon.js` `set`, `PUT …/apps/:slug/icon`: 400 `apps_icon_unknown`, `apps_color_invalid`, `apps_icon_nothing`;
   audited as `changes.icon`); or `apps.picture`, a bot's picture kept with the home's Database files
-  (`putPicture`: a PNG, JPEG, GIF or WebP by its bytes, else 400 `apps_icon_not_picture`; the one it replaces
-  removed), set by the Builder's `app_set_icon` and taken away when a set picture is chosen. `AppTile.vue` draws
-  every tile; `AppIconPicker.vue` (16 `APP_COLOURS`, pictures by group with search, Ask the Builder to draw one)
-  opens from the app's details and each tile's menu.
+  (`putPicture`: a PNG, JPEG, GIF or WebP by its bytes, else 400 `apps_icon_not_picture`, and a colour given with it
+  in the same change; the one it replaces removed), set by the Builder's `app_set_icon` and taken away when a set
+  picture is chosen. `AppTile.vue` draws every tile; a public app's visitors see its set picture, since a bot's
+  picture is the home's file. `AppIconPicker.vue` (16 `APP_COLOURS`, pictures by group with search, Ask the Builder
+  to draw one) opens from the app's details and each tile's menu; on a tile with a bot's picture no set picture is
+  chosen, so changing only the colour keeps it (`appIconChoices.js` `startingLook`, `lookToSave`).
 
 ## Proved by
 

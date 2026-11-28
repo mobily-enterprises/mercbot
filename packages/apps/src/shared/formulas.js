@@ -267,6 +267,16 @@ export function formulaValue(field, value) {
  * How a plain field value is shown, by type: screens show it so, and so does a Builder trying a
  * draft (trial.js).
  */
+/**
+ * A progress bar's value out of its most (D-143), as a whole percentage from 0 to 100: 0 for nothing to count, a most
+ * of 0 included, as screens and app_try show it. `most` is 100 unless given.
+ */
+export function progressPercent(done, most = 100) {
+  const value = Number(done);
+  const top = Number(most);
+  return top > 0 && Number.isFinite(value) ? Math.min(100, Math.max(0, Math.round((value / top) * 100))) : 0;
+}
+
 export function showValue(field, value) {
   if (value === null || value === undefined || value === "") return "—";
   if (!field) return String(value);

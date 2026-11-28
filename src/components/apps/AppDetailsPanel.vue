@@ -148,6 +148,20 @@ async function restore() {
         </template>
         <div class="text-body-2 text-medium-emphasis">Screens</div>
         <div class="text-body-1 mb-4">{{ screens.length }}</div>
+        <template v-if="app.templateKey">
+          <div class="text-body-2 text-medium-emphasis">Template</div>
+          <div class="text-body-1 mb-3" data-testid="app-template-state">
+            {{ app.forked ? "Forked: it keeps your changes, and takes its template's updates when the Builder merges them." : "Follows its template: it improves whenever the template does." }}
+          </div>
+          <v-alert v-if="app.templateUpdate" type="info" variant="tonal" density="compact" class="mb-4">
+            Its template has an update.
+            <template #append>
+              <v-btn size="small" variant="text" @click="emit('ask', 'its template has an update: compare it with the changes made here and merge them into a draft (template_update), keeping those changes.')">
+                Ask the Builder to merge it
+              </v-btn>
+            </template>
+          </v-alert>
+        </template>
 
         <v-divider class="mb-3" />
         <div class="text-body-2 text-medium-emphasis mb-2">Picture</div>
@@ -155,7 +169,7 @@ async function restore() {
           <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="48" />
           <v-btn size="small" variant="text" @click="picking = true">Change</v-btn>
         </div>
-        <AppIconPicker v-model:open="picking" :name="app.name" :slug="app.slug" :icon="app.icon" :color="app.color" :saving="savingIcon" @save="saveIcon" @failed="(message) => emit('failed', message)" />
+        <AppIconPicker v-model:open="picking" :name="app.name" :slug="app.slug" :icon="app.icon" :color="app.color" :picture="app.picture" :saving="savingIcon" @save="saveIcon" @failed="(message) => emit('failed', message)" />
         <v-divider class="mb-3" />
         <div class="text-body-2 text-medium-emphasis">Look</div>
         <div class="text-body-2 mb-2">The home's look (Apps → Look), with this app's own colour and spacing if you set them.</div>

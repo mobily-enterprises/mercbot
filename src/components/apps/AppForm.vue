@@ -4,7 +4,7 @@ import { calculate, celSchema, isFileField, isRollup, isWorkedOut, limitProblem 
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
-import { EMAIL, SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
+import { EMAIL, SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, refreshedDraft, storedOf } from "./fieldValues.js";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import RecordFileField from "./RecordFileField.vue";
 import { appsApi, errorText } from "./appsApi.js";
@@ -32,7 +32,7 @@ const loading = computed(() => !creating.value && runtime.loading.has(queryName.
 const draft = reactive({});
 // The file field being uploaded or taken away, and what went wrong.
 // `round` remounts the file inputs after each try, so the same file can be chosen again.
-const attaching = reactive({ field: "", failed: "", problem: "", round: 0 });
+const attaching = reactive({ field: "", failed: "", problem: "", round: 0, percent: null });
 
 const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))
@@ -94,9 +94,22 @@ function reset(next = record.value) {
   for (const key of Object.keys(draft)) delete draft[key];
   for (const field of table.value?.fields || []) draft[field.key] = toInput(field, next?.[field.key]);
 }
-watch(record, (next) => reset(next), { immediate: true });
+// Read again while open (a live screen, D-144): what the person typed stays, the rest shows the record as it is now.
+watch(record, (next, previous) => {
+  const fields = table.value?.fields || [];
+  const fresh = refreshedDraft(fields, draft, touched, previous, next, toInput);
+  if (!fresh.touched.size) return reset(next);
+  Object.assign(draft, fresh.draft);
+  touched.clear();
+  fresh.touched.forEach((key) => touched.add(key));
+}, { immediate: true });
 
 const typedIn = (entry) => !isFileField(entry.def) && !isWorkedOut(entry.def);
+
+/** How much of the file going up has gone, in percent, which its field shows. */
+const uploading = (percent) => {
+  attaching.percent = percent;
+};
 
 /** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
 async function attach(entry, file) {
@@ -104,9 +117,10 @@ async function attach(entry, file) {
   if (attaching.field) return;
   attaching.field = entry.field;
   attaching.failed = "";
+  attaching.percent = null;
   try {
     // By the field's name: an app's tables come without field ids.
-    if (file) await appsApi.attachFile(table.value.key, record.value.id, entry.field, file);
+    if (file) await appsApi.attachFile(table.value.key, record.value.id, entry.field, file, uploading);
     else await appsApi.updateRecord(table.value.key, record.value.id, { [entry.field]: null });
     await runtime.reloadChanged([table.value.id]);
   } catch (error) {
@@ -164,8 +178,9 @@ provide(APP_FORM_KEY, {
     reset(null);
     for (const [field, file] of chosen) {
       attaching.field = field;
+      attaching.percent = null;
       try {
-        await runtime.attachNew(made, field, file);
+        await runtime.attachNew(made, field, file, uploading);
       } catch (error) {
         attaching.failed = field;
         attaching.problem = `Saved, but this file didn't upload: ${errorText(error, "please try again from the record.")}`;
@@ -256,6 +271,7 @@ provide(APP_FORM_KEY, {
             :chosen="pending[entry.field] || null"
             :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
             :busy="attaching.field === entry.field"
+            :progress="attaching.percent"
             :disabled="Boolean(attaching.field)"
             @update:chosen="(file) => { pending[entry.field] = file; attaching.failed = ''; }"
           />
@@ -267,6 +283,7 @@ provide(APP_FORM_KEY, {
             :chosen="null"
             :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
             :busy="attaching.field === entry.field"
+            :progress="attaching.percent"
             :disabled="Boolean(attaching.field)"
             @update:chosen="(file) => file && attach(entry, file)"
             @update:current="(value) => value === null && attach(entry, null)"

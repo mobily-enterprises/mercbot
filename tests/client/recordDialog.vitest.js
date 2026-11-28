@@ -22,7 +22,7 @@ vi.mock("../../src/components/apps/appsApi.js", () => ({
       return { id, ...values };
     },
     attachFile: (...args) => {
-      api.calls.push(["attachFile", ...args.slice(0, 3)]);
+      api.calls.push(["attachFile", ...args.slice(0, 3), typeof args[4]]);
       return api.attach(...args);
     },
     records: async () => ({ records: [] })
@@ -128,7 +128,7 @@ describe("a file chosen for a new record", () => {
       dialog.chosen.f2 = { name: "ann.png" };
       await dialog.save();
     });
-    expect(api.calls).toEqual([["createRecord", "contacts", { f1: "Ann" }], ["attachFile", "contacts", "9", "f2"]]);
+    expect(api.calls).toEqual([["createRecord", "contacts", { f1: "Ann" }], ["attachFile", "contacts", "9", "f2", "function"]], "its field hears how much has gone up");
     expect(emitted).toEqual([["saved"], ["update:open", false]]);
   });
 

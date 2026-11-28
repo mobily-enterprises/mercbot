@@ -672,6 +672,7 @@ export function createDataGate({
     attachFile: files.attach,
     makeDocument: files.document,
     recordFile: files.fileOf,
+    recordFileText: files.textOf,
     related: relatedRecords.related,
     tableFor,
     canReach: guard.can,

@@ -8,6 +8,14 @@
 # replacing or removing a version in the store never touches it.
 STORE="${MERCBOT_TOOLS_STORE:-$TOOLS/store}"
 
+# Whether programs may run from DIR's file system: a store on one mounted noexec (a home folder often is) can't hold
+# the toolbox, whose own programs run. Asked of DIR's nearest folder that exists, as a new store isn't made yet.
+tools_exec_allowed() { # dir
+  local dir="$1"
+  while [ ! -e "$dir" ] && [ "$dir" != "/" ] && [ "$dir" != "." ]; do dir="$(dirname "$dir")"; done
+  ! findmnt -no OPTIONS --target "$dir" 2>/dev/null | tr ',' '\n' | grep -qx noexec
+}
+
 # Makes TO hard links to FROM's files (a copy where the store is on another file system), replacing
 # what was there in one rename, so TO is never left half made.
 tools_link() { # from to

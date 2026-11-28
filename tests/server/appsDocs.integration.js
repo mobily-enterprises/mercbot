@@ -84,3 +84,56 @@ test("a button's script makes an invoice's PDF from it and its lines, into its f
   installed = false;
   await assert.rejects(press({ id: invoice.id, number: "INV-1" }), /office apps aren't installed/u, "where documents can't be made, it says so");
 });
+
+const READ = `async function main(input) {
+  const read = await docs.text({ record: { table: "books", id: input.id }, field: "file" });
+  return { name: read.name, start: read.text.slice(0, 24), chars: read.text.length, more: read.more };
+}`;
+
+// A record's file read as text (D-143): a button's script reads a book's text file as it is, a PDF through the office
+// apps, and is told why a file of another kind can't be read; past 1,000,000 characters it gets the start and `more`.
+// The office apps' reader is a stand-in (their sandbox isn't on a test machine).
+test("a button's script reads a record's file as text: plain text as it is, a PDF through the office apps", async (context) => {
+  const cleanup = cleanupStack(context);
+  const home = await appsHome(cleanup, { slug: "apps-docs-text" });
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mercbot-docs-text-"));
+  cleanup.after(() => rm(dir, { recursive: true, force: true }));
+  const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
+  let scripts = null;
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = appsParts(home, {
+    trustMs: Infinity,
+    beforeSave: (...args) => scripts.beforeSave(...args),
+    recordFiles: {
+      write: store.writeRecordFile,
+      remove: store.removeRecordFile,
+      real: async (homeId, virtualPath) => (await store.existingFile(store.homePlace(homeId), virtualPath)).real,
+      text: async (_homeId, virtualPath) => (virtualPath.endsWith(".pdf") ? `Chapter 1. Seeds, from ${path.basename(virtualPath)}` : null)
+    }
+  });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => [] });
+  cleanup.after(() => scripts.close());
+  const owner = { type: "person", id: String(home.userId), name: "Pat" };
+  const ctx = home.ctx(owner);
+  await registry.createTable(owner, { key: "books", fields: [{ key: "title", type: "text" }, { key: "file", type: "file" }] }, home.options);
+  const withFile = async (name, content) => {
+    const book = await gate.create(ctx, "books", { title: name });
+    const source = path.join(dir, name);
+    await writeFile(source, content);
+    await gate.attachFile(ctx, "books", book.id, "file", { source, name, type: "" });
+    return book.id;
+  };
+  await apps.createApp(owner, { name: "Library" }, home.options);
+  const saved = await scripts.save(owner, "library", {
+    key: "read", kind: "action", summary: "Reads the book", code: READ,
+    tests: [{ name: "reads", input: { id: "1" }, docs: { text: { name: "a.txt", text: "Hello", more: false } }, expect: { name: "a.txt", start: "Hello", chars: 5, more: false } }]
+  }, home.options);
+  assert.deepEqual(saved.errors, []);
+  await apps.publish(owner, "library", {}, home.options);
+  const appId = (await apps.find("library", home.options)).id;
+  const press = async (id) => scripts.runNamed("action", appId, "read", { id }, { kind: "button" }, null, home.options);
+
+  assert.deepEqual(await press(await withFile("garden.txt", "Plants need light. They grow.")), { name: "garden.txt", start: "Plants need light. They ", chars: 29, more: false });
+  assert.deepEqual(await press(await withFile("garden.pdf", "%PDF-1.4")), { name: "garden.pdf", start: "Chapter 1. Seeds, from g", chars: 33, more: false });
+  await assert.rejects(press(await withFile("garden.zip", "PK")), /garden\.zip can't be read as text here: give it as a text, Word or PDF file/u);
+  assert.deepEqual(await press(await withFile("long.md", "a".repeat(1000005))), { name: "long.md", start: "a".repeat(24), chars: 1000000, more: true });
+});

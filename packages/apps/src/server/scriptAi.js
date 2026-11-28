@@ -33,11 +33,15 @@ const ANSWER_TYPES = new Set(["text", "longtext"]);
 export function createScriptAi({ resources, systemContext, registry, homeBots }) {
   const { apps: appRows, appJobs } = resources;
 
-  /** The bot a script names: "default" (or none) is the home's main bot; else one by name. Archived refuses. */
-  async function botNamed(wanted, options) {
+  /**
+   * The bot a script names: "default" (or none) is the app's own bot when it has one in the home (D-144), else the home's
+   * main bot; else one by name. Archived refuses.
+   */
+  async function botNamed(wanted, options, appBotId = null) {
     const bots = await homeBots(options);
     const name = String(wanted || "default").trim().toLowerCase();
-    const bot = name === "default" ? bots.find((entry) => entry.main) : bots.find((entry) => entry.name.toLowerCase() === name);
+    const own = appBotId ? bots.find((entry) => String(entry.id) === String(appBotId)) : null;
+    const bot = name === "default" ? own || bots.find((entry) => entry.main) : bots.find((entry) => entry.name.toLowerCase() === name);
     if (!bot) throw refused(name === "default" ? "this home has no main bot to do the work" : `there's no bot called ${wanted} in this home`);
     if (bot.archived) throw refused(`${bot.name} is archived, so it can't take work until someone resumes it`);
     return bot;
@@ -65,7 +69,7 @@ export function createScriptAi({ resources, systemContext, registry, homeBots })
     let pictures = 0;
     /** The app, read once a run, refused unless its owners and admins allowed bots and pictures. */
     async function allowedApp() {
-      app ||= await appRows.get(ctx.via.appId, { fields: ["id", "name", "connectedAccess"] }, passedOn(ctx.options));
+      app ||= await appRows.get(ctx.via.appId, { fields: ["id", "name", "connectedAccess", "botId"] }, passedOn(ctx.options));
       if (!(app.connectedAccess || []).includes("ai")) {
         throw refused("this app may not use bots and pictures: the home's owners and admins allow them in the app's Logic tab");
       }
@@ -99,8 +103,8 @@ export function createScriptAi({ resources, systemContext, registry, homeBots })
         if (!item?.record?.id) throw refused(`item ${index + 1} names no record id`);
         return { table: table.key, id: String(item.record.id), text: itemText, into: String(into), done: false };
       });
-      const bot = await botNamed(wantedBot, call);
-      const { id: appId, name } = await allowedApp();
+      const { id: appId, name, botId } = await allowedApp();
+      const bot = await botNamed(wantedBot, call, botId);
       const [{ busy = 0 } = {}] = await appJobs.aggregate(
         { filters: { appId, batchActive: true }, measures: { busy: { count: "*" } } },
         passedOn(call)
@@ -137,7 +141,7 @@ export function createScriptAi({ resources, systemContext, registry, homeBots })
         ctx.practice.simulated.push({ ai: { picture: text.slice(0, 80) }, script: ctx.via.script });
         return { simulated: true };
       }
-      const bot = await botNamed("default", call);
+      const bot = await botNamed("default", call, app.botId);
       const job = await queue(call, {
         kind: "ai_picture",
         appId,

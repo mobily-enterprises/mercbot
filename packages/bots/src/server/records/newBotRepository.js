@@ -67,6 +67,20 @@ export function createNewBotRepository({ resources, homeTemplates }) {
   }
 
   /**
+   * The home's bots on one of Mercbot's templates, working ones first, then in the order they were made: the bot a
+   * ready-made app comes with (D-144). One read.
+   * @param {string} slug
+   * @param {CallOptions} options
+   * @returns {Promise<Array<{ id: string, name: string }>>}
+   */
+  async function onTemplate(slug, options) {
+    const query = { filters: { libraryTemplates: [slug] }, sort: ["id"], fields: ["id", "name", "archivedAt"] };
+    const records = await bots.queryAll(query, passedOn(options));
+    const archived = (row) => Number(Boolean(row.archivedAt));
+    return records.sort((a, b) => archived(a) - archived(b)).map((row) => ({ id: String(row.id), name: row.name }));
+  }
+
+  /**
    * Whether the home has a bot besides its main one: a new home's first chat offers a team only while it hasn't
    * (D-105). One read of at most one row.
    * @param {CallOptions} options
@@ -92,6 +106,7 @@ export function createNewBotRepository({ resources, homeTemplates }) {
 
   return Object.freeze({
     followedOf,
+    onTemplate,
     anyBesidesMain,
     homeBots,
     createBots,

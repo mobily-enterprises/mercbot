@@ -136,7 +136,9 @@ const BotsFeature = defineFeature({
     // Apps' scripts use connected apps through the bots' tools (D-136), and their jobs and public forms send (D-137).
     const appConnected = Object.freeze({
       ...createAppConnected({ integrations, profiles, env, records, apps, approvals }),
-      ...createAppMessages({ records, integrations, env, systemContext })
+      ...createAppMessages({ records, integrations, env, systemContext }),
+      // The bot a ready-made app comes with (D-144), made in the home or the one it has.
+      appBot: bots.appBot
     });
     return { bots, botLoops, appConnected };
   },

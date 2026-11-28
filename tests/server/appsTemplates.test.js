@@ -3,7 +3,7 @@ import test from "node:test";
 import { checkApp } from "../../packages/apps/src/shared/check.js";
 import { __testables, templateSummaries } from "../../packages/apps/src/server/templates.js";
 import { CATALOG, needsOf } from "../../packages/apps/src/server/tableCatalog.js";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { APP_ICON_NAMES } from "../../packages/apps/src/shared/appIcons.js";
 
 const { TEMPLATES } = __testables;
@@ -41,7 +41,10 @@ test("each template is a valid app on its own tables", () => {
       obsolete: false,
       fields: table.fields.map((field) => ({ id: `f_${table.key}_${field.key}`, key: field.key, label: field.key, type: field.type, options: { required: field.required, choices: field.choices, target: field.target && `t_${field.target}` }, obsolete: false }))
     }));
-    assert.deepEqual(checkApp(template.definition, tables), [], `${template.key}: ${JSON.stringify(checkApp(template.definition, tables).slice(0, 3))}`);
+    // With the scripts it brings (D-141): its buttons and data name them, and its formulas call its functions (D-143).
+    const scripts = (template.scripts || []).map((script) => ({ key: script.key, kind: script.kind, params: script.settings?.params || [] }));
+    const problems = checkApp(template.definition, tables, { scripts });
+    assert.deepEqual(problems, [], `${template.key}: ${JSON.stringify(problems.slice(0, 3))}`);
     for (const [key, rows] of Object.entries(template.sample || {})) {
       const table = own.find((entry) => entry.key === key);
       assert.ok(table, `${template.key}: sample for unknown table ${key}`);
@@ -59,6 +62,11 @@ test("each template is a valid app on its own tables", () => {
           assert.equal(named.length, 1, `${template.key}: ${key}.${field} names one ${target} row`);
         }
       }
+    }
+    // The bot it comes with (D-144) is one of the bot library's templates, which names this app as its own.
+    if (template.bot) {
+      const bot = JSON.parse(readFileSync(new URL(`../../bot-templates/${template.bot}.json`, import.meta.url), "utf8"));
+      assert.equal(bot.appTemplate, template.key, `${template.key}: its bot ${template.bot} pairs back`);
     }
     assert.ok(template.name && template.description && template.icon && /^#[0-9A-F]{6}$/iu.test(template.color), `${template.key}: name, description, icon and colour`);
   }

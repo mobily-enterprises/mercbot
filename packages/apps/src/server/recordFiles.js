@@ -15,6 +15,9 @@ export function pictureKind(head) {
   return null;
 }
 
+// Files read as they are, as text (D-143): the rest go to the office apps.
+const PLAIN_TEXT = /\.(?:txt|text|md|markdown|csv)$/iu;
+
 /** A table's live file or picture field, by its id or key, or undefined. */
 const fileFieldOf = (table, fieldName) =>
   table.fields.find((entry) => !entry.obsolete && (entry.id === fieldName || entry.key === fieldName) && isFileField(entry));
@@ -132,13 +135,46 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
     const field = fileFieldOf(table, fieldName);
     const value = field ? (await get(ctx, table.id, id))[field.id] : null;
     if (!value?.path) throw new GateError(404, "That file isn't there.", { code: "apps_record_file_missing" });
-    return { real: await files().real(homeOf(ctx), value.path), name: value.name, type: value.type, size: value.size };
+    return { real: await files().real(homeOf(ctx), value.path), path: value.path, name: value.name, type: value.type, size: value.size };
+  }
+
+  /**
+   * A record's file read as text (D-143), for a script to work from (a book to summarise): read through the gate as
+   * fileOf is, so only a file the caller may see. Plain text (txt, md, csv) is read as it is; a document, spreadsheet,
+   * presentation or PDF by the files feature's office apps (`text`); any other kind, or one where the office apps
+   * aren't, is refused with why. Answers { name, text, more }: at most `max` characters, `more` when there were others.
+   */
+  async function textOf(ctx, tableIdOrKey, id, fieldName, { max }) {
+    const file = await fileOf(ctx, tableIdOrKey, id, fieldName);
+    let text;
+    if (PLAIN_TEXT.test(file.name) || /^text\//u.test(String(file.type || ""))) {
+      const handle = await open(file.real, "r");
+      try {
+        const bytes = Buffer.alloc(Math.min(Number(file.size) || 0, max * 4));
+        const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
+        text = bytes.subarray(0, bytesRead).toString("utf8");
+      } finally {
+        await handle.close();
+      }
+    } else {
+      const read = files().text;
+      const answer = read ? await read(homeOf(ctx), file.path) : null;
+      if (typeof answer !== "string") {
+        throw new GateError(415, `${file.name} can't be read as text here: give it as a text, Word or PDF file.`, {
+          code: "apps_file_not_text",
+          params: { name: file.name }
+        });
+      }
+      text = answer;
+    }
+    return { name: file.name, text: text.slice(0, max), more: text.length > max };
   }
 
   return Object.freeze({
     removeAll,
     attach,
     document,
-    fileOf
+    fileOf,
+    textOf
   });
 }

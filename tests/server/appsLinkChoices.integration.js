@@ -99,3 +99,48 @@ test("link pickers in forms: members, visitors, search, and a public preset from
   await assert.rejects(submit(closed.id), /doesn't exist/u, "a closed event isn't one the visitor can reach");
   assert.ok(quiz.id);
 });
+
+// A form's link field may take its choices from one of the screen's list queries of the linked table (D-144): the
+// picker offers only what that query reads (its filter, with the page's values), searched the same way; the save check
+// holds it to a list of the table the field links to.
+test("a link field's choices can be one of the screen's lists, filter and search included", async (context) => {
+  const knex = await connectTestDatabase();
+  const userId = String((await knex("users").first()).id);
+  const slug = `apps-link-lists-${Date.now()}`;
+  const [home] = await knex("workspaces").insert({ slug, name: "Link lists test", owner_user_id: userId, is_personal: false }).returning("id");
+  const workspaceId = String(home.id ?? home);
+  const started = await startApps({ knex, env: testServerEnv() });
+  const { registry, gate, apps, runtime } = started.apps;
+  const member = started.memberOptions(userId, { id: workspaceId, slug });
+  context.after(async () => {
+    await started.stop();
+    await knex("any_records").where({ tenant_id: tenantOf(workspaceId) }).del();
+    await knex("any_resource_configs").where({ tenant_id: tenantOf(workspaceId) }).del();
+    await knex("workspaces").where({ id: workspaceId }).del();
+    await knex.destroy();
+  });
+  const person = { type: "person", id: userId, name: "Pat" };
+  const ctx = { workspaceId, actor: person, via: { kind: "data" }, options: member };
+  await registry.createTable(person, { key: "books", fields: [{ key: "title", type: "text", required: true }, { key: "ready", type: "yesno" }] }, member);
+  await registry.createTable(person, { key: "courses", fields: [{ key: "goal", type: "text", required: true }, { key: "book", type: "link", target: "books" }] }, member);
+  for (const [title, ready] of [["Plants", true], ["Planets", true], ["Poems", false]]) await gate.create(ctx, "books", { title, ready });
+  const definition = (choices) => ({
+    home: "learn",
+    screens: {
+      learn: {
+        data: { readyBooks: { from: "books", where: "=ready == true", sort: "title" }, courses: { from: "courses" } },
+        content: [{ type: "form", table: "courses", fields: ["goal", { field: "book", choices }], buttons: [] }]
+      }
+    }
+  });
+  await apps.createApp(person, { name: "Learn" }, member);
+  const refused = await apps.saveDraft(person, "learn", definition("=data.courses"), "v0", member);
+  assert.deepEqual(refused.errors.map((error) => error.path), ["screens.learn.content[0].fields[1].choices"]);
+  assert.deepEqual((await apps.saveDraft(person, "learn", definition("=data.readyBooks"), "v1", member)).errors, []);
+  await apps.publish(person, "learn", {}, member);
+  const titles = async (search = "") =>
+    (await runtime.linkChoices(ctx, { slug: "learn", version: "live", screen: "learn", path: "content/0", field: "book", search })).items.map((item) => item.title);
+  assert.deepEqual(await titles(), ["Planets", "Plants"]);
+  assert.deepEqual(await titles("plan"), ["Planets", "Plants"]);
+  assert.deepEqual(await titles("poe"), [], "never one the list leaves out");
+});

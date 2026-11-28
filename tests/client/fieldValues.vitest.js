@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SHARED_TYPES, TEXT_INPUT, inputOf, localDateTime, personChoices, storedOf } from "../../src/components/apps/fieldValues.js";
+import { SHARED_TYPES, TEXT_INPUT, inputOf, localDateTime, personChoices, refreshedDraft, storedOf } from "../../src/components/apps/fieldValues.js";
 
 // The new field types as both forms hold them (D-130): a person as their id, tags as a list, a date and time in the
 // reader's zone for a datetime-local input, and back as the server takes them.
@@ -52,5 +52,24 @@ describe("the shared field types in forms", () => {
     } finally {
       process.env.TZ = "UTC";
     }
+  });
+});
+
+// A live screen re-reads a record a job or someone else changed (D-144): an edit form open on it keeps what the person
+// typed and hasn't saved, and shows the record's new values in the fields they didn't touch; another record, or a
+// field whose typing now matches the record (it was saved), starts afresh.
+describe("a form's values when its record is read again", () => {
+  const fields = [{ key: "title", type: "text" }, { key: "goal", type: "text" }, { key: "status", type: "choice" }];
+  const asInput = (_field, value) => value ?? "";
+  it("keeps what was typed in the same record, and takes the new values elsewhere", () => {
+    const kept = refreshedDraft(fields, { title: "My water lesson", goal: "Why seeds drink", status: "Writing" }, new Set(["title"]),
+      { id: "7", title: "Water", goal: "Why seeds drink", status: "Writing" }, { id: "7", title: "Water", goal: "Why seeds drink", status: "New" }, asInput);
+    expect(kept).toEqual({ draft: { title: "My water lesson", goal: "Why seeds drink", status: "New" }, touched: new Set(["title"]) });
+  });
+  it("starts afresh on another record, and forgets typing the record now has", () => {
+    const other = refreshedDraft(fields, { title: "Mine", goal: "", status: "" }, new Set(["title"]), { id: "7" }, { id: "8", title: "Soil", goal: "Roots", status: "New" }, asInput);
+    expect(other).toEqual({ draft: { title: "Soil", goal: "Roots", status: "New" }, touched: new Set() });
+    const saved = refreshedDraft(fields, { title: "Mine", goal: "", status: "" }, new Set(["title"]), { id: "7" }, { id: "7", title: "Mine", goal: "", status: "" }, asInput);
+    expect(saved.touched).toEqual(new Set());
   });
 });

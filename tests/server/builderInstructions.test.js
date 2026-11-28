@@ -74,3 +74,26 @@ test("the Builder knows what apps can do now, and when to use each", async () =>
     assert.ok(skill.includes(phrase), `skill: ${phrase}`);
   }
 });
+
+// Progress bars, celebrations and reading a record's file (D-143): the Builder's skill says how to write each and when,
+// its instructions name them among the patterns, and the script writer knows docs.text. No model is called.
+test("the Builder knows progress bars, celebrations and reading a record's file as text", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const skill = await readFile(new URL("../../packages/bots/skills/building-apps.md", import.meta.url), "utf8");
+  for (const phrase of ["progress (value, max, label)", "{ \"celebrate\": ", "docs.text({ record: { table, id }, field })"]) {
+    assert.ok(skill.includes(phrase), `skill: ${phrase}`);
+  }
+  const builder = instructionsFor({ id: "1", name: "Bea", isBuilder: true });
+  for (const phrase of ["a progress bar", "\"celebrate\"", "docs.text"]) assert.ok(builder.includes(phrase), `rules: ${phrase}`);
+  const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
+  assert.ok(SCRIPT_GUIDE.includes("await docs.text({ record: { table, id }, field }) → { name, text, more }"), "script guide: docs.text");
+});
+
+// An app's own bot and a link field's choices from a list (D-144): the skill and the script guide say how they work.
+test("the Builder knows a link field's choices from a list, and that an app's AI work goes to its own bot", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const skill = await readFile(new URL("../../packages/bots/skills/building-apps.md", import.meta.url), "utf8");
+  for (const phrase of ['"choices": "=data.', "the app's own bot"]) assert.ok(skill.includes(phrase), `skill: ${phrase}`);
+  const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
+  assert.ok(SCRIPT_GUIDE.includes("\"default\" is the app's own bot when it came with one, else the home's main one"), "script guide: default bot");
+});

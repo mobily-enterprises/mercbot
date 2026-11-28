@@ -172,7 +172,8 @@ files are kept.
   `<app>-cli mcp` in its own sandbox, and keeps its open documents until `close()`, which also
   removes the sandbox.
 - `apps.pagesOf` turns a file into PNGs of its first 20 pages in one sandbox run, and `apps.textOf`
-  reads a document's text; both see the folders read-only and write only to a scratch `/out`.
+  reads a document's text; both see the folders read-only and write only to a scratch `/out`. The records' plug-in
+  (`apps.useRecordFiles`) carries `textOf` as `text`, how an app's script reads a record's file (D-143).
   `apps.chartImage` draws a chart into the folders; `apps.voiceMemo` runs Piper (mounted at
   `/opt/piper`) on the text, into the folders.
 - `appFor(path)` names the app that opens a file, and `appIcon(app)` its icon. On a computer's

@@ -52,3 +52,20 @@ export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 /** The input type of a text-like field, by its type. */
 export const TEXT_INPUT = Object.freeze({ email: "email", date: "date", number: "number", money: "number", phone: "tel", url: "url", datetime: "datetime-local" });
+
+/**
+ * A form's values when its record is read again, as a live screen does when a job or someone else changes it (D-144):
+ * on the same record, each field the person typed in (`touched`) keeps what they typed while it still differs from the
+ * record, and every other field shows the record's new value (`toInput`, the form's own conversion); another record
+ * starts afresh. Answers the values and the fields still typed in.
+ */
+export function refreshedDraft(fields, draft, touched, previous, next, toInput) {
+  const same = Boolean(previous && next) && String(previous.id) === String(next.id);
+  const kept = new Set(fields
+    .filter((field) => same && touched.has(field.key) && String(draft[field.key] ?? "") !== String(toInput(field, next[field.key]) ?? ""))
+    .map((field) => field.key));
+  return {
+    draft: Object.fromEntries(fields.map((field) => [field.key, kept.has(field.key) ? draft[field.key] : toInput(field, next?.[field.key])])),
+    touched: kept
+  };
+}

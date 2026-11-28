@@ -1,5 +1,6 @@
 // readable-check: allow no-direct-knex - infrastructure: AnyAPI keeps each home's runtime tables (the ones people define while the app runs, which no table resource describes) on the app's Knex
 // readable-check: allow no-transaction-reader - infrastructure: a draft's practice copy (D-71) is written and cleared in the transaction that holds its app_practices row, which AnyAPI takes as its own Knex transaction
+import { randomUUID } from "node:crypto";
 import { AnyapiRegistry, JsonRestApi, RestApiAnyapiKnexPlugin, RestApiPlugin, RowPolicyPlugin } from "@jskit-ai/resource-runtime/server/anyapi";
 import { PAGE_MAX, isCalculated } from "../shared/index.js";
 import { applyPlan, exprSql } from "./sqlPlan.js";
@@ -73,6 +74,9 @@ function resourceSchema(fields) {
 export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) {
   const registry = new AnyapiRegistry({ knex, cacheSize: 5000 });
   const instances = new Map();
+  // This server's own name on a registry notice for a change it already made to its instance (a new table or field):
+  // it keeps that instance, which rebuilding would declare every table of the home again; other servers drop theirs.
+  const origin = randomUUID();
 
   /**
    * Page `where` plans arrive in the caller context; the row-policy helper maps fields to slots.
@@ -119,7 +123,7 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
     for (const table of tables ?? (await loadTables(String(workspaceId)))) await declare(api, table);
     const unsubscribe = [
       notices.subscribe("apps-schema", key, (change) => api.anyapi.handleSchemaChange(change).catch(() => drop(key))),
-      notices.subscribe("apps-registry", workspaceId, () => drop(key))
+      notices.subscribe("apps-registry", workspaceId, (change) => !(change?.from === origin && change.inPlace) && drop(key))
     ];
     return { api, unsubscribe };
   }
@@ -229,6 +233,7 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
   }
 
   return Object.freeze({
+    origin,
     instanceFor,
     practiceFor,
     newestRecords,

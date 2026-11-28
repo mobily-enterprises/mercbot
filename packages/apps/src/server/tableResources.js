@@ -23,6 +23,8 @@ export const appResource = defineTableResource({
     kind: { type: "string", maxLength: 8, noTrim: true, search: true },
     liveVersionId: { type: "id", nullable: true, search: true },
     madeByBotId: { type: "id", nullable: true, search: true },
+    // The bot a ready-made app comes with (D-144): its scripts' AI work goes to it; null, the home's main bot.
+    botId: { type: "id", nullable: true },
     madeByUserId: { type: "id", nullable: true, search: true },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
     publicAt: { type: "dateTime", nullable: true },
@@ -31,6 +33,10 @@ export const appResource = defineTableResource({
     // The ready-made template it was made from, and that template's version when it was made or last updated (D-130).
     templateKey: { type: "string", maxLength: 64, noTrim: true, nullable: true },
     templateVersion: { type: "string", maxLength: 32, noTrim: true, nullable: true },
+    // When a change to its screens or scripts not from its template was first saved: a fork, which no longer follows it.
+    forkedAt: { type: "dateTime", nullable: true },
+    // A copy that started fresh: its number, which its own tables carry (templateCopies.js).
+    templateCopy: { type: "integer", nullable: true },
     theme: { type: "object", nullable: true, additionalProperties: true },
     updatedAt: { type: "dateTime" },
     visibility: { type: "string", maxLength: 16, noTrim: true },

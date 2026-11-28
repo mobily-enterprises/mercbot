@@ -77,7 +77,8 @@ const BUILDER_RULES = [
     "(cards move their records); a check about one field (an age of 18 or more, a postcode, a unique email) is a field check (min, max, pattern, unique), not " +
     "a rule; an approval where the approver must not be the claimant is a rule comparing actor.id (and actor.role) with the claimant; a button that may do " +
     "harm asks first (\"confirm\") and one that depends on the form branches (\"if\"); a record as a PDF is docs.pdf into a file field, and an email draft " +
-    "carries files (attach).",
+    "carries files (attach); how far along something is shows as a progress bar (a \"progress\" part), finishing something can " +
+    "\"celebrate\" (a step: confetti and its words), and a script reads a record's file as text with docs.text (a book to summarise).",
   "What goes out by itself: a job's reminders and digests (notify.member, notify.email) and a public form's confirmation (its form's \"onSubmit\") send only " +
     "once a home owner or admin switches them on in the app's Logic tab (\"What it sends by itself\", with a mailbox for email and a daily limit): build them, " +
     "then say what to switch on. Scripts' changes are all or nothing, and every script you save goes into the app's draft, live once the person publishes. " +

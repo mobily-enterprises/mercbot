@@ -7,7 +7,11 @@ import { refused } from "./scriptConnected.js";
 // {{lines:table:link:field,field}} for a table of the records of `table` whose `link` points at it (an invoice's lines),
 // shown the same way. Values are escaped; the page is made in the office apps' sandbox, which has no network, so it
 // loads nothing from outside. A draft's preview makes none.
-const DOC_LIMITS = Object.freeze({ templateChars: 20000, perRun: 3, lines: 200 });
+//
+// And `docs.text({ record, field })` (D-143) reads a record's file as text, for a script to work from (a book to
+// summarise, a contract to check): through the gate as the run, so only a file it may see, at most 1,000,000 characters
+// (`more` says there were others), 3 a run. It only reads, so a draft's preview reads too.
+const DOC_LIMITS = Object.freeze({ templateChars: 20000, perRun: 3, lines: 200, textChars: 1000000 });
 
 const PAGE_STYLE =
   "body{font-family:sans-serif;font-size:11pt;color:#1c1c1c;margin:32px}" +
@@ -74,7 +78,7 @@ const fileName = (name) => `${String(name || "document").replace(/[^\p{L}\p{N} .
  */
 export function createScriptDocs({ gate }) {
   /**
-   * The host's `docs` calls for one run: `pdf`, at most DOC_LIMITS.perRun of them.
+   * The host's `docs` calls for one run: `pdf` and `text`, at most DOC_LIMITS.perRun of each.
    * @param {{ options: object, practice?: { simulated: object[] }, via: { script: string } }} ctx the run's gate ctx
    */
   function forRun(ctx) {
@@ -107,7 +111,14 @@ export function createScriptDocs({ gate }) {
       const file = saved[fieldOf(targetTable, String(target.field)).id];
       return { file: { name: file?.name, size: file?.size } };
     }
+    let read = 0;
+    async function text({ record, field } = {}) {
+      if ((read += 1) > DOC_LIMITS.perRun) throw refused(`at most ${DOC_LIMITS.perRun} docs.text a run`);
+      if (!record?.table || !record?.id || !field) throw refused("docs.text takes { record: { table, id }, field }: the record and its file field");
+      return gate.recordFileText(ctx, String(record.table), String(record.id), String(field), { max: DOC_LIMITS.textChars });
+    }
     return async (name, args) => {
+      if (name === "text") return text(args[0]);
       if (name !== "pdf") throw refused(`docs has no ${name}`);
       return pdf(args[0]);
     };

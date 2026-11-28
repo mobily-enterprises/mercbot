@@ -19,7 +19,7 @@ TOOLS="$ROOT/.tools"
 BOX="$STORE/toolbox"
 # The install runs the toolbox's own programs, which a file system mounted noexec refuses, so a store
 # there keeps the toolbox in .tools' own store instead.
-if findmnt -no OPTIONS --target "$(dirname "$STORE")" 2>/dev/null | tr ',' '\n' | grep -qx noexec; then BOX="$TOOLS/store/toolbox"; fi
+if ! tools_exec_allowed "$STORE"; then BOX="$TOOLS/store/toolbox"; fi
 RUNSC="$TOOLS/bin/runsc"
 
 BASE_RELEASE="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"

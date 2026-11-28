@@ -202,6 +202,8 @@ async function chooseBuilder() {
             <div class="d-flex align-center flex-wrap ga-2 mt-1">
               <v-chip size="x-small" variant="tonal">{{ app.kind === "view" ? "View" : app.visibility === "public" ? "Public" : "Internal" }}</v-chip>
               <v-chip v-if="app.draftVersionId" size="x-small" variant="tonal" color="primary">Draft</v-chip>
+              <v-chip v-if="app.templateUpdate" size="x-small" variant="tonal" color="primary">Update available</v-chip>
+              <v-chip v-else-if="app.forked" size="x-small" variant="tonal">Forked</v-chip>
               <v-chip v-if="!app.liveVersionId && app.kind !== 'view'" size="x-small" variant="tonal" color="warning">Not published</v-chip>
               <span class="text-caption text-medium-emphasis">{{ changed(app.updatedAt) }}</span>
             </div>
@@ -255,6 +257,7 @@ async function chooseBuilder() {
       :slug="picking?.slug || ''"
       :icon="picking?.icon || 'apps'"
       :color="picking?.color || APP_COLOURS[0].value"
+      :picture="picking?.picture || null"
       :saving="savingIcon"
       @update:open="(open) => { if (!open) picking = null; }"
       @save="saveIcon"

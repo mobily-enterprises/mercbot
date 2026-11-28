@@ -53,6 +53,10 @@ const toApp = (record) => ({
   themeOverride: record.theme ?? null,
   templateKey: record.templateKey ?? null,
   templateVersion: record.templateVersion ?? null,
+  // Changed from its template, so it no longer follows it (D-141).
+  forked: Boolean(record.forkedAt),
+  // A copy that started fresh, with its own tables: its number (templateCopies.js).
+  templateCopy: record.templateCopy ?? null,
   updatedAt: record.updatedAt
 });
 
@@ -76,6 +80,30 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
 }
 
 /**
+ * Marks an app made from a template a fork (D-141) as a change of its screens or scripts that didn't come from the
+ * template is saved, in that change's transaction: from then on it no longer follows its template.
+ */
+const forkOf = (appRows) => async (app, txOptions) => {
+  if (!app.templateKey || app.forkedAt) return;
+  await appRows.patch(String(app.id), { forkedAt: new Date().toISOString() }, { ...txOptions, returning: "none" });
+};
+
+/** The next version number of an app: its highest so far, plus one. */
+const nextNumberOf = (appVersions) => async (appId, txOptions) => {
+  const [{ highest = null } = {}] = await appVersions.aggregate({ measures: { highest: { max: "number" } }, filters: { appId } }, txOptions);
+  return Number(highest ?? 0) + 1;
+};
+
+/**
+ * The home's apps made from ready-made templates, by template key, each key's apps oldest first ({ slug, name, ... }),
+ * or (`key`) only that template's: a template makes one app in a home, and more only as copies asked for (D-141).
+ */
+const templateAppsOf = (appRows) => async (options, key = null) => {
+  const filters = { retired: false, ...(key ? { templateKey: String(key) } : { fromTemplate: true }) };
+  return Map.groupBy(await appRows.queryAll({ filters, sort: ["createdAt"] }, passedOn(options)), (app) => app.templateKey);
+};
+
+/**
  * A home's apps: their versions, their look and the Builder (D-35). Everyone in the home uses every one (D-66).
  * Definitions are stored by ids and handed out by name.
  * The Builder's changes go into one draft; a person publishes it as the next numbered version.
@@ -96,6 +124,9 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
 export function createApps({ resources, records, registry, anyapi, practices, notices, homes }) {
   const { apps: appRows, appVersions, appScripts, appPins, appSettings, appThemes, appFields, appTables, auditEvents, appJobs } = resources;
   const scriptDrafts = createScriptDrafts({ appScripts, apps: appRows, appVersions });
+  const templateApps = templateAppsOf(appRows);
+  const fork = forkOf(appRows);
+  const nextNumber = nextNumberOf(appVersions);
 
   /**
    * The home's own row, held shared until the transaction ends, first in a transaction that locks or changes its apps,
@@ -188,8 +219,9 @@ export function createApps({ resources, records, registry, anyapi, practices, no
   }
 
   /** Notes the ready-made template an app was made or last updated from, and that template's version (D-130). */
-  async function markTemplate(appId, { key, version }, options) {
-    await appRows.patch(String(appId), { templateKey: key, templateVersion: version }, { ...passedOn(options), returning: "none" });
+  async function markTemplate(appId, { key, version, botId, copy }, options) {
+    const extra = { ...(botId ? { botId: String(botId) } : {}), ...(copy ? { templateCopy: copy } : {}) };
+    await appRows.patch(String(appId), { templateKey: key, templateVersion: version, ...extra }, { ...passedOn(options), returning: "none" });
   }
 
   /** The home's bots that a button can hand a task to, in id order. */
@@ -259,7 +291,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     return mapBots(definition, (id) => names.get(String(id)) ?? "(removed bot)").definition;
   }
 
-  async function saveDraft(actor, slugOrId, definition, summary = "", options) {
+  async function saveDraft(actor, slugOrId, definition, summary = "", options, { fromTemplate = false } = {}) {
     const tables = await registry.loadTables(options);
     const bots = await botsOf(options);
     const app = await find(slugOrId, options);
@@ -284,6 +316,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     return appVersions.withTransaction(options, async (txOptions) => {
       await holdHome(txOptions);
       const current = await find(slugOrId, txOptions);
+      if (!fromTemplate) await fork(current, txOptions);
       const fields = { definition: stored, summary: String(summary).slice(0, 2000), createdBy: actor, kind: "builder" };
       let draftId = current.draftVersionId;
       if (draftId) {
@@ -294,12 +327,6 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       }
       return { errors: [], draftVersionId: String(draftId) };
     });
-  }
-
-  /** The next version number of an app: its highest so far, plus one. */
-  async function nextNumber(appId, txOptions) {
-    const [{ highest = null } = {}] = await appVersions.aggregate({ measures: { highest: { max: "number" } }, filters: { appId } }, txOptions);
-    return Number(highest ?? 0) + 1;
   }
 
   /**
@@ -365,6 +392,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       if (!old) throw new RegistryError(404, "No such published version.", { code: "apps_version_not_found" });
       const definition = listedStored(old.definition, await registry.loadTables(txOptions));
       await visitorAccessOf.checkWidening(app, definition, canManage, txOptions);
+      await fork(app, txOptions);
       const restored = await addVersion(app, actor, definition, `Restored version ${old.number}`, "restore", txOptions);
       // Its scripts come back too, as they went live with it (D-139).
       const scripts = await scriptDrafts.restore(app.id, old.scripts, txOptions);
@@ -671,6 +699,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     // The app's draft scripts (D-139): saved and taken away there, in the caller's transaction.
     scriptDrafts,
     markTemplate,
+    templateApps,
+    fork,
     publish,
     restore,
     visitorAccess: visitorAccessOf.visitorAccess,

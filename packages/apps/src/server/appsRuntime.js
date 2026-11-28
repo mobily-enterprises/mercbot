@@ -1,5 +1,6 @@
 import { createAppConnectedAccess } from "./appConnectedAccess.js";
 import { createAppIcon } from "./appIcon.js";
+import { createTemplateFollow } from "./templateFollow.js";
 import { createApps } from "./apps.js";
 import { createAppsRepository } from "./appsRepository.js";
 import { createDataGate } from "./dataGate.js";
@@ -54,8 +55,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   let recordFiles = null;
   /**
    * The files feature's part of record files: `{ write, remove, real }` (the file store's writeRecordFile, removeRecordFile
-   * and a file's real path), `{ receive, limit }`, how an upload of one is read (recordUploads), and `pdf(homeId, html,
-   * target)`, how a record's document is made (D-140).
+   * and a file's real path), `{ receive, limit }`, how an upload of one is read (recordUploads), `pdf(homeId, html,
+   * target)`, how a record's document is made (D-140), and `text(homeId, path)`, how a record's file is read as text (D-143).
    */
   function useRecordFiles(impl) {
     recordFiles = impl;
@@ -93,10 +94,13 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const catalog = createTableCatalog({ registry, gate });
-  const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog, scripts }, ctx, key, options);
+  const installTemplateFor = (ctx, key, options) =>
+    installTemplate({ registry, apps, gate, catalog, scripts, connected }, ctx, key, options);
   // The home's apps made from templates and whether each is up to date; one brought up to date as a draft (D-130).
   const templateStatusFor = (options) => templateStatus({ apps }, options);
   const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog, scripts }, ctx, slugOrId);
+  // Apps that follow their template take its new versions (D-141).
+  const templateFollow = createTemplateFollow({ resources, apps, updating: { registry, apps, catalog, scripts } });
   const starterApps = createStarterApps({ appSettings: resources.appSettings, installTemplate: installTemplateFor, apps });
   return Object.freeze({
     anyapi,
@@ -116,6 +120,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     templateSummaries,
     templateStatus: templateStatusFor,
     updateFromTemplate: updateFromTemplateFor,
+    followTemplates: templateFollow.follow,
     catalog,
     starterApps,
     homePeople,

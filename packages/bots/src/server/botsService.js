@@ -283,6 +283,7 @@ export function createBotsService({
     teamFor: teams.teamFor,
     addTeam: teams.addTeam,
     addBots: teams.addBots,
+    appBot: teams.appBot,
     proposeBots: plans.propose,
     draftTemplate: drafts.draftTemplate,
     handOverNote: notes.handOverNote,

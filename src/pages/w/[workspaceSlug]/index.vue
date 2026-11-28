@@ -3,13 +3,16 @@ import { onMounted, ref } from "vue";
 import MercbotAvatar from "@/components/mercbot/MercbotAvatar.vue";
 import MercbotIntro from "@/components/mercbot/MercbotIntro.vue";
 import MercbotShell from "@/components/mercbot/MercbotShell.vue";
+import extensions from "@/components/mercbot/extensions.js";
+import { showsIntroSlides } from "@/components/mercbot/shellChat.js";
 import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import { chatsApi } from "@/components/mercbot/chatsApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
 
 // A person's first visit to a home (plan 4.1): with no chats yet, their welcome chat is made, their direct chat with the
 // home's main bot (POST /chats/welcome, which makes the main bot too in a new home), then the intro slides when this is
-// their first home, and a short pause on Mercbot's face. Anyone who has chats goes straight to the shell.
+// their first home and the copy hasn't first-run screens of its own (D-142), and a short pause on Mercbot's face. Anyone
+// who has chats goes straight to the shell.
 const phase = ref("loading");
 const chats = ref([]);
 const sections = ref([]);
@@ -32,9 +35,9 @@ async function load() {
       return;
     }
     await chatsApi.welcome();
-    // A new home of someone who already has one skips the slides (D-36).
-    if ((await loadHomes()).length > 1) await enter();
-    else phase.value = "intro";
+    // A new home of someone who already has one skips the slides (D-36), as does a copy with its own (D-142).
+    if (showsIntroSlides((await loadHomes()).length, extensions)) phase.value = "intro";
+    else await enter();
   } catch {
     loadFailed.value = true;
   }

@@ -4737,8 +4737,124 @@ templates, and "a GENERIC table called list that every app can use, with a names
   takes `preset`.
 - **Field names:** the registry refuses the formula language's reserved words and type names (`namespace`, `list`,
   `map`, `for`…) as field and table names, which made every formula over their table fail to check.
+- **One app per template, more only as copies asked for (the owner, 28 Nov):** installing a template a home already
+  has an app from is refused (409 `apps_template_installed`, naming that app) unless another copy is asked for
+  (`again`): the tab shows it **In your home** with Open and **Install another copy**, and the copy is named apart
+  ("Study copy 2"). A first-run screen never makes copies. The person chooses, once, whether the copy shares the first
+  one's things or starts fresh (`fresh`, `templateCopies.js`): a fresh copy gets the template's own tables named after
+  it (`study_courses_copy_2`; the catalog's shared tables stay shared), everywhere the template names a table (links,
+  roll-ups, queries, forms, lines, steps, public tables, the sample, scripts' settings, tests and code), and remembers
+  its number (`apps.template_copy`) so it follows the template on its own tables. A template whose own tables a shared
+  table links to (Meal planner) or that has none (CRM) can't start fresh (409 `apps_template_fresh_unavailable`); one
+  with jobs, which work in the background (Study, Canary), can't share (409 `apps_template_share_unavailable`): two apps
+  on the same records would each run them. Every template's fresh copy installs with its sample, naming none of the
+  first app's tables (`appsTemplates.integration.js`).
+- **Apps follow their template unless forked (the owner, 28 Nov):** an app made from a template and never changed takes
+  each new version of it, published, the next time its home's apps are read (`templateFollow.js`, on the apps list the
+  sidebar reads as the home opens), so a template that improves improves every app that follows it. A change to its
+  screens or scripts saved by a person or the Builder (a draft, a script, a script removed, a restore), but never one
+  from its template, makes it a fork (`apps.forked_at`): it keeps its changes and shows **Forked**, and once its
+  template improves, **Update available**, with Ask the Builder to merge it (`template_update`, then the person's
+  changes carried over). Pictures, colours and names don't fork. Each update is taken once, under the app row's lock;
+  one whose draft doesn't pass its save check makes the app a fork at the version it had. Apps made before this follow
+  their template when every version of theirs came from it (migration `20261207120000_apps_forked.cjs`).
+- **Uploads show how far they are:** a record's file or picture goes up through XMLHttpRequest (`uploadFile.js`),
+  which tells how much has gone, so its field shows a bar and "Uploading… N%" (forms, the record dialog, public forms).
 
 Proved by `appsTemplates.test.js`, `appsTemplates.integration.js` (every template installs with its sample data; list
 apps share by kind; Canary's scripts; an invoice's total), `appsIcons.integration.js`, `appsRegistry.integration.js`,
 `appsBotTools.integration.js`, `appsLines.test.js`, `appsCheck.test.js`, `tableCatalog.test.js`, and the client tests
 `templateFilter.vitest.js`, `appIconChoices.vitest.js` and `appForm.vitest.js`.
+
+## D-142 — A copy may open a first home on its own first-run screens instead of the intro slides (2026-11-28)
+
+A copy built on Mercbot can have first-run screens of its own for a person's first home, shown over the shell (a
+`shellParts` entry). Before this, the home's page still showed Mercbot's three intro slides first, so a new person
+went through two introductions, one after the other, before reaching their home.
+
+- **The seam:** `introSlides` in `src/components/mercbot/extensions.js`, `true` in Mercbot itself. A copy that sets it
+  `false` opens a person's first visit to their first home straight on the shell, after the welcome chat is made and
+  the same short pause on Mercbot's face, as a second home always did (D-36). `showsIntroSlides` (`shellChat.js`)
+  decides it, and `src/pages/w/[workspaceSlug]/index.vue` follows it.
+- **Mercbot itself is unchanged:** its first home still opens on the slides, and the welcome chat runs as before.
+
+Proved by `tests/client/shellParts.vitest.js` ("opens a person's first home on the intro slides unless the copy has
+first-run screens of its own").
+
+## D-143 — Study: a course from a person's books, and what apps needed for it (2026-11-28)
+
+The owner asked for a ready-made "Study" app for families and people on their own: it asks for the books to learn
+from, writes their contents and a summary, asks what the person wants to learn, makes a full course (units, lessons, a
+quiz for each), lets them change it without fuss, and is fun to use and to look at. It is the most complex template
+yet, and the owner allowed generic improvements to Mercbot where it needed them.
+
+- **The template** (`packages/apps/templates/study.json`, Family and Personal): books (the Reading list's table, shared:
+  the same thing, with Study's own `contents_status`, `contents_note` and a `file`), their parts (`book_parts`: a part's
+  text, heading and summary), and its own `study_courses`, `study_units`, `study_lessons` and `study_questions` (named
+  for it: Training's `courses` is another thing, and unit, lesson and question are words other apps may want). Progress
+  lives on those records (a question's answer and whether it was right, a lesson Done), counted by roll-ups (a lesson's
+  stars, a unit's and a course's lessons done, a course's stars adding up its lessons'), so there is no separate
+  progress table. Its scripts: reading a book when its file is added, a rule keeping each part's heading, planning a
+  course, making the plan into units and lessons, writing each lesson with its quiz, putting the quiz into questions,
+  and buttons for what's next, taking a quiz again, moving and putting away. It brings its own look (`style`).
+- **Changing the course, forgivingly:** plan again with what should change, and a lesson (or unit) whose title stays the
+  same, emoji, case and punctuation aside, is kept with its text, quiz and progress, moved to its new place; a new one is
+  written and shows as New; one the new plan leaves out is put away (obsolete). A lesson changed on its own is written
+  again with a new quiz and starts fresh as New; every other lesson keeps its progress. Units and lessons can also be
+  added, edited, moved and put away by hand. Matching by title was chosen over tracking which lessons "changed": it is
+  what the person sees, it needs no history, and the plan's prompt asks the bot to keep the titles of lessons that stay.
+- **Reading a record's file (`docs.text`):** a button's or job's script reads a record's file as text through the gate,
+  as the run (`gate.recordFileText`, `recordFiles.js` `textOf`): text, Markdown and CSV as they are, documents,
+  spreadsheets, presentations and PDFs by the office apps (the files feature's `text` plug-in, `officeApps.textOf`), any
+  other kind refused with why; at most 1,000,000 characters with `more`, 3 a run. Without it, an app could keep a book
+  but nothing could read it.
+- **A progress bar part:** `{ "type": "progress", "value", "max", "label" }`, `value` out of `max` (100 unless it says)
+  as a whole percentage from 0 to 100 (`progressPercent`), in views too; `app_try` reads it as `{ progress, percent }`.
+  Totals showed bars per group, never "how far along" one thing is.
+- **A celebration step:** `{ "celebrate": "<words or a formula>" }`, an effect the app's frame draws as its words over
+  the app's area with confetti in the theme's colours for a moment (`AppCelebration.vue`), read out to screen readers,
+  without confetti under reduced motion; public screens may celebrate too. Fun needed a moment that feels like a win.
+- **A roll-up of a roll-up in a template:** installing adds a roll-up that adds up another roll-up after that one, so a
+  template can count a course's stars from its lessons' (`templates.js`).
+- **The Builder** knows each (its skill, its instructions, the script guide), and that a button's formulas read the
+  screen's single-record queries, never its lists, so "open the next one" is a script returning go.
+
+Proved by `appsStudy.integration.js` (the app end to end, with stand-ins for the model and the picture service),
+`appsDocs.integration.js` (docs.text), `appsCheck.test.js` (the part and the step), `appProgress.vitest.js`,
+`builderInstructions.test.js`, and the template tests.
+
+## D-144 — An app may come with its own bot; live app screens; link choices from a list (2026-11-28)
+
+The owner, on Study: "this MUST be linked to a bot … this app will always use the 'learner' bot. This is set at app
+install — in a way, the app comes with a bot"; the planning page "should show SOME information about how the planning is
+advancing", updating as the jobs go; books not read yet shouldn't be offered for a course; and a book can be removed.
+
+- **A template names the bot it comes with** (`"bot": "<library slug>"`): one of the bot library's templates
+  (`bot-templates/`), which names the app back (`appTemplate`), so either side offers the other. Installing the template
+  asks the bots (`mercbot.app-connected` `appBot`, `botTeams.appBot`) for the home's bot on that library template, a
+  working one first whatever it's called now, or one made on it as Add bots makes one (`make`, with the main bot's
+  introduction); a home never gets a second. The app remembers it (`apps.bot_id`, null on the bot's deletion). Study
+  comes with **Learner** (`bot-templates/learner.json`), a friendly tutor whose voice writes its contents and lessons.
+- **An app's AI work goes to its bot:** `ai.work` and `ai.picture` with the bot "default" (or none) go to the app's own
+  bot when it has one in the home, else the home's main bot as before (D-136); a bot named by name is still that bot.
+- **App screens are live, as views are (D-55):** an open app screen re-reads the queries whose tables changed (a job's,
+  a bot's or another person's write, roll-up parents included), heard on the home's change stream, after a short quiet
+  pause. Before, only views did. An edit form open on a record read again keeps what the person typed and hasn't saved,
+  and shows the record's new values in the other fields (`refreshedDraft`). Study's course page counts its lessons as
+  they're written ("Step 2 of 2 · 4 of 12 lessons written", with a rough time left measured from the ones written so
+  far, `time_left`); planning the units is one answer from the bot, so it shows as a step, not a count.
+- **A link field's choices can be one of the screen's lists** (`{ "field": "book", "choices": "=data.readyBooks" }`): the
+  picker offers what that list query reads, with the page's values, searched as lists are and through the same access;
+  the save check holds it to a list of the table the field links to. Study's Learn form offers only books whose
+  contents are written. It narrows the picker; it isn't a rule (a rule script refuses other values if that matters).
+- **Study's books can be put away:** the book page's "Put this book away" marks it so it leaves the shelf at once, and a
+  job puts away its parts and then the book (obsolete, nothing deleted), since a button's 50 record calls can't reach a
+  long book's 80 parts. Add forms on the course and unit pages open in dialogs; lessons have their own, lighter look.
+- **Tests that drain watching jobs wait for earlier transactions** (`earlierTransactionsEnded`) before each round: the
+  watches read changes up to the database server's transaction horizon, which another test file's open transaction
+  holds back, so a drain that didn't wait could stop before its own changes were visible (appsStudy's flake).
+
+Proved by `teams.integration.js` (made once, a home's own reused), `appsStudy.integration.js` (installed with its bot,
+every AI job its bot's, the picker, putting a book away, the round's count), `appsLinkChoices.integration.js`,
+`appLive.vitest.js` (an app's screen is kept live), `fieldValues.vitest.js` (typing kept), `appsTemplates.test.js` (a
+template's bot pairs back, and its scripts check with it) and `templateChecks.test.js` (Learner).

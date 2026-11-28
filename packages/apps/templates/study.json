@@ -1,0 +1,3540 @@
+{
+  "key": "study",
+  "name": "Study",
+  "icon": "star",
+  "glyph": "school",
+  "color": "#6D28D9",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Upload your books and say what you want to learn: it reads them, writes their contents and makes you a fun course of units, short lessons and quizzes, with stars and progress, that you can change any time.",
+  "bot": "learner",
+  "needs": {
+    "ai": true,
+    "words": "Comes with Learner, a tutor bot, added to the home (or the one it has) to do its AI work. Needs AI switched on for the app by an owner or admin in its Logic tab (AI: bots and pictures); it reads books and writes courses once it's published."
+  },
+  "tables": [
+    {
+      "key": "books",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Title"
+        },
+        {
+          "key": "author",
+          "type": "text",
+          "label": "Author"
+        },
+        {
+          "key": "file",
+          "type": "file",
+          "label": "Book file"
+        },
+        {
+          "key": "contents_status",
+          "type": "choice",
+          "choices": [
+            "Waiting",
+            "Reading",
+            "Problem",
+            "Put away"
+          ],
+          "label": "Contents"
+        },
+        {
+          "key": "contents_note",
+          "type": "text",
+          "label": "About its contents"
+        },
+        {
+          "key": "parts",
+          "type": "number",
+          "label": "Parts",
+          "rollup": {
+            "from": "book_parts",
+            "link": "book",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "parts_read",
+          "type": "number",
+          "label": "Parts read",
+          "rollup": {
+            "from": "book_parts",
+            "link": "book",
+            "measure": "count",
+            "where": "=summary != \"\""
+          }
+        }
+      ]
+    },
+    {
+      "key": "book_parts",
+      "fields": [
+        {
+          "key": "book",
+          "type": "link",
+          "target": "books",
+          "required": true,
+          "label": "Book"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Part"
+        },
+        {
+          "key": "heading",
+          "type": "text",
+          "label": "Heading"
+        },
+        {
+          "key": "summary",
+          "type": "longtext",
+          "label": "Summary"
+        },
+        {
+          "key": "text",
+          "type": "longtext",
+          "label": "Text"
+        }
+      ]
+    },
+    {
+      "key": "study_courses",
+      "fields": [
+        {
+          "key": "goal",
+          "type": "longtext",
+          "required": true,
+          "label": "What I want to learn"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": "Course"
+        },
+        {
+          "key": "book",
+          "type": "link",
+          "target": "books",
+          "label": "From the book"
+        },
+        {
+          "key": "level",
+          "type": "choice",
+          "choices": [
+            "Just starting",
+            "Know a little",
+            "Know a lot"
+          ],
+          "label": "How much I know"
+        },
+        {
+          "key": "learner",
+          "type": "person",
+          "label": "Learner"
+        },
+        {
+          "key": "started",
+          "type": "date",
+          "label": "Started"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Planning",
+            "Writing",
+            "Ready",
+            "Problem"
+          ],
+          "label": "Status"
+        },
+        {
+          "key": "note",
+          "type": "text",
+          "label": "Note"
+        },
+        {
+          "key": "changes",
+          "type": "longtext",
+          "label": "What to change"
+        },
+        {
+          "key": "plan",
+          "type": "longtext",
+          "label": "Plan"
+        },
+        {
+          "key": "cover",
+          "type": "image",
+          "label": "Cover"
+        },
+        {
+          "key": "writing_started",
+          "type": "datetime",
+          "label": "Writing started"
+        },
+        {
+          "key": "to_write",
+          "type": "number",
+          "label": "Lessons to write"
+        },
+        {
+          "key": "units",
+          "type": "number",
+          "label": "Units",
+          "rollup": {
+            "from": "study_units",
+            "link": "course",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "lessons",
+          "type": "number",
+          "label": "Lessons",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "course",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "written",
+          "type": "number",
+          "label": "Lessons written",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "course",
+            "measure": "count",
+            "where": "=status != \"Writing\""
+          }
+        },
+        {
+          "key": "done",
+          "type": "number",
+          "label": "Lessons done",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "course",
+            "measure": "count",
+            "where": "=status == \"Done\""
+          }
+        },
+        {
+          "key": "stars",
+          "type": "number",
+          "label": "Stars",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "course",
+            "measure": "sum",
+            "field": "stars"
+          }
+        }
+      ]
+    },
+    {
+      "key": "study_units",
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "study_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Order"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Unit"
+        },
+        {
+          "key": "about",
+          "type": "text",
+          "label": "About"
+        },
+        {
+          "key": "lessons",
+          "type": "number",
+          "label": "Lessons",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "unit",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "done",
+          "type": "number",
+          "label": "Lessons done",
+          "rollup": {
+            "from": "study_lessons",
+            "link": "unit",
+            "measure": "count",
+            "where": "=status == \"Done\""
+          }
+        }
+      ]
+    },
+    {
+      "key": "study_lessons",
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "study_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "unit",
+          "type": "link",
+          "target": "study_units",
+          "required": true,
+          "label": "Unit"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Order"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "goal",
+          "type": "text",
+          "label": "You'll learn"
+        },
+        {
+          "key": "parts",
+          "type": "text",
+          "label": "Book parts"
+        },
+        {
+          "key": "request",
+          "type": "text",
+          "label": "What to change"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Writing",
+            "New",
+            "Done"
+          ],
+          "label": "Status"
+        },
+        {
+          "key": "text",
+          "type": "longtext",
+          "label": "Lesson text"
+        },
+        {
+          "key": "material",
+          "type": "longtext",
+          "label": "As written"
+        },
+        {
+          "key": "finished",
+          "type": "date",
+          "label": "Finished"
+        },
+        {
+          "key": "questions",
+          "type": "number",
+          "label": "Questions",
+          "rollup": {
+            "from": "study_questions",
+            "link": "lesson",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "answered",
+          "type": "number",
+          "label": "Answered",
+          "rollup": {
+            "from": "study_questions",
+            "link": "lesson",
+            "measure": "count",
+            "where": "=picked != \"\""
+          }
+        },
+        {
+          "key": "stars",
+          "type": "number",
+          "label": "Stars",
+          "rollup": {
+            "from": "study_questions",
+            "link": "lesson",
+            "measure": "count",
+            "where": "=correct == true"
+          }
+        }
+      ]
+    },
+    {
+      "key": "study_questions",
+      "fields": [
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "study_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Order"
+        },
+        {
+          "key": "question",
+          "type": "text",
+          "required": true,
+          "label": "Question"
+        },
+        {
+          "key": "choice_a",
+          "type": "text",
+          "label": "A"
+        },
+        {
+          "key": "choice_b",
+          "type": "text",
+          "label": "B"
+        },
+        {
+          "key": "choice_c",
+          "type": "text",
+          "label": "C"
+        },
+        {
+          "key": "choice_d",
+          "type": "text",
+          "label": "D"
+        },
+        {
+          "key": "answer",
+          "type": "choice",
+          "choices": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "label": "Answer"
+        },
+        {
+          "key": "why",
+          "type": "text",
+          "label": "Why"
+        },
+        {
+          "key": "picked",
+          "type": "choice",
+          "choices": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "label": "Your answer"
+        },
+        {
+          "key": "correct",
+          "type": "yesno",
+          "label": "Right"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "key": "read_book",
+      "kind": "job",
+      "summary": "When a book's file is added (or Read it again is pressed), reads its text in parts and has the main bot summarise each part.",
+      "settings": {
+        "watch": {
+          "table": "books",
+          "on": "any",
+          "condition": "=\"file\" in changed || (row.contents_status == \"Waiting\" && \"contents_status\" in changed)"
+        }
+      },
+      "code": "// A book's text, read once its file is there, in parts the home's main bot summarises one by one into each part's\n// summary (the rule part_heading takes the heading off its first line).\nconst MAX_PARTS = 80;\nconst PART_MAX = 7000;\nconst PART_MIN = 2500;\nconst TASK = \"This is one part of a book someone uploaded so they can learn from it. Answer with a first line that starts with \\\"# \\\" and gives this part a short, clear heading (at most 8 words), then 2 to 4 friendly sentences on what this part teaches. Write in the language of the book. No other text.\";\n\nfunction partsOf(whole) {\n  const text = String(whole || \"\").replace(/\\r\\n?/g, \"\\n\").replace(/[ \\t]+\\n/g, \"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const usable = text.slice(0, MAX_PARTS * PART_MAX);\n  const size = Math.min(PART_MAX, Math.max(PART_MIN, Math.ceil(usable.length / MAX_PARTS)));\n  const parts = [];\n  let start = 0;\n  while (start < usable.length && parts.length < MAX_PARTS) {\n    let end = Math.min(usable.length, start + size);\n    if (end < usable.length) {\n      const floor = start + Math.floor(size * 0.6);\n      const paragraph = usable.lastIndexOf(\"\\n\\n\", end);\n      const line = usable.lastIndexOf(\"\\n\", end);\n      const sentence = usable.lastIndexOf(\". \", end);\n      if (paragraph > floor) end = paragraph + 2;\n      else if (line > floor) end = line + 1;\n      else if (sentence > floor) end = sentence + 2;\n    }\n    const part = usable.slice(start, end).trim();\n    if (part) parts.push(part);\n    start = end;\n  }\n  return { parts, cut: text.length > usable.length || start < usable.length };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  for (const id of ids) {\n    const book = await records.get(\"books\", id);\n    if (!book || !book.file) continue;\n    let read;\n    try {\n      read = await docs.text({ record: { table: \"books\", id }, field: \"file\" });\n    } catch (error) {\n      await records.update(\"books\", id, { contents_status: \"Problem\", contents_note: \"I couldn't read this file: \" + String((error && error.message) || error).slice(0, 240) });\n      return { read: id, parts: 0 };\n    }\n    const { parts, cut } = partsOf(read.text);\n    if (!parts.length) {\n      await records.update(\"books\", id, { contents_status: \"Problem\", contents_note: \"This file has no text I can read. A scanned book needs its text first: try a text, Word or PDF file with words in it.\" });\n      return { read: id, parts: 0 };\n    }\n    const earlier = await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: id }, limit: 100 });\n    for (const part of earlier) await records.markObsolete(\"book_parts\", part.id);\n    const about = \"the book \\\"\" + (book.title || \"Untitled\") + \"\\\"\" + (book.author ? \" by \" + book.author : \"\");\n    const items = [];\n    for (let index = 0; index < parts.length; index += 1) {\n      const made = await records.create(\"book_parts\", { book: id, position: index + 1, text: parts[index] });\n      items.push({ record: { table: \"book_parts\", id: made.id }, text: \"Part \" + (index + 1) + \" of \" + parts.length + \" of \" + about + \":\\n\" + parts[index] });\n    }\n    await records.update(\"books\", id, {\n      contents_status: \"Reading\",\n      contents_note: read.more || cut ? \"It's a long one: I read the first \" + parts.length + \" parts, about \" + Math.round(parts.join(\"\").length / 2000) + \" pages.\" : \"\"\n    });\n    await ai.work({ bot: \"default\", task: TASK, items, into: \"summary\" });\n    return { read: id, parts: parts.length };\n  }\n  return { read: null, parts: 0 };\n}",
+      "tests": [
+        {
+          "name": "reads a new book's file in parts and hands them to the main bot",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "file"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds",
+                "author": "Ana Ruiz",
+                "file": {
+                  "name": "seeds.txt",
+                  "size": 52,
+                  "type": "text/plain"
+                },
+                "contents_status": "Waiting"
+              }
+            ]
+          },
+          "docs": {
+            "text": {
+              "name": "seeds.txt",
+              "text": "Seeds sleep in the soil.\n\nThey wake up when it rains.",
+              "more": false
+            }
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "read": "1",
+            "parts": 1
+          }
+        },
+        {
+          "name": "Read it again reads the book's file again",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Trees",
+                "file": {
+                  "name": "trees.md",
+                  "size": 9000,
+                  "type": ""
+                },
+                "contents_status": "Waiting"
+              }
+            ]
+          },
+          "docs": {
+            "text": {
+              "name": "trees.md",
+              "text": "Roots drink water. Leaves catch light. Bark keeps the tree safe. Seeds travel far. Wind helps them fly. Rain wakes them up. Soil feeds them all year. Birds carry some away. Squirrels bury many. Some grow into trees. Trees make shade and food for all of us here. ",
+              "more": false
+            }
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "read": "1",
+            "parts": 1
+          }
+        },
+        {
+          "name": "a book without its file yet waits",
+          "input": {
+            "changes": [
+              {
+                "action": "create",
+                "changed": [
+                  "title",
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds",
+                "contents_status": "Waiting"
+              }
+            ]
+          },
+          "expect": {
+            "read": null,
+            "parts": 0
+          }
+        },
+        {
+          "name": "a file it can't read says so on the book",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "file"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Scans",
+                "file": {
+                  "name": "scans.zip",
+                  "size": 10,
+                  "type": ""
+                },
+                "contents_status": "Waiting"
+              }
+            ]
+          },
+          "expect": {
+            "read": "1",
+            "parts": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "part_heading",
+      "kind": "rule",
+      "summary": "Keeps the heading the main bot gives a book's part in its own field.",
+      "settings": {
+        "table": "book_parts",
+        "on": [
+          "update"
+        ]
+      },
+      "code": "// The bot answers a part with \"# <heading>\" on its first line, then the summary: the heading goes in its own field.\nfunction main(input) {\n  const text = String((input.record && input.record.summary) || \"\");\n  const found = /^\\s*#+\\s*(.+?)\\s*(?:\\n|$)/.exec(text);\n  if (!found) return {};\n  return { set: { heading: found[1].replace(/[*_`]/g, \"\").trim().slice(0, 120), summary: text.slice(found[0].length).trim() } };\n}",
+      "tests": [
+        {
+          "name": "the heading on the answer's first line goes in its own field",
+          "input": {
+            "action": "update",
+            "record": {
+              "summary": "# Seeds and soil\nSeeds sleep in the soil until rain wakes them."
+            }
+          },
+          "expect": {
+            "set": {
+              "heading": "Seeds and soil",
+              "summary": "Seeds sleep in the soil until rain wakes them."
+            }
+          }
+        },
+        {
+          "name": "a bold heading loses its stars",
+          "input": {
+            "action": "update",
+            "record": {
+              "summary": "## **Why rain matters**\nWater starts a seed."
+            }
+          },
+          "expect": {
+            "set": {
+              "heading": "Why rain matters",
+              "summary": "Water starts a seed."
+            }
+          }
+        },
+        {
+          "name": "a summary without a heading stays as it is",
+          "input": {
+            "action": "update",
+            "record": {
+              "summary": "Seeds need water."
+            }
+          },
+          "expect": {}
+        }
+      ]
+    },
+    {
+      "key": "plan_course",
+      "kind": "job",
+      "summary": "When a course is new or planned again, has the main bot plan its units and lessons from the person's goal and book, and draws its cover.",
+      "settings": {
+        "watch": {
+          "table": "study_courses",
+          "on": "any",
+          "condition": "=row.status == \"Planning\" && \"status\" in changed"
+        }
+      },
+      "code": "// A course to plan (its status set to Planning: a new one, or Plan again): the home's main bot plans it from what the\n// person wants to learn, their level, what to change, the course so far and the book's parts, into its plan; a cover\n// is drawn for a course without one.\nconst ROOM = 7900;\nconst TASK = \"Plan a complete, fun course that teaches the person what they want to learn, at their level, step by step from easy to harder. When a book is given, build the course on its parts. Answer only in this format, one item a line, no other text:\\nCOURSE: <one emoji> <a short, catchy course title>\\nUNIT: <one emoji> <unit title> | <one line on what the unit covers>\\nLESSON: <one emoji> <lesson title> | <one line on what they will learn> | <the numbers of the book parts it uses, such as 3, 4; blank without a book>\\nGive 3 to 6 units, each with 2 to 5 lessons, at most 30 lessons in all; every LESSON line belongs to the UNIT line above it. Keep every line short. If the course so far is given, change it only as asked and keep the exact titles of the lessons that stay.\";\n\nconst firstSentence = (text) => String(text || \"\").split(/(?<=[.!?])\\s/)[0].slice(0, 160);\n\nfunction planText(course, book, parts, units, lessons) {\n  const lines = [\"What I want to learn: \" + course.goal];\n  if (course.level) lines.push(\"How much I know already: \" + course.level);\n  if (course.changes) lines.push(\"What to change this time: \" + course.changes);\n  if (lessons.length) {\n    lines.push(\"The course so far (keep the exact titles of the lessons that stay):\");\n    for (const unit of units) {\n      lines.push(\"UNIT: \" + unit.title + \" | \" + (unit.about || \"\"));\n      for (const lesson of lessons.filter((entry) => entry.unit === unit.id)) lines.push(\"LESSON: \" + lesson.title + \" | \" + (lesson.goal || \"\") + \" | \" + (lesson.parts || \"\"));\n    }\n  }\n  let text = lines.join(\"\\n\");\n  if (book && parts.length) {\n    text += \"\\nThe book \\\"\" + book.title + \"\\\"\" + (book.author ? \" by \" + book.author : \"\") + \", part by part:\";\n    const full = parts.map((part) => part.position + \". \" + (part.heading || \"\") + \" - \" + (firstSentence(part.summary) || String(part.text || \"\").slice(0, 120).replace(/\\s+/g, \" \")));\n    const short = parts.map((part) => part.position + \". \" + (part.heading || String(part.text || \"\").slice(0, 60).replace(/\\s+/g, \" \")));\n    const contents = full.join(\"\\n\").length + text.length < ROOM ? full : short;\n    for (const line of contents) {\n      if (text.length + line.length + 1 > ROOM) break;\n      text += \"\\n\" + line;\n    }\n  }\n  return text.slice(0, ROOM);\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || course.status !== \"Planning\") continue;\n    const book = course.book ? await records.get(\"books\", course.book) : null;\n    const parts = book ? await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: book.id }, sort: \"position\", limit: 100 }) : [];\n    const units = await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    const lessons = await records.list(\"study_lessons\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    await records.update(\"study_courses\", id, { plan: \"\", note: \"\" });\n    await ai.work({ bot: \"default\", task: TASK, items: [{ record: { table: \"study_courses\", id }, text: planText(course, book, parts, units, lessons) }], into: \"plan\" });\n    if (!course.cover) {\n      await ai.picture({\n        prompt: \"A bright, cheerful flat illustration for a course cover, bold simple shapes and happy colours, no words or letters. The course is about: \" + String(course.goal).slice(0, 300),\n        into: { table: \"study_courses\", id, field: \"cover\" }\n      });\n    }\n    return { planning: id };\n  }\n  return { planning: null };\n}",
+      "tests": [
+        {
+          "name": "a new course is planned from the book and gets a cover",
+          "input": {
+            "changes": [
+              {
+                "action": "create",
+                "changed": [
+                  "goal",
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds",
+                "author": "Ana Ruiz",
+                "contents_status": "Reading"
+              }
+            ],
+            "book_parts": [
+              {
+                "book": "1",
+                "position": 1,
+                "heading": "Sleeping seeds",
+                "summary": "Seeds wait in the soil. Rain wakes them."
+              }
+            ],
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "level": "Just starting",
+                "status": "Planning",
+                "book": "1"
+              }
+            ]
+          },
+          "ai": {
+            "work": {},
+            "picture": {}
+          },
+          "expect": {
+            "planning": "1"
+          }
+        },
+        {
+          "name": "a course that isn't waiting for a plan is left alone",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Ready"
+              }
+            ]
+          },
+          "expect": {
+            "planning": null
+          }
+        }
+      ]
+    },
+    {
+      "key": "build_course",
+      "kind": "job",
+      "summary": "Makes the bot's plan into units and lessons, keeping the lessons whose title stays the same with their progress.",
+      "settings": {
+        "watch": {
+          "table": "study_courses",
+          "on": "update",
+          "condition": "=\"plan\" in changed && row.plan != \"\""
+        }
+      },
+      "code": "// The bot's plan made into the course's units and lessons. The forgiving rule for a changed plan: a unit or lesson\n// whose title stays the same (emoji, case and punctuation aside) is kept, with its lessons' text, quiz and progress,\n// moved to its new place; a new one is made (a lesson to be written, so it shows as new); one the plan leaves out is\n// put away (marked obsolete).\nconst keyOf = (title) => String(title || \"\").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, \" \").trim();\n\nfunction parsePlan(text) {\n  const plan = { title: \"\", units: [] };\n  for (const raw of String(text || \"\").split(\"\\n\")) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    const found = /^(COURSE|UNIT|LESSON)\\s*:\\s*(.+)$/i.exec(line);\n    if (!found) continue;\n    const [title = \"\", second = \"\", third = \"\"] = found[2].split(\"|\").map((part) => part.trim());\n    const kind = found[1].toUpperCase();\n    if (kind === \"COURSE\") plan.title = title.slice(0, 200);\n    else if (kind === \"UNIT\" && title) plan.units.push({ title: title.slice(0, 200), about: second.slice(0, 300), lessons: [] });\n    else if (kind === \"LESSON\" && title && plan.units.length) {\n      plan.units[plan.units.length - 1].lessons.push({ title: title.slice(0, 200), goal: second.slice(0, 300), parts: third.replace(/[^0-9,\\s]/g, \"\").replace(/\\s+/g, \" \").trim().slice(0, 60) });\n    }\n  }\n  plan.units = plan.units.filter((unit) => unit.lessons.length).slice(0, 8);\n  return plan;\n}\n\n/** The first record of `left` (a Map of key to records) with this title's key, taken out of it. */\nfunction take(left, title) {\n  const found = left.get(keyOf(title));\n  if (!found || !found.length) return null;\n  return found.shift();\n}\n\nconst byKey = (rows) => {\n  const map = new Map();\n  for (const row of rows) map.set(keyOf(row.title), [...(map.get(keyOf(row.title)) || []), row]);\n  return map;\n};\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  const built = [];\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || !course.plan) continue;\n    const plan = parsePlan(course.plan);\n    if (!plan.units.length) {\n      await records.update(\"study_courses\", id, { status: \"Problem\", note: \"The plan came back in a shape I can't use. Press Plan again.\" });\n      continue;\n    }\n    const units = byKey(await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 }));\n    const lessons = byKey(await records.list(\"study_lessons\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 }));\n    let writing = 0;\n    let kept = 0;\n    let putAway = 0;\n    // Lessons it keeps that are still being written (a plan redone meanwhile, or another run's): the course isn't ready.\n    let stillWriting = 0;\n    for (let place = 0; place < plan.units.length; place += 1) {\n      const spec = plan.units[place];\n      const position = place + 1;\n      let unit = take(units, spec.title);\n      if (!unit) unit = await records.create(\"study_units\", { course: id, title: spec.title, about: spec.about, position });\n      else if (unit.position !== position) await records.update(\"study_units\", unit.id, { position });\n      for (let step = 0; step < spec.lessons.length; step += 1) {\n        const wanted = spec.lessons[step];\n        const at = position * 100 + step + 1;\n        const same = take(lessons, wanted.title);\n        if (!same) {\n          await records.create(\"study_lessons\", { course: id, unit: unit.id, position: at, title: wanted.title, goal: wanted.goal, parts: wanted.parts, status: \"Writing\" });\n          writing += 1;\n          continue;\n        }\n        kept += 1;\n        if (same.status === \"Writing\") stillWriting += 1;\n        if (same.unit !== unit.id || same.position !== at) await records.update(\"study_lessons\", same.id, { unit: unit.id, position: at });\n      }\n    }\n    for (const rows of units.values()) for (const row of rows) await records.markObsolete(\"study_units\", row.id);\n    for (const rows of lessons.values()) {\n      for (const row of rows) {\n        await records.markObsolete(\"study_lessons\", row.id);\n        putAway += 1;\n      }\n    }\n    // How many lessons this round writes, and when it started: the course page's count and rough time left.\n    const toWrite = writing + stillWriting;\n    const round = toWrite ? { to_write: toWrite, ...(writing ? { writing_started: new Date().toISOString() } : {}) } : {};\n    const status = toWrite ? \"Writing\" : \"Ready\";\n    await records.update(\"study_courses\", id, { title: plan.title || course.title || course.goal.slice(0, 80), status, changes: \"\", note: \"\", ...round });\n    built.push({ course: id, units: plan.units.length, writing, kept, putAway, status });\n  }\n  return { built };\n}",
+      "tests": [
+        {
+          "name": "a plan becomes units and lessons to write",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Planning",
+                "plan": "COURSE: \ud83c\udf31 Plants 101\nUNIT: \ud83c\udf30 Seeds | How seeds start\nLESSON: \ud83d\udca7 Water | Why seeds need water | 1\nLESSON: \u2600\ufe0f Light | Why light matters | 2\n**UNIT: \ud83c\udf3f Leaves | What leaves do**\n- LESSON: \ud83c\udf43 Making food | How leaves make food | 3, 4"
+              }
+            ]
+          },
+          "expect": {
+            "built": [
+              {
+                "course": "1",
+                "units": 2,
+                "writing": 3,
+                "kept": 0,
+                "putAway": 0,
+                "status": "Writing"
+              }
+            ]
+          }
+        },
+        {
+          "name": "planned again, a lesson that keeps its title keeps its progress and one left out is put away",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Planning",
+                "plan": "COURSE: \ud83c\udf31 Plants 101\nUNIT: \ud83c\udf30 Seeds | How seeds start\nLESSON: \ud83d\udca6 water! | Why seeds need water | 1\nLESSON: \ud83e\udeb1 Soil | What soil gives | 2"
+              }
+            ],
+            "study_units": [
+              {
+                "course": "1",
+                "title": "\ud83c\udf30 Seeds",
+                "position": 1
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "\ud83d\udca7 Water",
+                "position": 101,
+                "status": "Done"
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "\u2600\ufe0f Light",
+                "position": 102,
+                "status": "New"
+              }
+            ]
+          },
+          "expect": {
+            "built": [
+              {
+                "course": "1",
+                "units": 1,
+                "writing": 1,
+                "kept": 1,
+                "putAway": 1,
+                "status": "Writing"
+              }
+            ]
+          }
+        },
+        {
+          "name": "planned while a lesson it keeps is still being written, the course is still being written",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Planning",
+                "plan": "COURSE: Plants\nUNIT: Seeds | How seeds start\nLESSON: Water | Why seeds need water | 1"
+              }
+            ],
+            "study_units": [
+              {
+                "course": "1",
+                "title": "Seeds",
+                "position": 1
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "position": 101,
+                "status": "Writing"
+              }
+            ]
+          },
+          "expect": {
+            "built": [
+              {
+                "course": "1",
+                "units": 1,
+                "writing": 0,
+                "kept": 1,
+                "putAway": 0,
+                "status": "Writing"
+              }
+            ]
+          }
+        },
+        {
+          "name": "a plan in another shape is a problem to plan again",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Planning",
+                "plan": "Sorry, I can't help with that."
+              }
+            ]
+          },
+          "expect": {
+            "built": []
+          }
+        }
+      ]
+    },
+    {
+      "key": "write_lessons",
+      "kind": "job",
+      "summary": "Has the main bot write each new or changed lesson and its quiz, from the course and the book's parts it uses.",
+      "settings": {
+        "watch": {
+          "table": "study_lessons",
+          "on": "any",
+          "condition": "=row.status == \"Writing\" && \"status\" in changed"
+        }
+      },
+      "code": "// Lessons to write (new ones, and ones someone asked to rewrite): the home's main bot writes each, with its quiz, from\n// the course, its unit and the book parts it uses, into the lesson's material; make_quiz takes them from there.\nconst ROOM = 7900;\nconst TASK = \"Write one short, fun lesson of a course for the person learning it, and a quiz on it. Build it on the book's text when it is given. Answer only in this format.\\nFirst the lesson: 3 to 6 short paragraphs, at most 350 words, friendly and clear, with one example from everyday life. Plain text: no headings, lists or markdown.\\nThen a line with only the word QUIZ, then 4 questions, each exactly like this:\\nQ: <the question>\\nA: <a choice>\\nB: <a choice>\\nC: <a choice>\\nD: <a choice>\\nANSWER: <the letter of the right choice>\\nWHY: <one short sentence on why>\\nOnly one choice is right; vary which letter it is. Write in the language of the course.\";\n\nfunction lessonText(course, unit, lesson, parts) {\n  const lines = [\n    \"The course: \" + (course.title || course.goal) + \", for someone who wants to learn: \" + course.goal + (course.level ? \" (\" + course.level + \")\" : \"\"),\n    \"Unit: \" + (unit ? unit.title + (unit.about ? \" - \" + unit.about : \"\") : \"\"),\n    \"This lesson: \" + lesson.title,\n    \"They will learn: \" + (lesson.goal || lesson.title)\n  ];\n  if (lesson.request) lines.push(\"Change this time: \" + lesson.request);\n  let text = lines.join(\"\\n\");\n  const wanted = String(lesson.parts || \"\").split(/[^0-9]+/).filter(Boolean).map(Number);\n  const used = parts.filter((part) => wanted.includes(Number(part.position)));\n  if (used.length) {\n    text += \"\\nFrom the book, part\" + (used.length > 1 ? \"s \" : \" \") + used.map((part) => part.position).join(\", \") + \":\";\n    for (const part of used) {\n      const room = ROOM - text.length - 1;\n      if (room < 200) break;\n      text += \"\\n\" + String(part.text || part.summary || \"\").slice(0, room);\n    }\n  }\n  return text.slice(0, ROOM);\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  const courses = {};\n  const units = {};\n  const books = {};\n  const items = [];\n  for (const id of ids) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\") continue;\n    if (!(lesson.course in courses)) courses[lesson.course] = await records.get(\"study_courses\", lesson.course);\n    const course = courses[lesson.course];\n    if (!course) continue;\n    if (lesson.unit && !(lesson.unit in units)) units[lesson.unit] = await records.get(\"study_units\", lesson.unit);\n    if (course.book && !(course.book in books)) {\n      books[course.book] = await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: course.book }, sort: \"position\", limit: 100 });\n    }\n    items.push({ record: { table: \"study_lessons\", id }, text: lessonText(course, units[lesson.unit], lesson, books[course.book] || []) });\n  }\n  if (items.length) await ai.work({ bot: \"default\", task: TASK, items, into: \"material\" });\n  return { writing: items.length };\n}",
+      "tests": [
+        {
+          "name": "a lesson to write goes to the main bot with its book parts",
+          "input": {
+            "changes": [
+              {
+                "action": "create",
+                "changed": [
+                  "title",
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds"
+              }
+            ],
+            "book_parts": [
+              {
+                "book": "1",
+                "position": 1,
+                "heading": "Sleeping seeds",
+                "text": "Seeds wait in the soil until rain comes."
+              }
+            ],
+            "study_courses": [
+              {
+                "title": "Plants 101",
+                "goal": "How plants grow",
+                "book": "1",
+                "status": "Writing"
+              }
+            ],
+            "study_units": [
+              {
+                "course": "1",
+                "title": "Seeds",
+                "about": "How seeds start",
+                "position": 1
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "goal": "Why seeds need water",
+                "parts": "1",
+                "status": "Writing"
+              }
+            ]
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "writing": 1
+          }
+        },
+        {
+          "name": "a lesson already written isn't written again",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow"
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New"
+              }
+            ]
+          },
+          "expect": {
+            "writing": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "make_quiz",
+      "kind": "job",
+      "summary": "Puts a written lesson's text on it and its quiz into questions, and marks the course ready once every lesson is written.",
+      "settings": {
+        "watch": {
+          "table": "study_lessons",
+          "on": "update",
+          "condition": "=\"material\" in changed && row.material != \"\""
+        }
+      },
+      "code": "// A lesson the bot has written: its text goes on the lesson and its quiz becomes the lesson's questions (an earlier\n// quiz is put away, so a rewritten lesson starts fresh, as new). A course whose lessons are all written is ready.\nconst PER_RUN = 12;\n\nfunction parseLesson(material) {\n  const lines = String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\");\n  const at = lines.findIndex((line) => /^[\\s*#]*QUIZ\\b/i.test(line));\n  const text = (at < 0 ? lines : lines.slice(0, at)).join(\"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const questions = [];\n  let question = null;\n  for (const raw of at < 0 ? [] : lines.slice(at + 1)) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  const whole = questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter]));\n  return { text, questions: whole.slice(0, 6) };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  // Any lesson written while this job wasn't told (a run that failed), so none waits for ever.\n  for (const lesson of await records.list(\"study_lessons\", { where: \"=status == \\\"Writing\\\" && material != \\\"\\\"\", limit: PER_RUN })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = [];\n  let written = 0;\n  for (const id of ids.slice(0, PER_RUN)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\" || !lesson.material) continue;\n    const { text, questions } = parseLesson(lesson.material);\n    for (const old of await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) {\n      await records.markObsolete(\"study_questions\", old.id);\n    }\n    for (let index = 0; index < questions.length; index += 1) {\n      const entry = questions[index];\n      await records.create(\"study_questions\", {\n        lesson: id,\n        position: index + 1,\n        question: entry.question.slice(0, 1000),\n        choice_a: entry.choices.A.slice(0, 500),\n        choice_b: entry.choices.B.slice(0, 500),\n        choice_c: entry.choices.C.slice(0, 500),\n        choice_d: entry.choices.D.slice(0, 500),\n        answer: entry.answer,\n        why: entry.why.slice(0, 1000)\n      });\n    }\n    await records.update(\"study_lessons\", id, { text: text || lesson.material, status: \"New\", request: \"\", finished: null });\n    if (!courses.includes(lesson.course)) courses.push(lesson.course);\n    written += 1;\n  }\n  const ready = [];\n  for (const course of courses) {\n    const waiting = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"Writing\\\"\", params: { course }, limit: 1 });\n    if (waiting.length) continue;\n    const row = await records.get(\"study_courses\", course);\n    if (row && row.status === \"Writing\") {\n      await records.update(\"study_courses\", course, { status: \"Ready\" });\n      ready.push(course);\n    }\n  }\n  return { written, ready };\n}",
+      "tests": [
+        {
+          "name": "a written lesson gets its text and quiz, and its course is ready",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "material"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Writing"
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "Writing",
+                "material": "Seeds drink water to wake up.\n\nQUIZ\nQ: What wakes a seed?\nA: Rain\nB: Snow\nC: Wind\nD: Noise\nANSWER: A\nWHY: Water starts it growing.\n**Q2: Where do seeds sleep?**\nA) In the soil\nB) In the sky\nC) In a cup\nD) Nowhere\nAnswer: A\nWhy: Soil keeps them safe."
+              }
+            ]
+          },
+          "expect": {
+            "written": 1,
+            "ready": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "a course with a lesson still being written isn't ready yet",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "material"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "How plants grow",
+                "status": "Writing"
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "Writing",
+                "material": "Seeds drink water."
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Light",
+                "status": "Writing"
+              }
+            ]
+          },
+          "expect": {
+            "written": 1,
+            "ready": []
+          }
+        }
+      ]
+    },
+    {
+      "key": "time_left",
+      "kind": "function",
+      "summary": "Works out roughly how long the lessons still being written will take, from how long the written ones took.",
+      "settings": {
+        "params": [
+          "started",
+          "done",
+          "waiting",
+          "now"
+        ]
+      },
+      "code": "// Roughly how long the lessons still being written will take: as long each as the written ones took so far, in\n// minutes, rounded up; nothing to say before the first one is written.\nfunction main(started, done, waiting, now) {\n  const seconds = (Date.parse(now) - Date.parse(started)) / 1000;\n  if (!(seconds > 0) || !(done > 0) || !(waiting > 0)) return \"\";\n  const minutes = Math.ceil(((seconds / done) * waiting) / 60);\n  return minutes <= 1 ? \"\u23f1\ufe0f About a minute left\" : \"\u23f1\ufe0f About \" + minutes + \" minutes left\";\n}",
+      "tests": [
+        {
+          "name": "as long each as the written ones took",
+          "input": [
+            "2026-11-28T10:00:00Z",
+            2,
+            4,
+            "2026-11-28T10:01:00Z"
+          ],
+          "expect": "\u23f1\ufe0f About 2 minutes left"
+        },
+        {
+          "name": "under a minute says about a minute",
+          "input": [
+            "2026-11-28T10:00:00Z",
+            3,
+            2,
+            "2026-11-28T10:00:30Z"
+          ],
+          "expect": "\u23f1\ufe0f About a minute left"
+        },
+        {
+          "name": "nothing to say before the first is written",
+          "input": [
+            "2026-11-28T10:00:00Z",
+            0,
+            5,
+            "2026-11-28T10:00:30Z"
+          ],
+          "expect": ""
+        },
+        {
+          "name": "nothing to say without a start",
+          "input": [
+            "",
+            1,
+            5,
+            "2026-11-28T10:00:30Z"
+          ],
+          "expect": ""
+        }
+      ]
+    },
+    {
+      "key": "next",
+      "kind": "action",
+      "summary": "Opens what comes next: a course's first lesson still to learn, or a lesson's first question not answered yet.",
+      "settings": {},
+      "code": "// Where to go next: a course's first lesson still to learn, or a lesson's first question not answered yet (the lesson\n// itself once every one is).\nasync function main(input) {\n  if (input.course) {\n    const [lesson] = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"New\\\"\", params: { course: String(input.course) }, sort: \"position\", limit: 1 });\n    return lesson ? { go: { screen: \"lesson\", params: { id: lesson.id } } } : { notify: \"You've done every lesson! \ud83c\udfc6\" };\n  }\n  const lesson = String(input.lesson);\n  const [question] = await records.list(\"study_questions\", { where: \"=lesson == params.lesson && picked == \\\"\\\"\", params: { lesson }, sort: \"position\", limit: 1 });\n  return question ? { go: { screen: \"quiz\", params: { lesson, id: question.id } } } : { go: { screen: \"lesson\", params: { id: lesson } } };\n}",
+      "tests": [
+        {
+          "name": "a course opens its first lesson to learn",
+          "input": {
+            "course": "1"
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Light",
+                "position": 102,
+                "status": "New"
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "position": 101,
+                "status": "Done"
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Soil",
+                "position": 103,
+                "status": "New"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "1"
+              }
+            }
+          }
+        },
+        {
+          "name": "a course with every lesson done says so",
+          "input": {
+            "course": "1"
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "position": 101,
+                "status": "Done"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "You've done every lesson! \ud83c\udfc6"
+          }
+        },
+        {
+          "name": "a lesson opens its first question not answered yet",
+          "input": {
+            "lesson": "1"
+          },
+          "records": {
+            "study_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "picked": "A"
+              },
+              {
+                "lesson": "1",
+                "position": 2,
+                "question": "Where?"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "quiz",
+              "params": {
+                "lesson": "1",
+                "id": "2"
+              }
+            }
+          }
+        },
+        {
+          "name": "a lesson with every question answered opens the lesson",
+          "input": {
+            "lesson": "1"
+          },
+          "records": {
+            "study_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "picked": "A"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "1"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "retake",
+      "kind": "action",
+      "summary": "Clears a lesson's quiz answers and opens its first question.",
+      "settings": {},
+      "code": "// The lesson's quiz again: its answers cleared, from its first question.\nasync function main(input) {\n  const questions = await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: String(input.lesson) }, sort: \"position\", limit: 20 });\n  if (!questions.length) return { notify: \"This lesson has no quiz yet.\" };\n  for (const question of questions) {\n    if (question.picked || question.correct) await records.update(\"study_questions\", question.id, { picked: null, correct: false });\n  }\n  return { go: { screen: \"quiz\", params: { lesson: String(input.lesson), id: questions[0].id } } };\n}",
+      "tests": [
+        {
+          "name": "clears the answers and opens the first question",
+          "input": {
+            "lesson": "1"
+          },
+          "records": {
+            "study_questions": [
+              {
+                "lesson": "1",
+                "position": 2,
+                "question": "Where?",
+                "picked": "B",
+                "correct": false
+              },
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "picked": "A",
+                "correct": true
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "quiz",
+              "params": {
+                "lesson": "1",
+                "id": "2"
+              }
+            }
+          }
+        },
+        {
+          "name": "a lesson without a quiz says so",
+          "input": {
+            "lesson": "1"
+          },
+          "expect": {
+            "notify": "This lesson has no quiz yet."
+          }
+        }
+      ]
+    },
+    {
+      "key": "move",
+      "kind": "action",
+      "summary": "Moves a unit or a lesson one place up or down, a unit with its lessons.",
+      "settings": {},
+      "code": "// A unit or a lesson one place earlier (by -1) or later (by 1): it swaps places with its neighbour; a unit's lessons\n// move with it, so the course's order stays the units' order.\nasync function main(input) {\n  const table = input.table === \"units\" ? \"study_units\" : \"study_lessons\";\n  const row = await records.get(table, String(input.id));\n  if (!row) return { notify: \"That's no longer there.\" };\n  const where = table === \"study_units\" ? \"=course == params.of\" : \"=unit == params.of\";\n  const siblings = await records.list(table, { where, params: { of: table === \"study_units\" ? row.course : row.unit }, sort: \"position\", limit: 100 });\n  const index = siblings.findIndex((entry) => entry.id === row.id);\n  const other = siblings[index + (Number(input.by) < 0 ? -1 : 1)];\n  if (!other) return { notify: Number(input.by) < 0 ? \"It's first already.\" : \"It's last already.\" };\n  await records.update(table, row.id, { position: other.position });\n  await records.update(table, other.id, { position: row.position });\n  if (table === \"study_units\") {\n    for (const [unit, position] of [[row, other.position], [other, row.position]]) {\n      const lessons = await records.list(\"study_lessons\", { where: \"=unit == params.unit\", params: { unit: unit.id }, sort: \"position\", limit: 20 });\n      for (let step = 0; step < lessons.length; step += 1) await records.update(\"study_lessons\", lessons[step].id, { position: position * 100 + step + 1 });\n    }\n  }\n  return {};\n}",
+      "tests": [
+        {
+          "name": "a unit moves up, with its lessons",
+          "input": {
+            "table": "units",
+            "id": "2",
+            "by": -1
+          },
+          "records": {
+            "study_units": [
+              {
+                "course": "1",
+                "title": "Seeds",
+                "position": 1
+              },
+              {
+                "course": "1",
+                "title": "Leaves",
+                "position": 2
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "2",
+                "title": "Food",
+                "position": 201
+              }
+            ]
+          },
+          "expect": {}
+        },
+        {
+          "name": "the first can't move up",
+          "input": {
+            "table": "lessons",
+            "id": "1",
+            "by": -1
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "position": 101
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Light",
+                "position": 102
+              }
+            ]
+          },
+          "expect": {
+            "notify": "It's first already."
+          }
+        }
+      ]
+    },
+    {
+      "key": "remove_unit",
+      "kind": "action",
+      "summary": "Puts a unit away with its lessons.",
+      "settings": {},
+      "code": "// A unit put away with its lessons (marked obsolete, so nothing is lost for good).\nasync function main(input) {\n  const unit = await records.get(\"study_units\", String(input.id));\n  if (!unit) return { notify: \"That unit is no longer there.\" };\n  const lessons = await records.list(\"study_lessons\", { where: \"=unit == params.unit\", params: { unit: unit.id }, limit: 40 });\n  for (const lesson of lessons) await records.markObsolete(\"study_lessons\", lesson.id);\n  await records.markObsolete(\"study_units\", unit.id);\n  return { notify: \"Put away \" + unit.title + \" and its \" + lessons.length + \" lesson\" + (lessons.length === 1 ? \"\" : \"s\") + \".\", go: { screen: \"course\", params: { id: unit.course } } };\n}",
+      "tests": [
+        {
+          "name": "puts the unit away with its lessons",
+          "input": {
+            "id": "1"
+          },
+          "records": {
+            "study_units": [
+              {
+                "course": "5",
+                "title": "Seeds",
+                "position": 1
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "5",
+                "unit": "1",
+                "title": "Water"
+              },
+              {
+                "course": "5",
+                "unit": "1",
+                "title": "Light"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "Put away Seeds and its 2 lessons.",
+            "go": {
+              "screen": "course",
+              "params": {
+                "id": "5"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "put_away_book",
+      "kind": "job",
+      "summary": "When a book is put away, puts its contents away and then the book.",
+      "settings": {
+        "watch": {
+          "table": "books",
+          "on": "update",
+          "condition": "=row.contents_status == \"Put away\" && \"contents_status\" in changed"
+        }
+      },
+      "code": "// A book someone put away: its contents (its parts) are put away, then the book, all marked obsolete so nothing is\n// lost for good. Courses made from it stay as they are.\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  let parts = 0;\n  for (const id of ids.slice(0, 2)) {\n    const book = await records.get(\"books\", id);\n    if (!book || book.contents_status !== \"Put away\") continue;\n    for (const part of await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: id }, limit: 100 })) {\n      await records.markObsolete(\"book_parts\", part.id);\n      parts += 1;\n    }\n    await records.markObsolete(\"books\", id);\n  }\n  return { parts };\n}",
+      "tests": [
+        {
+          "name": "puts away the book's parts, then the book",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "contents_status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds",
+                "contents_status": "Put away"
+              },
+              {
+                "title": "Trees",
+                "contents_status": "Reading"
+              }
+            ],
+            "book_parts": [
+              {
+                "book": "1",
+                "position": 1
+              },
+              {
+                "book": "1",
+                "position": 2
+              },
+              {
+                "book": "2",
+                "position": 1
+              }
+            ]
+          },
+          "expect": {
+            "parts": 2
+          }
+        },
+        {
+          "name": "a book brought back before the job ran stays",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "contents_status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "books": [
+              {
+                "title": "Seeds",
+                "contents_status": "Reading"
+              }
+            ],
+            "book_parts": [
+              {
+                "book": "1",
+                "position": 1
+              }
+            ]
+          },
+          "expect": {
+            "parts": 0
+          }
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "learn",
+    "navigation": {
+      "style": "rail",
+      "items": [
+        {
+          "screen": "learn",
+          "label": "Learn",
+          "icon": "star"
+        },
+        {
+          "screen": "books",
+          "label": "Books",
+          "icon": "open"
+        },
+        {
+          "screen": "progress",
+          "label": "Progress",
+          "icon": "chart"
+        }
+      ]
+    },
+    "formulas": {
+      "of": {
+        "params": [
+          "done",
+          "all"
+        ],
+        "formula": "=string(int(done)) + \" of \" + string(int(all))"
+      },
+      "badge": {
+        "params": [
+          "status"
+        ],
+        "formula": "=status == \"Done\" ? \"\u2705 Done\" : status == \"Writing\" ? \"\u270d\ufe0f Being written\" : \"\u2728 New\""
+      },
+      "book_state": {
+        "params": [
+          "status",
+          "parts",
+          "read"
+        ],
+        "formula": "=status == \"Reading\" && parts > 0.0 && read >= parts ? \"\u2705 Ready\" : status == \"Reading\" ? \"\ud83d\udcd6 Reading: \" + string(int(read)) + \" of \" + string(int(parts)) : status == \"Problem\" ? \"\ud83d\ude15 Problem\" : \"\u23f3 Waiting for its file\""
+      },
+      "written_now": {
+        "params": [
+          "to_write",
+          "lessons",
+          "written"
+        ],
+        "formula": "=to_write > 0.0 ? to_write - (lessons - written) : written"
+      },
+      "to_write_now": {
+        "params": [
+          "to_write",
+          "lessons"
+        ],
+        "formula": "=to_write > 0.0 ? to_write : lessons"
+      },
+      "course_state": {
+        "params": [
+          "status",
+          "to_write",
+          "lessons",
+          "written"
+        ],
+        "formula": "=status == \"Planning\" ? \"\ud83e\udde0 Planning the units\u2026\" : status == \"Writing\" ? \"\u270d\ufe0f \" + of(written_now(to_write, lessons, written), to_write_now(to_write, lessons)) + \" lessons written\" : status == \"Problem\" ? \"\ud83d\ude15 Problem\" : \"\u2705 Ready\""
+      },
+      "right_answer": {
+        "params": [
+          "answer",
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "formula": "=answer == \"A\" ? a : answer == \"B\" ? b : answer == \"C\" ? c : d"
+      }
+    },
+    "screens": {
+      "learn": {
+        "data": {
+          "courses": {
+            "from": "study_courses",
+            "sort": "-started",
+            "limit": 50
+          },
+          "readyBooks": {
+            "from": "books",
+            "where": "=contents_status == \"Reading\" && parts > 0.0 && parts_read >= parts",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "What do you want to learn today? \u2728",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Say it in your own words, pick one of your books if you like, and I'll make you a whole course: units, short lessons and a quiz for each one.",
+            "size": "body",
+            "class": "hero-sub"
+          },
+          {
+            "type": "form",
+            "class": "new-course",
+            "table": "study_courses",
+            "fields": [
+              {
+                "field": "goal",
+                "label": "I want to learn\u2026"
+              },
+              {
+                "field": "book",
+                "label": "From my book (optional)",
+                "choices": "=data.readyBooks"
+              },
+              {
+                "field": "level",
+                "label": "How much I know already"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Make my course \ud83d\ude80",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "study_courses",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planning",
+                        "started": "=today()",
+                        "learner": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "celebrate": "Planning your course: it's ready in a minute or two! \ud83e\udde0"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Your courses",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "class": "course-cards",
+            "rows": "=data.courses",
+            "columns": [
+              {
+                "label": "Course",
+                "value": "=row.title != \"\" ? row.title : row.goal"
+              },
+              {
+                "label": "Lessons done",
+                "value": "=of(row.done, row.lessons)",
+                "display": "chip"
+              },
+              {
+                "label": "Stars",
+                "value": "=\"\u2b50 \" + string(int(row.stars))"
+              },
+              {
+                "label": "Status",
+                "value": "=course_state(row.status, row.to_write, row.lessons, row.written)",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "course",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "books": {
+        "data": {
+          "books": {
+            "from": "books",
+            "where": "=contents_status == \"\" || contents_status != \"Put away\"",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Your bookshelf \ud83d\udcda",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Add the books you learn from, as a text, Word or PDF file. I read each one and write its contents, with a short summary of every part.",
+            "size": "body",
+            "class": "hero-sub"
+          },
+          {
+            "type": "form",
+            "class": "new-book",
+            "table": "books",
+            "fields": [
+              "title",
+              "author",
+              "file"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add this book",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "books",
+                      "values": "=form.values",
+                      "preset": {
+                        "contents_status": "Waiting"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Reading \" + form.title + \": its contents appear here in a few minutes.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "class": "book-cards",
+            "rows": "=data.books",
+            "search": "Find a book",
+            "columns": [
+              {
+                "label": "Title",
+                "value": "=row.title"
+              },
+              {
+                "label": "Author",
+                "value": "=row.author"
+              },
+              {
+                "label": "State",
+                "value": "=book_state(row.contents_status, row.parts, row.parts_read)",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "book",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "book": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "book": {
+            "record": "books",
+            "id": "=params.id"
+          },
+          "parts": {
+            "from": "book_parts",
+            "where": "=book == params.id",
+            "sort": "position"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.book.title",
+                "size": "headline",
+                "class": "hero-title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Back to the shelf",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "=\"by \" + data.book.author",
+                "size": "body",
+                "showIf": "=data.book.author != \"\""
+              },
+              {
+                "type": "chip",
+                "value": "=book_state(data.book.contents_status, data.book.parts, data.book.parts_read)",
+                "tone": "primary"
+              }
+            ]
+          },
+          {
+            "type": "progress",
+            "label": "Reading it",
+            "value": "=data.book.parts_read",
+            "max": "=data.book.parts",
+            "showIf": "=data.book.contents_status == \"Reading\" && data.book.parts_read < data.book.parts"
+          },
+          {
+            "type": "text",
+            "value": "=data.book.contents_note",
+            "size": "body",
+            "showIf": "=data.book.contents_note != \"\"",
+            "class": "note"
+          },
+          {
+            "type": "text",
+            "value": "Add the book's file below, and I'll read it.",
+            "size": "body",
+            "showIf": "=data.book.file == \"\""
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Make a course from it \ud83d\ude80",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "openDialog": "new_course"
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Read it again",
+                "confirm": "Read this book again? Its contents are written again.",
+                "showIf": "=data.book.file != \"\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.book",
+                      "set": {
+                        "contents_status": "Waiting",
+                        "contents_note": ""
+                      }
+                    }
+                  },
+                  {
+                    "notify": "Reading it again."
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Edit",
+                "icon": "edit",
+                "do": [
+                  {
+                    "openDialog": "edit_book"
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Put this book away",
+                "confirm": "Put this book away? It leaves your shelf with its contents; courses made from it stay.",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.book",
+                      "set": {
+                        "contents_status": "Put away"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Put away \" + data.book.title + \" and its contents.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Contents",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "class": "contents",
+            "rows": "=data.parts",
+            "search": "Find a part",
+            "columns": [
+              {
+                "label": "Part",
+                "value": "=row.position"
+              },
+              {
+                "label": "Heading",
+                "value": "=row.heading"
+              },
+              {
+                "label": "Summary",
+                "value": "=row.summary"
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "new_course",
+            "title": "A course from this book",
+            "content": [
+              {
+                "type": "form",
+                "table": "study_courses",
+                "fields": [
+                  {
+                    "field": "goal",
+                    "label": "I want to learn\u2026"
+                  },
+                  {
+                    "field": "level",
+                    "label": "How much I know already"
+                  }
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Make my course \ud83d\ude80",
+                    "emphasis": "primary",
+                    "disabled": "=!form.valid",
+                    "do": [
+                      {
+                        "create": {
+                          "table": "study_courses",
+                          "values": "=form.values",
+                          "preset": {
+                            "book": "=params.id",
+                            "status": "Planning",
+                            "started": "=today()",
+                            "learner": "=me.id"
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "new_course"
+                      },
+                      {
+                        "celebrate": "Planning your course: find it under Learn in a minute or two! \ud83e\udde0"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "edit_book",
+            "title": "Edit the book",
+            "content": [
+              {
+                "type": "form",
+                "record": "=data.book",
+                "fields": [
+                  "title",
+                  "author",
+                  "file"
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Save",
+                    "emphasis": "primary",
+                    "disabled": "=!form.valid || !form.changed",
+                    "do": [
+                      {
+                        "update": {
+                          "record": "=data.book",
+                          "set": "=form.values"
+                        }
+                      },
+                      {
+                        "closeDialog": "edit_book"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "course": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "course": {
+            "record": "study_courses",
+            "id": "=params.id"
+          },
+          "units": {
+            "from": "study_units",
+            "where": "=course == params.id",
+            "sort": "position"
+          },
+          "next": {
+            "from": "study_lessons",
+            "where": "=course == params.id && status == \"New\"",
+            "sort": "position",
+            "limit": 1
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "class": "course-hero",
+            "content": [
+              {
+                "type": "field",
+                "label": "",
+                "value": "=data.course.cover",
+                "showIf": "=data.course.cover != \"\""
+              },
+              {
+                "type": "grid",
+                "columns": 1,
+                "content": [
+                  {
+                    "type": "text",
+                    "value": "=data.course.title != \"\" ? data.course.title : data.course.goal",
+                    "size": "headline",
+                    "class": "hero-title"
+                  },
+                  {
+                    "type": "text",
+                    "value": "=data.course.goal",
+                    "size": "body",
+                    "showIf": "=data.course.title != \"\""
+                  },
+                  {
+                    "type": "row",
+                    "content": [
+                      {
+                        "type": "chip",
+                        "value": "=data.course.status",
+                        "tone": "primary"
+                      },
+                      {
+                        "type": "chip",
+                        "value": "=\"\u2b50 \" + string(int(data.course.stars)) + (data.course.stars == 1.0 ? \" star\" : \" stars\")",
+                        "tone": "warning"
+                      },
+                      {
+                        "type": "chip",
+                        "value": "=of(data.course.done, data.course.lessons) + \" lessons done\"",
+                        "tone": "success"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All courses",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "learn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Step 1 of 2 \u00b7 \ud83e\udde0 Planning the units and lessons\u2026 This usually takes about a minute. Then each lesson is written, and you'll see them counted here as they're done, without reloading.",
+            "size": "body",
+            "showIf": "=data.course.status == \"Planning\"",
+            "class": "working"
+          },
+          {
+            "type": "progress",
+            "label": "=\"Step 2 of 2 \u00b7 \u270d\ufe0f \" + of(written_now(data.course.to_write, data.course.lessons, data.course.written), to_write_now(data.course.to_write, data.course.lessons)) + \" lessons written\"",
+            "value": "=written_now(data.course.to_write, data.course.lessons, data.course.written)",
+            "max": "=to_write_now(data.course.to_write, data.course.lessons)",
+            "showIf": "=data.course.status == \"Writing\"",
+            "class": "big-progress"
+          },
+          {
+            "type": "text",
+            "value": "=time_left(data.course.writing_started, written_now(data.course.to_write, data.course.lessons, data.course.written), data.course.lessons - data.course.written, now())",
+            "size": "body",
+            "showIf": "=data.course.status == \"Writing\" && time_left(data.course.writing_started, written_now(data.course.to_write, data.course.lessons, data.course.written), data.course.lessons - data.course.written, now()) != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=\"\ud83d\ude15 \" + data.course.note",
+            "size": "body",
+            "showIf": "=data.course.status == \"Problem\"",
+            "class": "note"
+          },
+          {
+            "type": "progress",
+            "label": "Your progress",
+            "value": "=data.course.done",
+            "max": "=data.course.lessons",
+            "showIf": "=data.course.lessons > 0.0",
+            "class": "big-progress"
+          },
+          {
+            "type": "button",
+            "label": "=\"Continue: \" + data.next[0].title + \" \u25b6\"",
+            "emphasis": "primary",
+            "showIf": "=size(data.next) > 0",
+            "class": "continue",
+            "do": [
+              {
+                "runScript": {
+                  "script": "next",
+                  "input": {
+                    "course": "=params.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "\ud83c\udfc6 You finished the whole course! Take any quiz again, or change the course to learn more.",
+            "size": "title",
+            "showIf": "=data.course.lessons > 0.0 && data.course.done >= data.course.lessons",
+            "class": "trophy"
+          },
+          {
+            "type": "tabs",
+            "tabs": [
+              {
+                "title": "Units",
+                "content": [
+                  {
+                    "type": "table",
+                    "class": "unit-cards",
+                    "rows": "=data.units",
+                    "columns": [
+                      {
+                        "label": "Unit",
+                        "value": "=row.title"
+                      },
+                      {
+                        "label": "About",
+                        "value": "=row.about"
+                      },
+                      {
+                        "label": "Done",
+                        "value": "=of(row.done, row.lessons)",
+                        "display": "chip"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "go": {
+                          "screen": "unit",
+                          "params": {
+                            "id": "=row.id"
+                          }
+                        }
+                      }
+                    ],
+                    "rowActions": [
+                      {
+                        "type": "button",
+                        "label": "\u2191",
+                        "emphasis": "subtle",
+                        "do": [
+                          {
+                            "runScript": {
+                              "script": "move",
+                              "input": {
+                                "table": "units",
+                                "id": "=row.id",
+                                "by": -1
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "button",
+                        "label": "\u2193",
+                        "emphasis": "subtle",
+                        "do": [
+                          {
+                            "runScript": {
+                              "script": "move",
+                              "input": {
+                                "table": "units",
+                                "id": "=row.id",
+                                "by": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "title": "Change the course",
+                "content": [
+                  {
+                    "type": "text",
+                    "value": "Change anything, any time. Edit what you want to learn or say what should change, and press Plan again: lessons that keep their title keep your progress, new ones are written for you and show as New, and ones the new plan leaves out are put away. You can also add a unit here, and add, rewrite, reorder or put away lessons in each unit.",
+                    "size": "body",
+                    "class": "change-words"
+                  },
+                  {
+                    "type": "form",
+                    "record": "=data.course",
+                    "fields": [
+                      {
+                        "field": "goal",
+                        "label": "What I want to learn"
+                      },
+                      "level",
+                      {
+                        "field": "changes",
+                        "label": "What should change? (optional)"
+                      }
+                    ],
+                    "buttons": [
+                      {
+                        "type": "button",
+                        "label": "Plan again \u2728",
+                        "emphasis": "primary",
+                        "confirm": "Plan the course again? Lessons that keep their title keep your progress.",
+                        "disabled": "=!form.valid || data.course.status == \"Planning\" || data.course.status == \"Writing\"",
+                        "do": [
+                          {
+                            "update": {
+                              "record": "=data.course",
+                              "set": {
+                                "goal": "=form.goal",
+                                "level": "=form.level",
+                                "changes": "=form.changes",
+                                "status": "Planning"
+                              }
+                            }
+                          },
+                          {
+                            "notify": "Planning it again: the course changes here by itself."
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "row",
+                    "content": [
+                      {
+                        "type": "button",
+                        "label": "Add a unit",
+                        "icon": "add",
+                        "do": [
+                          {
+                            "openDialog": "add_unit"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "button",
+                        "label": "Put this course away",
+                        "confirm": "Put this course away? It leaves your courses.",
+                        "do": [
+                          {
+                            "markObsolete": {
+                              "record": "=data.course"
+                            }
+                          },
+                          {
+                            "go": {
+                              "screen": "learn"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "dialog",
+                    "key": "add_unit",
+                    "title": "Add a unit",
+                    "content": [
+                      {
+                        "type": "form",
+                        "table": "study_units",
+                        "fields": [
+                          {
+                            "field": "title",
+                            "label": "Unit"
+                          },
+                          {
+                            "field": "about",
+                            "label": "What it covers"
+                          }
+                        ],
+                        "buttons": [
+                          {
+                            "type": "button",
+                            "label": "Add the unit",
+                            "emphasis": "primary",
+                            "disabled": "=!form.valid",
+                            "do": [
+                              {
+                                "create": {
+                                  "table": "study_units",
+                                  "values": "=form.values",
+                                  "preset": {
+                                    "course": "=params.id",
+                                    "position": "=data.course.units + 1.0"
+                                  }
+                                }
+                              },
+                              {
+                                "closeDialog": "add_unit"
+                              },
+                              {
+                                "notify": "Added: open it to add its lessons."
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "unit": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "unit": {
+            "record": "study_units",
+            "id": "=params.id"
+          },
+          "lessons": {
+            "from": "study_lessons",
+            "where": "=unit == params.id",
+            "sort": "position"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.unit.title",
+                "size": "headline",
+                "class": "hero-title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Back to the course",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course",
+                      "params": {
+                        "id": "=data.unit.course"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=data.unit.about",
+            "size": "body"
+          },
+          {
+            "type": "progress",
+            "label": "This unit",
+            "value": "=data.unit.done",
+            "max": "=data.unit.lessons",
+            "showIf": "=data.unit.lessons > 0.0"
+          },
+          {
+            "type": "table",
+            "class": "lesson-list",
+            "rows": "=data.lessons",
+            "columns": [
+              {
+                "label": "Lesson",
+                "value": "=row.title"
+              },
+              {
+                "label": "You'll learn",
+                "value": "=row.goal"
+              },
+              {
+                "label": "Status",
+                "value": "=badge(row.status)",
+                "display": "chip"
+              },
+              {
+                "label": "Stars",
+                "value": "=\"\u2b50 \" + of(row.stars, row.questions)"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "lesson",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "\u2191",
+                "emphasis": "subtle",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "move",
+                      "input": {
+                        "table": "lessons",
+                        "id": "=row.id",
+                        "by": -1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "\u2193",
+                "emphasis": "subtle",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "move",
+                      "input": {
+                        "table": "lessons",
+                        "id": "=row.id",
+                        "by": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Add a lesson",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "openDialog": "add_lesson"
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Edit the unit",
+                "icon": "edit",
+                "do": [
+                  {
+                    "openDialog": "edit_unit"
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Put this unit away",
+                "confirm": "Put this unit and its lessons away?",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "remove_unit",
+                      "input": {
+                        "id": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "add_lesson",
+            "title": "Add a lesson",
+            "content": [
+              {
+                "type": "form",
+                "table": "study_lessons",
+                "fields": [
+                  {
+                    "field": "title",
+                    "label": "Lesson"
+                  },
+                  {
+                    "field": "goal",
+                    "label": "What it should teach"
+                  }
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Write it for me \u270d\ufe0f",
+                    "emphasis": "primary",
+                    "disabled": "=!form.valid",
+                    "do": [
+                      {
+                        "create": {
+                          "table": "study_lessons",
+                          "values": "=form.values",
+                          "preset": {
+                            "unit": "=params.id",
+                            "course": "=data.unit.course",
+                            "status": "Writing",
+                            "position": "=data.unit.position * 100.0 + data.unit.lessons + 1.0"
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "add_lesson"
+                      },
+                      {
+                        "notify": "Writing your lesson: it shows up here in a moment."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "edit_unit",
+            "title": "Edit the unit",
+            "content": [
+              {
+                "type": "form",
+                "record": "=data.unit",
+                "fields": [
+                  "title",
+                  "about"
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Save",
+                    "emphasis": "primary",
+                    "disabled": "=!form.valid || !form.changed",
+                    "do": [
+                      {
+                        "update": {
+                          "record": "=data.unit",
+                          "set": "=form.values"
+                        }
+                      },
+                      {
+                        "closeDialog": "edit_unit"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "lesson": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "lesson": {
+            "record": "study_lessons",
+            "id": "=params.id"
+          },
+          "questions": {
+            "from": "study_questions",
+            "where": "=lesson == params.id",
+            "sort": "position"
+          },
+          "open": {
+            "from": "study_questions",
+            "where": "=lesson == params.id && picked == \"\"",
+            "sort": "position",
+            "limit": 1
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "=badge(data.lesson.status)",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=\"\u2b50 \" + of(data.lesson.stars, data.lesson.questions)",
+                "tone": "warning",
+                "showIf": "=data.lesson.questions > 0.0"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Back to the unit",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "unit",
+                      "params": {
+                        "id": "=data.lesson.unit"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=data.lesson.title",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "=\"You'll learn: \" + data.lesson.goal",
+            "size": "body",
+            "showIf": "=data.lesson.goal != \"\"",
+            "class": "lesson-goal"
+          },
+          {
+            "type": "text",
+            "value": "\u270d\ufe0f I'm writing this lesson and its quiz. It appears here by itself in a moment.",
+            "size": "body",
+            "showIf": "=data.lesson.status == \"Writing\"",
+            "class": "working"
+          },
+          {
+            "type": "text",
+            "value": "=data.lesson.text",
+            "size": "body",
+            "showIf": "=data.lesson.status != \"Writing\"",
+            "class": "lesson-text"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Take the quiz \ud83c\udfaf",
+                "emphasis": "primary",
+                "showIf": "=data.lesson.status != \"Writing\" && size(data.open) > 0",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "next",
+                      "input": {
+                        "lesson": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Try the quiz again \ud83d\udd01",
+                "emphasis": "primary",
+                "showIf": "=data.lesson.status != \"Writing\" && size(data.questions) > 0 && size(data.open) == 0",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "retake",
+                      "input": {
+                        "lesson": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "I've learnt this \u2705",
+                "emphasis": "primary",
+                "showIf": "=data.lesson.status == \"New\" && size(data.questions) == 0",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.lesson",
+                      "set": {
+                        "status": "Done",
+                        "finished": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "celebrate": "Lesson done! \ud83c\udf1f"
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Change this lesson",
+                "icon": "edit",
+                "showIf": "=data.lesson.status != \"Writing\"",
+                "do": [
+                  {
+                    "openDialog": "change_lesson"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "change_lesson",
+            "title": "Change this lesson",
+            "content": [
+              {
+                "type": "text",
+                "value": "Change its title or what it teaches, or say what should be different, and I'll write it again with a new quiz. It starts fresh as New; every other lesson keeps your progress.",
+                "size": "body"
+              },
+              {
+                "type": "form",
+                "record": "=data.lesson",
+                "fields": [
+                  {
+                    "field": "title",
+                    "label": "Lesson"
+                  },
+                  {
+                    "field": "goal",
+                    "label": "What it teaches"
+                  },
+                  {
+                    "field": "request",
+                    "label": "What should be different? (optional)"
+                  }
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Rewrite it \u270d\ufe0f",
+                    "emphasis": "primary",
+                    "disabled": "=!form.valid",
+                    "do": [
+                      {
+                        "update": {
+                          "record": "=data.lesson",
+                          "set": {
+                            "title": "=form.title",
+                            "goal": "=form.goal",
+                            "request": "=form.request",
+                            "status": "Writing",
+                            "material": ""
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "change_lesson"
+                      },
+                      {
+                        "notify": "Rewriting it: the new lesson shows here in a moment."
+                      }
+                    ]
+                  },
+                  {
+                    "type": "button",
+                    "label": "Put this lesson away",
+                    "confirm": "Put this lesson away? It leaves the course.",
+                    "do": [
+                      {
+                        "markObsolete": {
+                          "record": "=data.lesson"
+                        }
+                      },
+                      {
+                        "go": {
+                          "screen": "unit",
+                          "params": {
+                            "id": "=data.lesson.unit"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "quiz": {
+        "params": {
+          "lesson": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "lesson": {
+            "record": "study_lessons",
+            "id": "=params.lesson"
+          },
+          "q": {
+            "record": "study_questions",
+            "id": "=params.id"
+          },
+          "rest": {
+            "from": "study_questions",
+            "where": "=lesson == params.lesson && picked == \"\"",
+            "sort": "position",
+            "limit": 1
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Stop",
+                "icon": "close",
+                "emphasis": "subtle",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "lesson",
+                      "params": {
+                        "id": "=params.lesson"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=\"\u2b50 \" + string(int(data.lesson.stars))",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "type": "progress",
+            "label": "=\"Question \" + string(int(data.q.position)) + \" of \" + string(int(data.lesson.questions))",
+            "value": "=data.lesson.answered",
+            "max": "=data.lesson.questions",
+            "class": "quiz-progress"
+          },
+          {
+            "type": "text",
+            "value": "=data.q.question",
+            "size": "headline",
+            "class": "question"
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "class": "choices",
+            "showIf": "=data.q.picked == \"\"",
+            "content": [
+              {
+                "type": "button",
+                "label": "=data.q.choice_a",
+                "class": "choice choice-a",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.q",
+                      "set": {
+                        "picked": "A",
+                        "correct": "=data.q.answer == \"A\""
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"A\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! \ud83c\udf89"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_b",
+                "class": "choice choice-b",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.q",
+                      "set": {
+                        "picked": "B",
+                        "correct": "=data.q.answer == \"B\""
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"B\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! \ud83c\udf89"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_c",
+                "class": "choice choice-c",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.q",
+                      "set": {
+                        "picked": "C",
+                        "correct": "=data.q.answer == \"C\""
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"C\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! \ud83c\udf89"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_d",
+                "class": "choice choice-d",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.q",
+                      "set": {
+                        "picked": "D",
+                        "correct": "=data.q.answer == \"D\""
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"D\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! \ud83c\udf89"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "grid",
+            "columns": 1,
+            "class": "verdict",
+            "showIf": "=data.q.picked != \"\"",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.q.correct ? \"\ud83c\udf89 Right!\" : \"\ud83d\udca1 Not quite.\"",
+                "size": "headline",
+                "class": "verdict-title"
+              },
+              {
+                "type": "text",
+                "value": "=\"The answer is \" + data.q.answer + \": \" + right_answer(data.q.answer, data.q.choice_a, data.q.choice_b, data.q.choice_c, data.q.choice_d) + \". \" + data.q.why",
+                "size": "body"
+              },
+              {
+                "type": "button",
+                "label": "Next question \u2192",
+                "emphasis": "primary",
+                "showIf": "=size(data.rest) > 0",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "next",
+                      "input": {
+                        "lesson": "=params.lesson"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Finish the lesson \ud83c\udfc1",
+                "emphasis": "primary",
+                "showIf": "=size(data.rest) == 0",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.lesson",
+                      "set": {
+                        "status": "Done",
+                        "finished": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "celebrate": "=\"Lesson done! \" + of(data.lesson.stars, data.lesson.questions) + \" right \u2b50\""
+                  },
+                  {
+                    "go": {
+                      "screen": "lesson",
+                      "params": {
+                        "id": "=params.lesson"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "progress": {
+        "data": {
+          "courses": {
+            "from": "study_courses",
+            "sort": "-started",
+            "limit": 50
+          },
+          "weeks": {
+            "from": "study_lessons",
+            "where": "=status == \"Done\"",
+            "groupBy": "finished",
+            "by": "week"
+          },
+          "stars": {
+            "from": "study_courses",
+            "groupBy": "title",
+            "sum": "stars"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Your progress \ud83c\udfc6",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "Lessons finished each week",
+                "rows": "=data.weeks",
+                "measure": "count"
+              },
+              {
+                "type": "totals",
+                "label": "Stars by course",
+                "rows": "=data.stars"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "class": "course-cards",
+            "rows": "=data.courses",
+            "columns": [
+              {
+                "label": "Course",
+                "value": "=row.title != \"\" ? row.title : row.goal"
+              },
+              {
+                "label": "Lessons done",
+                "value": "=of(row.done, row.lessons)",
+                "display": "chip"
+              },
+              {
+                "label": "Stars",
+                "value": "=\"\u2b50 \" + string(int(row.stars))"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "course",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "style": ":root {\n  font-family: ui-rounded, \"SF Pro Rounded\", \"Nunito\", \"Quicksand\", \"Segoe UI\", system-ui, sans-serif;\n  background:\n    radial-gradient(circle at 6% 0%, rgba(253, 186, 116, 0.32), transparent 38%),\n    radial-gradient(circle at 94% 8%, rgba(196, 181, 253, 0.38), transparent 42%),\n    radial-gradient(circle at 50% 100%, rgba(134, 239, 172, 0.26), transparent 48%),\n    rgb(var(--v-theme-surface));\n}\n.v-btn { text-transform: none; letter-spacing: 0; border-radius: 999px; font-weight: 700; }\n.v-btn--variant-flat {\n  background: linear-gradient(90deg, #6D28D9, #BE185D) !important;\n  color: #fff !important;\n  box-shadow: 0 6px 16px rgba(190, 24, 93, 0.28);\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.v-btn--variant-flat:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 22px rgba(190, 24, 93, 0.32); }\n.v-btn--disabled.v-btn--variant-flat { opacity: 0.45; box-shadow: none; }\n.v-chip { font-weight: 700; }\n.x-hero-title > span {\n  display: inline-block;\n  font-size: clamp(1.6rem, 4.2vw, 2.5rem);\n  line-height: 1.15;\n  font-weight: 800;\n  background: linear-gradient(90deg, #6D28D9, #BE185D 55%, #C2410C);\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n}\n.x-hero-sub > span { display: block; max-width: 62ch; opacity: 0.85; }\n.x-new-course > .v-card, .x-new-book > .v-card, .x-change-words > span {\n  border-radius: 24px;\n  background: rgba(var(--v-theme-surface), 0.88);\n  border: 2px solid rgba(109, 40, 217, 0.22);\n  box-shadow: 0 12px 30px rgba(109, 40, 217, 0.12);\n}\n.x-change-words > span { display: block; padding: 16px 20px; }\n.x-course-cards .v-card, .x-unit-cards .v-card, .x-lesson-cards .v-card, .x-book-cards .v-card, .x-contents .v-card { background: transparent; }\n.x-course-cards .v-table, .x-unit-cards .v-table, .x-lesson-cards .v-table, .x-book-cards .v-table { background: transparent; }\n.x-course-cards table, .x-unit-cards table, .x-lesson-cards table, .x-book-cards table { border-collapse: separate; border-spacing: 0 10px; }\n.x-course-cards thead, .x-unit-cards thead, .x-lesson-cards thead, .x-book-cards thead { display: none; }\n.x-course-cards tbody tr, .x-unit-cards tbody tr, .x-lesson-cards tbody tr, .x-book-cards tbody tr {\n  background: rgb(var(--v-theme-surface));\n  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.x-course-cards tbody tr:hover, .x-unit-cards tbody tr:hover, .x-lesson-cards tbody tr:hover, .x-book-cards tbody tr:hover {\n  transform: translateY(-2px);\n  box-shadow: 0 10px 22px rgba(109, 40, 217, 0.16);\n}\n.x-course-cards td, .x-unit-cards td, .x-lesson-cards td, .x-book-cards td { border: none !important; padding: 14px 16px !important; }\n.x-course-cards td:first-child, .x-unit-cards td:first-child, .x-lesson-cards td:first-child, .x-book-cards td:first-child { border-radius: 18px 0 0 18px; box-shadow: inset 6px 0 0 #6D28D9; }\n.x-course-cards td:last-child, .x-unit-cards td:last-child, .x-lesson-cards td:last-child, .x-book-cards td:last-child { border-radius: 0 18px 18px 0; }\n.x-course-cards tr:nth-child(4n+2) td:first-child, .x-unit-cards tr:nth-child(4n+2) td:first-child, .x-lesson-cards tr:nth-child(4n+2) td:first-child, .x-book-cards tr:nth-child(4n+2) td:first-child { box-shadow: inset 6px 0 0 #BE185D; }\n.x-course-cards tr:nth-child(4n+3) td:first-child, .x-unit-cards tr:nth-child(4n+3) td:first-child, .x-lesson-cards tr:nth-child(4n+3) td:first-child, .x-book-cards tr:nth-child(4n+3) td:first-child { box-shadow: inset 6px 0 0 #C2410C; }\n.x-course-cards tr:nth-child(4n) td:first-child, .x-unit-cards tr:nth-child(4n) td:first-child, .x-lesson-cards tr:nth-child(4n) td:first-child, .x-book-cards tr:nth-child(4n) td:first-child { box-shadow: inset 6px 0 0 #15803D; }\n.x-course-cards td:nth-child(2), .x-unit-cards td:first-child, .x-lesson-cards td:first-child, .x-book-cards td:first-child { font-weight: 800; font-size: 1.08rem; }\n.x-contents .v-table { background: rgba(var(--v-theme-surface), 0.9); border-radius: 20px; }\n.x-contents td:nth-child(2) { font-weight: 800; }\n.x-contents td { padding-top: 10px !important; padding-bottom: 10px !important; vertical-align: top; }\n.x-lesson-list .v-card, .x-lesson-list .v-table { background: transparent; }\n.x-lesson-list thead { display: none; }\n.x-lesson-list tbody { counter-reset: lesson; }\n.x-lesson-list tbody tr { counter-increment: lesson; }\n.x-lesson-list td { border-bottom: 1px dashed rgba(109, 40, 217, 0.22) !important; padding: 10px 8px !important; }\n.x-lesson-list td:first-child { font-weight: 700; }\n.x-lesson-list td:first-child::before {\n  content: counter(lesson);\n  display: inline-grid;\n  place-items: center;\n  width: 28px;\n  height: 28px;\n  margin-right: 12px;\n  border-radius: 50%;\n  background: rgba(109, 40, 217, 0.12);\n  color: rgb(var(--v-theme-primary));\n  font-weight: 800;\n  font-size: 0.85rem;\n}\n.x-lesson-list td:nth-child(2) { opacity: 0.75; font-size: 0.92rem; }\n.x-lesson-list td:nth-child(4) { white-space: nowrap; }\n.x-lesson-list .v-btn { min-width: 32px !important; height: 32px !important; padding: 0 6px; }\n.x-course-hero .v-img { border-radius: 24px !important; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.15); }\n.x-course-hero .text-caption { display: none; }\n.app-node--progress .v-progress-linear { border-radius: 999px; }\n.app-node--progress .v-progress-linear__determinate { background: linear-gradient(90deg, #15803D, #CA8A04, #C2410C) !important; border-radius: 999px; }\n.x-big-progress .v-progress-linear, .x-quiz-progress .v-progress-linear { height: 18px !important; }\n.x-continue .v-btn { height: auto !important; min-height: 56px; padding: 12px 30px; font-size: 1.1rem; }\n.x-continue .v-btn__content { white-space: normal; }\n.x-lesson-goal > span { display: block; font-weight: 700; color: rgb(var(--v-theme-primary)); }\n.x-lesson-text > span {\n  display: block;\n  max-width: 68ch;\n  white-space: pre-line;\n  font-size: 1.12rem;\n  line-height: 1.7;\n  padding: 22px 26px;\n  border-radius: 24px;\n  background: rgba(var(--v-theme-surface), 0.92);\n  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);\n}\n.x-working > span, .x-note > span { display: block; padding: 14px 18px; border-radius: 18px; background: rgba(202, 138, 4, 0.14); }\n.x-working > span { animation: pulse 1.8s ease-in-out infinite; }\n.x-trophy > span { display: block; padding: 18px 22px; border-radius: 24px; background: rgba(21, 128, 61, 0.14); font-weight: 800; }\n.x-question > span {\n  display: block;\n  max-width: 32ch;\n  margin: 16px auto 8px;\n  text-align: center;\n  font-size: clamp(1.35rem, 3.6vw, 2rem);\n  line-height: 1.25;\n  font-weight: 800;\n}\n.x-choice .v-btn {\n  width: 100%;\n  min-height: 76px;\n  height: auto !important;\n  padding: 14px 18px;\n  border-radius: 22px;\n  justify-content: flex-start;\n  text-align: left;\n  font-size: 1.05rem;\n  color: #fff !important;\n  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.22);\n  transition: transform 0.1s ease, box-shadow 0.1s ease;\n}\n.x-choice .v-btn__content { white-space: normal; }\n.x-choice .v-btn__content::before {\n  display: inline-grid;\n  place-items: center;\n  flex: none;\n  width: 34px;\n  height: 34px;\n  margin-right: 12px;\n  border-radius: 50%;\n  background: rgba(255, 255, 255, 0.26);\n  font-weight: 800;\n}\n.x-choice .v-btn:hover { transform: translateY(-2px); }\n.x-choice .v-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22); }\n.x-choice-a .v-btn { background: #C2410C !important; }\n.x-choice-b .v-btn { background: #1D4ED8 !important; }\n.x-choice-c .v-btn { background: #15803D !important; }\n.x-choice-d .v-btn { background: #BE185D !important; }\n.x-choice-a .v-btn__content::before { content: \"A\"; }\n.x-choice-b .v-btn__content::before { content: \"B\"; }\n.x-choice-c .v-btn__content::before { content: \"C\"; }\n.x-choice-d .v-btn__content::before { content: \"D\"; }\n.x-verdict { text-align: center; }\n.x-verdict-title > span { display: inline-block; font-size: 2.2rem; font-weight: 800; animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }\n@keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }\n@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }\n@media (max-width: 600px) {\n  .x-course-cards tr, .x-unit-cards tr, .x-lesson-cards tr, .x-book-cards tr { display: block; margin-bottom: 12px; border-radius: 20px; padding: 8px 0; box-shadow: inset 6px 0 0 #6D28D9, 0 4px 14px rgba(0, 0, 0, 0.08) !important; }\n  .x-course-cards td, .x-unit-cards td, .x-lesson-cards td, .x-book-cards td { display: block; height: auto !important; padding: 4px 16px 4px 20px !important; box-shadow: none !important; border-radius: 0 !important; }\n  .x-course-cards table, .x-unit-cards table, .x-lesson-cards table, .x-book-cards table { border-spacing: 0; }\n  .x-choice .v-btn { min-height: 64px; }\n  .x-lesson-list td:nth-child(2) { display: none; }\n  .x-lesson-text > span { padding: 16px 18px; font-size: 1.05rem; }\n}\n@media (prefers-reduced-motion: reduce) {\n  .x-working > span, .x-verdict-title > span { animation: none; }\n  .v-btn, .x-choice .v-btn, .x-course-cards tbody tr, .x-unit-cards tbody tr, .x-lesson-cards tbody tr, .x-book-cards tbody tr { transition: none; }\n}\n"
+  },
+  "sample": {
+    "books": [
+      {
+        "title": "Plants for Beginners",
+        "author": "Mira Green",
+        "contents_status": "Reading"
+      }
+    ],
+    "book_parts": [
+      {
+        "book": {
+          "sample": "books",
+          "title": "Plants for Beginners"
+        },
+        "position": 1,
+        "heading": "Seeds wake up",
+        "summary": "A seed is a baby plant with a packed lunch. It sleeps in the soil until water soaks in and tells it to start growing.",
+        "text": "Every seed holds a tiny plant and a store of food. It can wait for months. When water soaks through its coat, the seed swells, splits and sends a root down and a shoot up."
+      },
+      {
+        "book": {
+          "sample": "books",
+          "title": "Plants for Beginners"
+        },
+        "position": 2,
+        "heading": "Good soil",
+        "summary": "Soil holds water, air and food for roots. Worms and crumbs of old leaves make it rich and soft.",
+        "text": "Good soil is crumbly. It holds water like a sponge but lets air in too. Worms mix in old leaves, which become food for the roots."
+      },
+      {
+        "book": {
+          "sample": "books",
+          "title": "Plants for Beginners"
+        },
+        "position": 3,
+        "heading": "Leaves make food",
+        "summary": "Leaves catch sunlight and use it to turn air and water into sugar, the plant's food. That's photosynthesis.",
+        "text": "A leaf is a little kitchen. It takes in air through tiny holes, water from the roots and light from the sun, and makes sugar. We call this photosynthesis."
+      }
+    ],
+    "study_courses": [
+      {
+        "goal": "How plants grow, so I can look after my garden",
+        "title": "\ud83c\udf31 Plants 101",
+        "book": {
+          "sample": "books",
+          "title": "Plants for Beginners"
+        },
+        "level": "Just starting",
+        "started": "2026-11-20",
+        "status": "Ready"
+      }
+    ],
+    "study_units": [
+      {
+        "course": {
+          "sample": "study_courses",
+          "title": "\ud83c\udf31 Plants 101"
+        },
+        "position": 1,
+        "title": "\ud83c\udf30 Seeds and soil",
+        "about": "Where every plant starts"
+      },
+      {
+        "course": {
+          "sample": "study_courses",
+          "title": "\ud83c\udf31 Plants 101"
+        },
+        "position": 2,
+        "title": "\ud83c\udf43 Leaves and light",
+        "about": "How a plant makes its own food"
+      }
+    ],
+    "study_lessons": [
+      {
+        "course": {
+          "sample": "study_courses",
+          "title": "\ud83c\udf31 Plants 101"
+        },
+        "unit": {
+          "sample": "study_units",
+          "title": "\ud83c\udf30 Seeds and soil"
+        },
+        "position": 101,
+        "title": "\ud83d\udca7 Why seeds need water",
+        "goal": "What wakes a seed up",
+        "parts": "1",
+        "status": "Done",
+        "finished": "2026-11-24",
+        "text": "A seed is like a tiny backpack: inside is a baby plant and a packed lunch to get it started.\n\nIt can sleep for months. When water soaks through its coat, the seed swells up, splits open and sends a root down and a shoot up towards the light.\n\nTry it: put a bean on a wet paper towel in a jar. In two or three days you'll see it wake up!"
+      },
+      {
+        "course": {
+          "sample": "study_courses",
+          "title": "\ud83c\udf31 Plants 101"
+        },
+        "unit": {
+          "sample": "study_units",
+          "title": "\ud83c\udf30 Seeds and soil"
+        },
+        "position": 102,
+        "title": "\ud83e\udeb1 What good soil does",
+        "goal": "Why roots love crumbly soil",
+        "parts": "2",
+        "status": "New",
+        "text": "Good soil is crumbly, like chocolate cake. It holds water like a sponge but still lets air in, and roots need both.\n\nWorms are the soil's helpers: they pull old leaves underground, where they rot into food for the roots.\n\nSqueeze a handful of damp soil. If it crumbles when you poke it, it's just right."
+      },
+      {
+        "course": {
+          "sample": "study_courses",
+          "title": "\ud83c\udf31 Plants 101"
+        },
+        "unit": {
+          "sample": "study_units",
+          "title": "\ud83c\udf43 Leaves and light"
+        },
+        "position": 201,
+        "title": "\u2600\ufe0f How leaves make food",
+        "goal": "Photosynthesis in plain words",
+        "parts": "3",
+        "status": "New",
+        "text": "A leaf is a little kitchen powered by sunshine. It breathes in air through tiny holes, sips water brought up from the roots and catches light.\n\nWith that light it turns air and water into sugar, the plant's food, and lets out the oxygen we breathe. That's photosynthesis.\n\nThat's why a plant in a dark cupboard grows pale and weak: its kitchen has no power."
+      }
+    ],
+    "study_questions": [
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\ud83d\udca7 Why seeds need water"
+        },
+        "position": 1,
+        "question": "What wakes a sleeping seed?",
+        "choice_a": "Water soaking in",
+        "choice_b": "Loud noises",
+        "choice_c": "Cold wind",
+        "choice_d": "The moon",
+        "answer": "A",
+        "why": "Water soaking through the coat tells the seed to start growing.",
+        "picked": "A",
+        "correct": true
+      },
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\ud83d\udca7 Why seeds need water"
+        },
+        "position": 2,
+        "question": "What does a seed send down first?",
+        "choice_a": "A leaf",
+        "choice_b": "A flower",
+        "choice_c": "A root",
+        "choice_d": "A fruit",
+        "answer": "C",
+        "why": "The root goes down first to find water.",
+        "picked": "B",
+        "correct": false
+      },
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\ud83e\udeb1 What good soil does"
+        },
+        "position": 1,
+        "question": "What should good soil feel like?",
+        "choice_a": "Hard as a brick",
+        "choice_b": "Crumbly",
+        "choice_c": "Slimy",
+        "choice_d": "Dusty and dry",
+        "answer": "B",
+        "why": "Crumbly soil holds water and still lets air in."
+      },
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\ud83e\udeb1 What good soil does"
+        },
+        "position": 2,
+        "question": "How do worms help the soil?",
+        "choice_a": "They eat the roots",
+        "choice_b": "They make it rain",
+        "choice_c": "They keep it cold",
+        "choice_d": "They pull old leaves underground",
+        "answer": "D",
+        "why": "The leaves rot into food for the roots."
+      },
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\u2600\ufe0f How leaves make food"
+        },
+        "position": 1,
+        "question": "What does a leaf make with sunlight?",
+        "choice_a": "Sugar",
+        "choice_b": "Salt",
+        "choice_c": "Soil",
+        "choice_d": "Seeds",
+        "answer": "A",
+        "why": "Sugar is the plant's food."
+      },
+      {
+        "lesson": {
+          "sample": "study_lessons",
+          "title": "\u2600\ufe0f How leaves make food"
+        },
+        "position": 2,
+        "question": "What does a plant give off that we breathe?",
+        "choice_a": "Smoke",
+        "choice_b": "Oxygen",
+        "choice_c": "Steam",
+        "choice_d": "Sugar",
+        "answer": "B",
+        "why": "Leaves let out oxygen as they make food."
+      }
+    ]
+  }
+}

@@ -133,9 +133,10 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       .map(({ key, name, description, audiences, needs }) => ({ key, name, description, audiences, ...(needs ? { needs } : {}) }));
     return { templates };
   }
-  async function templateInstall({ key, sample }) {
+  async function templateInstall({ key, sample, again, fresh }) {
     try {
-      const { app, errors } = await apps.installTemplate(await ctx(), key, { sample: sample === true });
+      const settings = { sample: sample === true, again: again === true, fresh: fresh === true };
+      const { app, errors } = await apps.installTemplate(await ctx(), key, settings);
       if (!errors.length) {
         after.push({ kind: "app_draft", role: "bot", body: { slug: app.slug, name: app.name, summary: `From the ${app.name} template` } });
       }
@@ -250,8 +251,7 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       if (privateChat && /^\/files\/chat(?:\/|$)/u.test(String(picture)) && !own) return { error: PRIVATE_PICTURE };
       const { real, folder } = await fileAt(picture);
       if (privateChat && folder === "chat" && !own) return { error: PRIVATE_PICTURE };
-      if (color) await apps.icons.set(await actor(), app, { color }, call);
-      return { status: "changed", ...(await apps.icons.putPicture(await actor(), app, { source: real, name: picture.split("/").pop() }, call)) };
+      return { status: "changed", ...(await apps.icons.putPicture(await actor(), app, { source: real, name: picture.split("/").pop(), color }, call)) };
     } catch (error) {
       return failed(error);
     }
@@ -403,7 +403,12 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
         id: "template_install",
         description:
           "Install a ready-made app as a draft: its tables are reused when this home already has them (only missing fields are added) or made new. Optionally add its sample records. Then adapt it with app_get and app_save_draft; the person previews and publishes.",
-        inputSchema: z.object({ key: z.string().min(1).max(40), sample: z.boolean().optional() }),
+        inputSchema: z.object({
+          key: z.string().min(1).max(40),
+          sample: z.boolean().optional(),
+          again: z.boolean().optional().describe("Another copy of a template the home has an app from already (\"<name> copy 2\"): only when the person asks for a second one, after saying so"),
+          fresh: z.boolean().optional().describe("With again: the copy starts with its own things instead of sharing the first app's; ask the person which, it can't be changed later")
+        }),
         execute: (input, options) => templateInstall(input, options)
       })
     ),
@@ -412,7 +417,8 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
         id: "template_check",
         description:
           "Check this home's apps made from ready-made templates: for each, its template and whether an update is ready (the " +
-          "template has improved since), it's up to date, or you can't tell (an older app, matched by its name: confirm with the person).",
+          "template has improved since), it's up to date, or you can't tell (an older app, matched by its name: confirm with the person). " +
+          "An app that follows its template takes its updates by itself; only a fork (its screens or scripts changed) needs template_update.",
         inputSchema: z.object({}),
         execute: (input, options) => templateCheck(input, options)
       })

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -90,6 +90,31 @@ test("a published Mercbot's Prepare keeps the store in its home's cache, which o
   }
   assert.ok(lines("scripts/tools-store.sh").includes('STORE="${MERCBOT_TOOLS_STORE:-$TOOLS/store}"'));
 });
+
+// The toolbox runs its own programs from the store, which a file system mounted noexec refuses (a home folder often is),
+// so build-toolbox.sh keeps it in .tools' own store then. The store may not exist yet on a fresh machine, so the check
+// asks the nearest folder that does; findmnt, which fails for a missing path, is stood in for here: every existing
+// path is on a noexec file system.
+test("a store on a noexec file system is seen as one, even before its folder exists", () => withPlace((place) => {
+  const bin = path.join(place, "bin");
+  const home = path.join(place, "home");
+  mkdirSync(bin);
+  mkdirSync(home);
+  // Paths in `home` are on a noexec file system, the rest aren't.
+  writeFileSync(path.join(bin, "findmnt"), `#!/bin/bash
+target="\${@: -1}"
+[ -e "$target" ] || { echo "findmnt: nonexistent path" >&2; exit 1; }
+case "$target" in "${home}"*) echo rw,nosuid,nodev,noexec,relatime ;; *) echo rw,relatime ;; esac
+`, { mode: 0o755 });
+  const allowed = (dir) => spawnSync("bash", ["-c", `TOOLS="${place}/.tools"; . scripts/tools-store.sh; tools_exec_allowed "${dir}" && echo yes || echo no`], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }
+  }).stdout.trim();
+  assert.equal(allowed(path.join(place, "store")), "yes");
+  assert.equal(allowed(home), "no");
+  assert.equal(allowed(path.join(home, ".cache", "mercbot-tools")), "no", "a store not made yet, on the home's file system");
+}));
 
 // The toolbox's stamp (scripts/build-toolbox.sh) says which package list a store's toolbox was built from. en_US.UTF-8
 // orders that list differently from C, so a stamp sorted in the locale made a toolbox built from a terminal look stale

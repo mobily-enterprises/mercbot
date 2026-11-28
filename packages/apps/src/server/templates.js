@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
+import { canShare, canStartFresh, ownCopy } from "./templateCopies.js";
+import { CATALOG } from "./tableCatalog.js";
 
 // The ready-made apps (D-35, stage 3), kept as JSON next to the package: tables and fields, the app
 // (by names, as the Builder writes it) and optional sample records. Read once; they're data.
@@ -28,11 +30,17 @@ const templateVersionOf = (template) =>
 async function saveScripts(scripts, actor, slug, template, options) {
   const errors = [];
   for (const script of template.scripts || []) {
-    const saved = await scripts.save(actor, slug, script, options);
+    const saved = await scripts.save(actor, slug, script, options, { fromTemplate: true });
     errors.push(...saved.errors.map((error) => ({ ...error, path: `scripts.${script.key}${error.path ? `.${error.path}` : ""}` })));
   }
   return errors;
 }
+
+/** The current version of the template `key`, or null for a key no template has (D-130). */
+export const templateVersionNow = (key) => {
+  const template = templateNamed(key);
+  return template ? templateVersionOf(template) : null;
+};
 
 /** The tables a template needs, made or completed with the fields they lack: nothing removed or renamed. */
 async function prepareTables({ registry, catalog }, ctx, template) {
@@ -53,8 +61,11 @@ async function prepareTables({ registry, catalog }, ctx, template) {
       for (const field of lacking.filter((wanted) => !wanted.rollup)) await registry.addField(actor, table.key, field, options);
     }
   }
-  for (const table of template.tables.filter((entry) => entry.fields.some((field) => field.rollup))) {
-    for (const field of (await missing(table)).lacking) await registry.addField(actor, table.key, field, options);
+  // A roll-up of a roll-up (a course's stars, adding up its lessons' stars) comes after the one it adds up (D-143).
+  const rollups = template.tables.flatMap((table) => table.fields.filter((field) => field.rollup).map((field) => ({ table, field })));
+  const ofRollup = ({ field }) => rollups.some((other) => other.table.key === field.rollup.from && other.field.key === field.rollup.field);
+  for (const { table, field } of [...rollups.filter((entry) => !ofRollup(entry)), ...rollups.filter(ofRollup)]) {
+    if ((await missing(table)).lacking.includes(field)) await registry.addField(actor, table.key, field, options);
   }
 }
 
@@ -67,18 +78,47 @@ async function prepareTables({ registry, catalog }, ctx, template) {
  * that don't fit a table the home already had (say, other choices) are skipped and counted.
  * `ctx` is a gate ctx: `{ options, actor, via }`.
  */
-export async function installTemplate({ registry, apps, gate, catalog, scripts }, ctx, key, { sample = false } = {}) {
-  const template = templateNamed(key);
-  if (!template) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
+export async function installTemplate(parts, ctx, key, { sample = false, again = false, fresh = false } = {}) {
+  const { registry, apps, gate, catalog, scripts, connected } = parts;
+  const named = templateNamed(key);
+  if (!named) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
+  let template = named;
   const { options, actor } = ctx;
+  // A template makes one app in a home, and another only as a copy asked for (`again`, the person, 28 Nov), named apart:
+  // "Study copy 2". Both copies use the same tables, so they show the same records.
+  const made = (await apps.templateApps(options, template.key)).get(template.key) || [];
+  if (made.length && !again) {
+    throw new AppError(409, `This home has ${made[0].name} from this template already: open it in Apps, or install another copy.`, {
+      code: "apps_template_installed",
+      params: { key: template.key, slug: made[0].slug }
+    });
+  }
+  const name = made.length ? `${template.name} copy ${made.length + 1}` : template.name;
+  // A copy that starts fresh (`fresh`) has its own tables, named after it; one that doesn't shares the first app's.
+  if (made.length && fresh && !canStartFresh(named)) {
+    const why = `A copy of ${named.name} can't start fresh: what it keeps is shared with your other apps. Add a copy that shares instead.`;
+    throw new AppError(409, why, {
+      code: "apps_template_fresh_unavailable",
+      params: { key: named.key }
+    });
+  }
+  if (made.length && !fresh && !canShare(named)) {
+    const why = `A copy of ${named.name} starts fresh: it does work on its own, which two apps on the same things would each do.`;
+    throw new AppError(409, why, { code: "apps_template_share_unavailable", params: { key: named.key } });
+  }
+  const copy = made.length && fresh ? made.length + 1 : null;
+  template = ownCopy(named, copy);
   await prepareTables({ registry, catalog }, ctx, template);
-  const app = await apps.createApp(actor, { name: template.name, icon: template.glyph || template.icon, color: template.color }, options);
+  const app = await apps.createApp(actor, { name, icon: template.glyph || template.icon, color: template.color }, options);
   // Its scripts first: the draft's save check needs the scripts it calls.
   const scriptErrors = await saveScripts(scripts, actor, app.slug, template, options);
-  const { errors: draftErrors = [] } = await apps.saveDraft(actor, app.slug, template.definition, `From the ${template.name} template`, options);
+  const summary = `From the ${template.name} template`;
+  const { errors: draftErrors = [] } = await apps.saveDraft(actor, app.slug, template.definition, summary, options, { fromTemplate: true });
   const errors = [...scriptErrors, ...draftErrors];
-  // It remembers its template, so the Builder can tell when the template changes (D-130).
-  await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(template) }, options);
+  // The bot it comes with (D-144): the home's bot on that library template, made now if the home hasn't one.
+  const bot = template.bot ? await connected().appBot(template.bot, options) : null;
+  // It remembers its template, so the Builder can tell when the template changes (D-130), and its bot.
+  await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(named), botId: bot?.id, copy }, options);
   let skipped = 0;
   if (sample) {
     const sampleCtx = { ...ctx, via: { kind: "template", template: template.key } };
@@ -151,12 +191,16 @@ export async function updateFromTemplate({ registry, apps, catalog, scripts }, c
       params: { app: before.app.slug }
     });
   }
-  const { template } = found;
+  // A copy that started fresh is brought up on its own tables.
+  const template = ownCopy(found.template, before.app.templateCopy);
   await prepareTables({ registry, catalog }, ctx, template);
   const scriptErrors = await saveScripts(scripts, actor, before.app.slug, template, options);
-  const { errors: draftErrors = [] } = await apps.saveDraft(actor, before.app.slug, template.definition, `Updated from the ${template.name} template`, options);
+  const summary = `Updated from the ${template.name} template`;
+  const { errors: draftErrors = [] } = await apps.saveDraft(actor, before.app.slug, template.definition, summary, options, {
+    fromTemplate: true
+  });
   const errors = [...scriptErrors, ...draftErrors];
-  await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(template) }, options);
+  await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(found.template) }, options);
   return { app: before.app, template: template.key, errors, previous: before.definition };
 }
 
@@ -203,6 +247,14 @@ export const templateSummaries = () => TEMPLATES.map((template) => ({
   abilities: abilitiesOf(template.definition, template.tables),
   needs: template.needs?.words || null,
   description: template.description,
+  // Its own things in plain words, for asking whether a copy shares them: "courses", "invoice lines" (study_courses…).
+  things: template.tables
+    .filter((table) => !CATALOG.has(table.key))
+    .map((table) => table.key.replace(new RegExp(`^${template.key}_`, "u"), "").replaceAll("_", " ")),
+  // Whether a copy of it can start fresh, with its own things (templateCopies.js).
+  fresh: canStartFresh(template),
+  // Whether a copy of it can share the first app's things (templateCopies.js).
+  share: canShare(template),
   screens: Object.keys(template.definition.screens).length,
   tables: [...(template.uses || []), ...template.tables.map((table) => table.key)],
   public: Boolean(template.definition.public),

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { appsHome } from "../support/appsHome.mjs";
+import { queriesDuring } from "../support/queryCount.mjs";
+import { connectTestDatabase } from "../support/testDatabase.mjs";
 
 // Installing ready-made apps (D-35, stage 3): tables reused or added, never removed; the app is a
 // draft; sample records go through the data gate; a clash is reported for the Builder to fix.
@@ -8,7 +10,8 @@ assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a dispos
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 test("templates install as drafts on reused or new tables", async (context) => {
-  const { knex, apps: capability, userId, workspaceId, options, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl" });
+  const home = await appsHome(context, { slug: "apps-tpl" });
+  const { knex, apps: capability, userId, workspaceId, options, ctx: ctxOf } = home;
   const { registry, gate, apps } = capability;
   const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
   const install = (key, settings) => capability.installTemplate(ctx, key, settings);
@@ -32,11 +35,31 @@ test("templates install as drafts on reused or new tables", async (context) => {
   const audit = await knex("audit_events").where({ workspace_id: workspaceId, action: "create" }).first();
   assert.deepEqual(audit.via, { kind: "template", template: "crm" });
 
-  // Installing again reuses everything and adds a second app.
-  const again = await install("crm");
-  assert.equal(again.app.slug, "crm-2");
-  assert.deepEqual((await tables()).contacts.length, contactKeys.length, "no duplicate fields");
-  assert.equal((await gate.read(ctx, "deals")).records.length, 2, "no sample unless asked");
+  // A template makes one app in a home unless another copy is asked for (the person, 28 Nov): installing it again is
+  // refused, naming the app it made, and nothing is added; asked for, the copy is named apart, "CRM copy 2".
+  await assert.rejects(install("crm"), (error) => error.status === 409 && error.code === "apps_template_installed" && error.params?.slug === "crm");
+  assert.equal((await knex("apps").where({ workspace_id: workspaceId, template_key: "crm" }).count({ n: "*" }))[0].n, "1");
+  assert.equal((await gate.read(ctx, "deals")).records.length, 2, "no sample added again");
+  const copy = await install("crm", { again: true });
+  assert.deepEqual([copy.app.name, copy.errors], ["CRM copy 2", []]);
+  assert.equal((await install("crm", { again: true })).app.name, "CRM copy 3");
+  // Canary works on its own in the background (an hourly check), so a copy of it can't share its things.
+  await install("canary");
+  await assert.rejects(install("canary", { again: true }), { code: "apps_template_share_unavailable" });
+  // CRM keeps nothing of its own (everything is shared), so a copy of it can't start fresh.
+  await assert.rejects(install("crm", { again: true, fresh: true }), { code: "apps_template_fresh_unavailable" });
+  // One that starts fresh has its own tables, named after it, and keeps them when brought up to its template.
+  await install("invoices");
+  const fresh = await install("invoices", { again: true, fresh: true });
+  assert.deepEqual([fresh.app.name, fresh.errors], ["Invoices copy 2", []]);
+  assert.ok((await tables()).invoice_lines_copy_2, "its own lines table");
+  const updated = await capability.updateFromTemplate(ctx, fresh.app.slug);
+  assert.deepEqual(updated.errors, []);
+  // An app's definition comes back by names.
+  const draftText = JSON.stringify((await apps.get(fresh.app.slug, { version: "draft" }, options)).definition);
+  assert.ok(/"from":"invoices_copy_2"/u.test(draftText) && !/"(from|table|record)":"invoices"/u.test(draftText), "still on its own tables");
+  const tab = await home.browser({ member: { userId, workspace: home.workspace } })("GET", `/api/w/${home.workspace.slug}/apps-templates`);
+  assert.deepEqual(tab.body.templates.filter((entry) => entry.inHome).map((entry) => [entry.key, entry.inHome]), [["canary", "canary"], ["crm", "crm"], ["invoices", "invoices"]]);
 
   // Sample records that don't fit an existing table are skipped, not fatal.
   await registry.createTable(ctx.actor, { key: "candidates", fields: [{ key: "name", type: "text", required: true }, { key: "stage", type: "choice", choices: ["Open", "Closed"] }] }, options);
@@ -221,6 +244,112 @@ test("every template installs with its sample data, all of them in one home", as
     if (done.errors.length || done.skipped) problems.push(`${template.key}: ${done.skipped} skipped, ${JSON.stringify(done.errors.slice(0, 2))}`);
   }
   assert.deepEqual(problems, []);
+  // And each again as a copy that starts fresh (D-141): on tables of its own, the sample in them, none of the first's.
+  const { canStartFresh } = await import("../../packages/apps/src/server/templateCopies.js");
+  const { CATALOG } = await import("../../packages/apps/src/server/tableCatalog.js");
+  for (const template of __testables.TEMPLATES.filter(canStartFresh)) {
+    const copy = await capability.installTemplate(ctx, template.key, { sample: true, again: true, fresh: true }).catch((error) => ({ errors: [error.message], skipped: 0 }));
+    if (copy.errors.length || copy.skipped) problems.push(`${template.key} copy: ${copy.skipped} skipped, ${JSON.stringify(copy.errors.slice(0, 2))}`);
+    if (!copy.app) continue;
+    // Its definition, by names, names none of the first app's own tables.
+    const named = JSON.stringify((await capability.apps.get(copy.app.slug, { version: "draft" }, ctx.options)).definition);
+    const firsts = template.tables.filter((table) => !CATALOG.has(table.key)).filter((table) => new RegExp(`"(from|table|record)":"${table.key}"`, "u").test(named)).map((table) => table.key);
+    if (firsts.length) problems.push(`${template.key} copy uses the first app's ${firsts.join(", ")}`);
+  }
+  assert.deepEqual(problems, []);
+});
+
+// Installing a template costs what its own tables, app and sample cost, never what the home already has: the same
+// statements in a home with 2 other apps and tables as in one with 30.
+test("installing a template costs the same in a full home as in a nearly empty one", async (context) => {
+  const installCost = async (slug, others, knex) => {
+    const home = await appsHome(context, { slug, knex });
+    const { apps: capability, userId, ctx: ctxOf, options } = home;
+    const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+    for (let index = 0; index < others; index += 1) {
+      await capability.registry.createTable(ctx.actor, { key: `other_${index}`, fields: [{ key: "name", type: "text" }] }, options);
+      await capability.apps.createApp(ctx.actor, { name: `Other ${index}` }, options);
+    }
+    // The clock stands still while it's counted: the registry trusts its cached tables for 5 s, and a cache that ran
+    // out halfway through one install and not the other would count its 2 reads in one home only.
+    context.mock.timers.enable({ apis: ["Date"], now: Date.now() });
+    try {
+      return await queriesDuring(knex, () => capability.installTemplate(ctx, "invoices", { sample: true }));
+    } finally {
+      context.mock.timers.reset();
+    }
+  };
+  // One connection for both homes, closed after both have cleaned up (hooks run in the order they're added).
+  const knex = await connectTestDatabase();
+  let few;
+  let many;
+  try {
+    few = await installCost("apps-tpl-cost-few", 2, knex);
+    many = await installCost("apps-tpl-cost-many", 30, knex);
+  } finally {
+    context.after(() => knex.destroy());
+  }
+  assert.equal(many, few);
+});
+
+// Apps follow their template (D-141, the owner, 28 Nov): one made from a template and never changed takes the template's
+// new version, published, the next time the home's apps are read; a change to its screens or scripts makes it a fork,
+// which keeps its changes and is told its template has an update instead.
+test("an app follows its template until its screens or scripts are changed, then it's a fork told of updates", async (context) => {
+  const home = await appsHome(context, { slug: "apps-tpl-follow" });
+  const { knex, apps: capability, userId, workspaceId, options, ctx: ctxOf } = home;
+  const { apps, scripts } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const { withTemplateState } = await import("../../packages/apps/src/server/templateFollow.js");
+  const { forkChanged } = await import("../../migrations/20261207120000_apps_forked.cjs");
+  const state = async (slug) => withTemplateState((await apps.get(slug, {}, options)).app);
+  const live = async (slug) => (await apps.get(slug, {}, options)).version.number;
+  // The template "improves": the app's recorded version is an older one.
+  const improve = (slug) => knex("apps").where({ workspace_id: workspaceId, slug }).update({ template_version: "older" });
+
+  for (const key of ["budget", "canary", "habits"]) {
+    const { app } = await capability.installTemplate(ctx, key);
+    await apps.publish(ctx.actor, app.slug, { canManage: true }, options);
+  }
+  assert.deepEqual([(await state("budget")).forked, await live("budget")], [false, 1], "installing doesn't fork it");
+
+  await improve("budget");
+  await capability.followTemplates(options);
+  const followed = await state("budget");
+  assert.deepEqual([followed.forked, followed.templateUpdate, await live("budget")], [false, false, 2], "it took the new version, published");
+  assert.notEqual(followed.templateVersion, "older");
+  await capability.followTemplates(options);
+  assert.equal(await live("budget"), 2, "once: it's current now");
+
+  // One never published stays a draft, brought up to date: following publishes only what was live.
+  const { app: unpublished } = await capability.installTemplate(ctx, "watchlist");
+  await improve(unpublished.slug);
+  await capability.followTemplates(options);
+  const draftOnly = (await apps.get(unpublished.slug, { version: "draft" }, options));
+  assert.deepEqual([draftOnly.app.liveVersionId, draftOnly.version.draft], [null, true], "still not published");
+  assert.notEqual((await state(unpublished.slug)).templateVersion, "older", "but up to date");
+
+  // A person's (or the Builder's) change to its screens forks it; a fork keeps its changes and is told of updates.
+  const draft = await apps.get("budget", { version: "draft" }, options);
+  const { errors } = await apps.saveDraft(ctx.actor, "budget", draft.definition, "My own change", options);
+  assert.deepEqual(errors, []);
+  assert.equal((await state("budget")).forked, true);
+  await improve("budget");
+  await capability.followTemplates(options);
+  assert.deepEqual([await live("budget"), (await state("budget")).templateUpdate], [2, true], "not updated; told instead");
+
+  // So does a change to its scripts.
+  const { __testables } = await import("../../packages/apps/src/server/templates.js");
+  const [script] = __testables.TEMPLATES.find((template) => template.key === "canary").scripts;
+  assert.deepEqual((await scripts.save(ctx.actor, "canary", { ...script, summary: "Mine now" }, options)).errors, []);
+  assert.equal((await state("canary")).forked, true);
+
+  // Apps made before this: unchanged since install they follow (habits); one with a version its template didn't make (a
+  // screen's change, a script's) is a fork.
+  await knex("apps").where({ workspace_id: workspaceId }).update({ forked_at: null });
+  await forkChanged(knex);
+  const forked = await knex("apps").where({ workspace_id: workspaceId }).whereNotNull("forked_at").orderBy("slug").pluck("slug");
+  assert.deepEqual(forked, ["budget", "canary"]);
 });
 
 // The shared list (D-141): apps keep their items in one list_items table, each app its own kind of list. Shopping list

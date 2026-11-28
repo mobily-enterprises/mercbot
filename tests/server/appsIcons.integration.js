@@ -65,4 +65,11 @@ test("a bot's picture goes on an app's tile, is replaced and taken away cleanly"
   assert.deepEqual((await icons.set(pat, app.slug, { color: "#0B7A5B" }, home.options)).picture, second.picture, "a colour keeps it");
   assert.equal((await icons.set(pat, app.slug, { icon: "home" }, home.options)).picture, null, "a set picture takes it away");
   assert.equal(await exists(second.picture), false);
+
+  // A colour goes on with the picture, in the same change; a refused picture leaves the colour as it was.
+  await assert.rejects(icons.putPicture(pat, app.slug, { ...(await fileOf("notes2.txt", "hello")), color: "#123456" }, home.options), { code: "apps_icon_not_picture" });
+  assert.equal((await apps.find(app.slug, home.options)).color, "#0B7A5B");
+  await assert.rejects(icons.putPicture(pat, app.slug, { ...(await fileOf("paw3.png", PNG)), color: "red" }, home.options), { code: "apps_color_invalid" });
+  const coloured = await icons.putPicture(pat, app.slug, { ...(await fileOf("paw4.png", PNG)), color: "#123456" }, home.options);
+  assert.deepEqual([coloured.color, (await apps.find(app.slug, home.options)).color], ["#123456", "#123456"]);
 });

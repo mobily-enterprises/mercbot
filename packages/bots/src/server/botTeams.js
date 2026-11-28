@@ -158,9 +158,32 @@ export function createBotTeams({ records, botList, templates, onboarding, notice
     return make(entries, options);
   }
 
+  /**
+   * The bot a ready-made app comes with (D-144): the home's bot on that library template (a working one first, whatever
+   * it's called now), or one made on it now as Add bots makes one (make), so a home never gets a second. Answers its id
+   * and name; 400 for a template the library hasn't got.
+   * @param {string} slug
+   * @param {import("./types.js").CallOptions} options
+   */
+  async function appBot(slug, options) {
+    const template = LIBRARY.get(String(slug));
+    if (!template || template === GENERAL) {
+      throw new BotsError(400, "There's no bot template by that name.", { code: "bots_add_template_unknown", params: { index: 0 } });
+    }
+    const [had] = await newBots.onTemplate(template.slug, options);
+    if (had) return had;
+    // One made at the same moment by someone else: make refuses it (409), and that one is the app's.
+    const done = await make([{ choice: { library: template.slug }, look: lookOf(template) }], options).catch((error) => {
+      if (error?.code !== "bots_team_all_in_home") throw error;
+      return null;
+    });
+    return done ? { id: done.added[0], name: template.name } : (await newBots.onTemplate(template.slug, options))[0];
+  }
+
   return Object.freeze({
     teamFor,
     addTeam,
-    addBots
+    addBots,
+    appBot
   });
 }

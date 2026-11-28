@@ -162,11 +162,13 @@ Each has a daily limit for the app (50 unless you choose another, up to 500), an
 
 A button's or a job's script can turn a record into a PDF and keep it in one of the record's file fields, such as an invoice with its lines, ready to download or attach to an email draft. The Builder writes the page: the record's values, shown as the app shows them, and a table of its line items. Up to 3 documents a run. In a draft's preview, nothing is made. Documents need the server's office apps; where they aren't installed, the button says so.
 
+A button's or a job's script can also **read a record's file**, such as a book someone uploaded, to work from its words: a text or Markdown file as it is, and a Word document, spreadsheet, presentation or PDF through the office apps (where they aren't installed, only text files can be read). It reads up to 1,000,000 characters, about 500 pages, and up to 3 files a run. A file of another kind, such as a picture or a zip, can't be read, and the script is told so.
+
 ### Bots and pictures
 
 With **AI: bots and pictures** on, a button's or a job's script can hand records to a bot and make pictures:
 
-- **Hand items to a bot.** The script sends a task and a list of records with some text each; the bot works through them in one go (the home's main bot, unless the script names another) and writes each answer into a text field of its record as it finishes. Answers appear a moment later, not while the button runs. The bot answers from the text it was given only: it uses no tools, and anything an item's text says is treated as information, never as an instruction.
+- **Hand items to a bot.** The script sends a task and a list of records with some text each; the bot works through them in one go (the app's own bot when it came with one, such as Study's Learner, else the home's main bot, unless the script names another) and writes each answer into a text field of its record as it finishes. Answers appear a moment later, not while the button runs. The bot answers from the text it was given only: it uses no tools, and anything an item's text says is treated as information, never as an instruction.
 - **Make a picture.** The script describes a picture, which is made with the home's picture model and saved into a record's file or picture field. Pictures are checked as a bot's pictures are.
 
 This is the same as a bot's work for that person: it goes through the home's usage and spending like any other. A screen's script can't use bots or pictures, since it would run every time someone opens the screen. Each run may hand over one list of up to 100 items, and ask for up to 5 pictures; an app has at most 3 lists waiting or in progress at once. The Logic tab lists the app's recent work: waiting, working with how many are done, done, or failed with the reason.

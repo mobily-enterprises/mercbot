@@ -7,6 +7,7 @@ import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility
 import { fieldByNames, isCalculated } from "../shared/calculated.js";
 import { scopeStyle } from "./appStyle.js";
 import { templateSummaries } from "./templates.js";
+import { withTemplateState } from "./templateFollow.js";
 import { CATALOG, needsOf } from "./tableCatalog.js";
 import { GateError } from "./validate.js";
 import { sendingOf } from "./appSending.js";
@@ -72,7 +73,8 @@ const screenTables = (tables) =>
  * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file, uploaded
  */
 export function registerRoutes(http, { appsRuntime, notices, streams, uploads }) {
-  const { registry, gate, apps, icons, practices, views, runtime, scripts, watches, homePeople, recordUploads, starterApps } = appsRuntime;
+  const { registry, gate, apps, icons, practices, views, runtime, scripts, watches, homePeople, recordUploads } = appsRuntime;
+  const { starterApps, followTemplates } = appsRuntime;
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   /** Routes for one app answer "not found" when the home has no such app. */
@@ -87,12 +89,14 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     "GET",
     base,
     home,
-    // The home's list of apps is read as it opens (its sidebar): its starter apps come first, once (D-130).
-    handle(async (_request, ctx) => ({
-      ...(await starterApps.ensure(ctx.options).then(() => apps.list({}, ctx.options))),
-      builder: await apps.builder(ctx.options),
-      canManage: ctx.canManage
-    }))
+    // The home's list of apps is read as it opens (its sidebar): its starter apps come first, once (D-130), and the apps
+    // that follow their template take its new versions (D-141); a fork whose template improved says so.
+    handle(async (_request, ctx) => {
+      await starterApps.ensure(ctx.options);
+      await followTemplates(ctx.options);
+      const listed = await apps.list({}, ctx.options);
+      return { ...listed, apps: listed.apps.map(withTemplateState), builder: await apps.builder(ctx.options), canManage: ctx.canManage };
+    })
   );
   router.register(
     "GET",
@@ -119,7 +123,7 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     }, ctx.options);
     const theme = await apps.themeOf({ theme: app.themeOverride }, ctx.options);
     return {
-      app,
+      app: withTemplateState(app),
       version,
       definition,
       tables: screenTables(tables),
@@ -440,7 +444,10 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
         ...(entry.extends ? { extends: CATALOG.get(entry.extends).label } : {}),
         inHome: have.has(entry.key)
       }));
-      return { templates: templateSummaries(), sharedTables, canManage: ctx.canManage };
+      // Each template's app in this home, if it has one: a template makes one app in a home.
+      const made = await apps.templateApps(ctx.options);
+      const templates = templateSummaries().map((template) => ({ ...template, inHome: made.get(template.key)?.[0].slug ?? null }));
+      return { templates, sharedTables, canManage: ctx.canManage };
     })
   );
   router.register("POST", "/api/w/:workspaceSlug/apps-templates/:key/install", home, handle((request, ctx) => {
@@ -448,7 +455,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       throw forbidden("Only the home's owners and admins can install a template; or ask the Builder.", "apps_template_install_forbidden");
     }
     // The runtime's install, as the Builder's and the starter apps' are: it makes the shared tables a template uses (D-130).
-    return appsRuntime.installTemplate(ctx, request.params.key, { sample: body(request).sample === true });
+    const { sample, again, fresh } = body(request);
+    return appsRuntime.installTemplate(ctx, request.params.key, { sample: sample === true, again: again === true, fresh: fresh === true });
   }));
 
   // The home's look for its apps, and an app's own colour and density.

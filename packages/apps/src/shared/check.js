@@ -3,7 +3,7 @@ import { calculatedFormulas, calculatedFrom, isCalculated, storedFieldIds } from
 import { closest, fieldsIn, isObject, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
-import { expandLines } from "./lines.js";
+import { checkLines, expandLines } from "./lines.js";
 import { checkOnSubmit } from "./onSubmit.js";
 import { BOARD_CATALOG, BOARD_READ_ONLY, ROW_FORMULAS, boardRow, checkBoard, isBoard } from "./boards.js";
 import { calculatedOrder, compileWhere } from "./where.js";
@@ -24,6 +24,7 @@ const CATALOG = {
   form: ["record", "table", "fields", "buttons", "onSubmit"],
   totals: ["label", "rows"],
   chart: ["label", "kind", "rows", "measure"],
+  progress: ["value", "max", "label"], // a progress bar (D-143): `value` out of `max`, 100 unless it says
   tabs: ["tabs"],
   dialog: ["key", "title", "content"],
   view: ["view", "copy", "screen", "params"],
@@ -34,7 +35,7 @@ const CATALOG = {
 };
 // What a view (D-55) and an app's copy of one may hold: parts that only show things.
 const READ_ONLY = {
-  ...Object.fromEntries(["row", "grid", "text", "chip", "spacer", "input", "field", "totals", "chart", "tabs"].map((type) => [type, CATALOG[type]])),
+  ...Object.fromEntries(["row", "grid", "text", "chip", "spacer", "input", "field", "totals", "chart", "progress", "tabs"].map((type) => [type, CATALOG[type]])),
   table: ["rows", "columns"],
   ...BOARD_READ_ONLY
 };
@@ -42,7 +43,7 @@ const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit
 // The periods a date field's totals can be grouped by (D-140), in the home's time zone.
 const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
-const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set", "if"];
+const STEPS = ["go", "create", "update", "markObsolete", "notify", "celebrate", "openDialog", "closeDialog", "askBot", "runScript", "set", "if"];
 export const ICONS = ["search", "edit", "back", "save", "add", "open", "check", "close", "person", "mail", "phone", "calendar", "chart", "star"];
 const CHOICES = {
   size: ["headline", "title", "body"],
@@ -163,46 +164,6 @@ export function pageParamOf(value, screen) {
 }
 
 /**
- * A screen's line items (lines.js): each names one of the screen's single-record queries, whose id is a formula of the
- * page; a table; and a link field of that table pointing at the record's table. Its fields are the table's own, never
- * the link (the record sets it) or a calculated one. Never on a public screen.
- */
-function checkLines(base, screen, { tableNamed, report }) {
-  let whole = true;
-  const refuse = (path, message) => {
-    whole = false;
-    report(path, message);
-  };
-  const walk = (path, list) => (Array.isArray(list) ? list : []).forEach((node, index) => {
-    const at = `${path}[${index}]`;
-    walk(`${at}.content`, node?.content);
-    (Array.isArray(node?.tabs) ? node.tabs : []).forEach((tab, tabIndex) => walk(`${at}.tabs[${tabIndex}].content`, tab?.content));
-    if (node?.type !== "lines") return;
-    if (screen.public === true) refuse(at, "line items are for the home's people: a public screen can't have them.");
-    const queryName = DATA_REFERENCE.exec(String(node.record || ""))?.[1];
-    const query = queryName ? screen.data?.[queryName] : null;
-    if (!query?.record || !isFormula(query.id)) {
-      return refuse(`${at}.record`, 'must be "=data.<query>" naming one of this screen\'s single-record queries, such as one with "id": "=params.id".');
-    }
-    const table = tableNamed(node.table);
-    if (!table) return refuse(`${at}.table`, "needs an existing table: the one its lines are records of.");
-    const link = table.fields.find((field) => !field.obsolete && field.key === node.link);
-    const parent = tableNamed(query.record);
-    if (!link || link.type !== "link" || link.options?.target !== parent?.id) {
-      return refuse(`${at}.link`, `must be a link field of ${table.key} pointing at ${query.record}, the shown record's table.`);
-    }
-    if (!Array.isArray(node.fields) || !node.fields.length) refuse(`${at}.fields`, "lists the fields people type for each line.");
-    (Array.isArray(node.fields) ? node.fields : []).forEach((entry, fieldIndex) => {
-      const key = typeof entry === "string" ? entry : entry?.field;
-      if (key === node.link) refuse(`${at}.fields[${fieldIndex}]`, `${key} links each line to the record: it's set by itself, so leave it out.`);
-    });
-    if (node.add !== undefined && typeof node.add !== "boolean") refuse(`${at}.add`, "is true or false (whether people add lines here).");
-  });
-  walk(`${base}.content`, screen?.content);
-  return whole;
-}
-
-/**
  * A public screen never wakes a bot and never marks records obsolete; it can only go to other
  * public screens. A visitor adds through a create form and edits through an edit form, exactly the
  * fields shown. What it reaches is checked against visitor access above.
@@ -254,7 +215,7 @@ function checkPublicScreen(base, screen, { screens, report, tableNamed }) {
     } else if (kind === "if") {
       steps(`${at}.if.then`, step.if?.then, form);
       steps(`${at}.if.else`, step.if?.else, form);
-    } else if (!["notify", "openDialog", "closeDialog", "set"].includes(kind)) {
+    } else if (!["notify", "celebrate", "openDialog", "closeDialog", "set"].includes(kind)) {
       report(
         at,
         "on a public screen, steps can go, notify, open or close a dialog, set a screen value, or save a form; never ask a bot or mark records obsolete."
@@ -337,7 +298,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     if (result.error) {
       // An unknown name or the wrong number of values, said plainly (CEL says "no matching overload").
       report(path, (noFunctions ? filterCallProblem(value, known) : callProblem(value, known)) || result.error);
-    } else if (expected && result.type !== expected && result.type !== "dyn") {
+    } else if (expected && result.type !== expected && result.type !== "dyn" && !(expected === "a number" && ["int", "double"].includes(result.type))) {
       report(path, `must be ${expected}, but this formula gives ${result.type}.`);
     }
   };
@@ -502,7 +463,8 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         notSettable(tableNamed(value?.table), value?.preset, `${at}.create.preset`);
       }
       if (kind === "markObsolete") records(value?.record, "record", `${at}.markObsolete.record`, variables);
-      if (kind === "notify") formula(`${at}.notify`, value, variables, "string");
+      if (kind === "notify" || kind === "celebrate") formula(`${at}.${kind}`, value, variables, "string"); // celebrate: confetti and words (D-143)
+      if (kind === "celebrate" && (typeof value !== "string" || !value.trim())) report(`${at}.celebrate`, "is the words to celebrate with, or a formula giving them.");
       if (kind === "askBot") {
         if (typeof value?.bot !== "string" || !value.bot.trim()) {
           report(`${at}.askBot.bot`, "must name a bot of this home.");
@@ -609,9 +571,11 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
       if (CHOICES[key] && !isFormula(value) && !CHOICES[key].includes(value)) {
         report(`${path}.${key}`, `must be one of: ${CHOICES[key].join(", ")}.`);
       }
-      if (typeof value === "string") formula(`${path}.${key}`, value, variables, BOOLEAN_SETTINGS.has(key) ? "bool" : null);
+      if (typeof value === "string") formula(`${path}.${key}`, value, variables, BOOLEAN_SETTINGS.has(key) ? "bool" : node.type === "progress" && key !== "label" ? "a number" : null);
     }
     if (node.type === "view") checkViewPart(path, node, variables);
+    if (node.type === "progress" && typeof node.value !== "number" && !isFormula(node.value)) report(`${path}.value`, 'is how far along it is: a number, or a formula giving one, such as "=data.course.done".');
+    if (node.type === "progress" && node.max !== undefined && !(node.max > 0) && !isFormula(node.max)) report(`${path}.max`, "is a number over 0 (100 unless it says), or a formula giving one.");
     if (node.type === "input") {
       const [scope, name] = String(node.bind || "").split(".");
       if (scope !== "state" || !(name in screenState)) report(`${path}.bind`, "must be state.<name> of a declared state value.");
@@ -677,6 +641,10 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
           for (const key of ["showIf", "required"]) formula(`${path}.fields[${index}].${key}`, item[key], formVariables, "bool");
           // A form's own name for a field ("Aisle" for a shared list's Group): plain words, never a formula.
           if (item.label !== undefined && !/^[^=\s].{0,59}$/su.test(String(item.label))) report(`${path}.fields[${index}].label`, "is the form's own name for the field: plain words, 1 to 60 characters.");
+          // A link field's choices (D-144): one of the screen's lists of the table it links to, never its totals.
+          const list = item.choices === undefined ? null : screenData[DATA_REFERENCE.exec(String(item.choices))?.[1]];
+          const link = table.fields.find((field) => !field.obsolete && field.key === item.field && field.type === "link");
+          if (item.choices !== undefined && !(list?.from && !list.groupBy && link && tableNamed(list.from)?.id === link.options?.target)) report(`${path}.fields[${index}].choices`, 'is "=data.<list>", a list query of this screen over the table the link field picks from.');
         });
         checkNodes(`${path}.buttons`, node.buttons, formVariables, depth + 1);
         if (node.onSubmit !== undefined) checkOnSubmit(`${path}.onSubmit`, node.onSubmit, node.table ? table : null, { report, formula, variables });

@@ -41,6 +41,19 @@ const appSearch = Object.freeze({
   retired: isSet("retiredAt"),
   // `live: true`: the apps and views that have a published version.
   live: isSet("liveVersionId"),
+  // The app made from a ready-made template (D-130), by its key, and every app made from one.
+  templateKey: { type: "string", actualField: "templateKey", filterOperator: "=" },
+  fromTemplate: isSet("templateKey"),
+  templateKeys: { type: "array", items: { type: "string" }, actualField: "templateKey", filterOperator: "in" },
+  forked: isSet("forkedAt"),
+  // Apps whose template's version isn't the one given for it ("key:version", each template's now): behind it (D-141).
+  behindTemplates: {
+    type: "array",
+    items: { type: "string" },
+    applyFilter(query, current, { column }) {
+      query.whereRaw("?? || ':' || ?? <> all(?::text[])", [column("templateKey"), column("templateVersion"), current]);
+    }
+  },
   // A link or route names an app by slug or id.
   slugOrId: {
     type: "string",

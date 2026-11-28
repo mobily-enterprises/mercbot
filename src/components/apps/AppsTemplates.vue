@@ -54,10 +54,31 @@ onMounted(async () => {
   }
 });
 
-async function install(template, sample) {
+// Another copy of a template the home has already: the person chooses, once, whether it shares the first one's things
+// or starts fresh with its own.
+const copying = ref(null);
+const fresh = ref(false);
+const copyOpen = computed({ get: () => Boolean(copying.value), set: (open) => { if (!open) copying.value = null; } });
+// Its own things in words: "books", "invoices and invoice lines", "books, book parts, courses and more".
+const things = computed(() => {
+  const words = copying.value?.things || [];
+  if (words.length > 3) return `${words.slice(0, 3).join(", ")} and more`;
+  return words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0] || "things";
+});
+function askCopy(template) {
+  fresh.value = false;
+  copying.value = template;
+}
+function installCopy() {
+  const template = copying.value;
+  copying.value = null;
+  install(template, false, { again: true, fresh: template.fresh && (fresh.value || !template.share) });
+}
+
+async function install(template, sample, copy = {}) {
   installing.value = template.key;
   try {
-    const { app, errors, skipped } = await appsApi.installTemplate(template.key, sample);
+    const { app, errors, skipped } = await appsApi.installTemplate(template.key, sample, copy);
     // The draft opens at once; its frame shows this note (it travels in the history state).
     const notice = errors.length
       ? { text: `${app.name} was added, but its draft needs the Builder: ${errors[0].message}`, color: "error" }
@@ -115,7 +136,14 @@ async function install(template, sample) {
         <div v-if="template.needs" class="text-caption text-on-surface-variant mb-2">{{ template.needs }}</div>
         <div class="text-caption text-on-surface-variant mb-3">{{ template.screens }} screens · tables: {{ template.tables.join(", ") }}</div>
         <v-spacer />
-        <div v-if="canManage" class="d-flex flex-wrap ga-2">
+        <div v-if="template.inHome" class="d-flex flex-wrap align-center ga-2">
+          <v-chip size="small" variant="tonal" color="primary">In your home</v-chip>
+          <v-btn size="small" variant="text" :to="paths.page(`/apps/${template.inHome}`)">Open</v-btn>
+          <v-btn v-if="canManage" size="small" variant="text" :disabled="Boolean(installing)" @click="askCopy(template)">
+            {{ installing === template.key ? "Installing…" : "Install another copy" }}
+          </v-btn>
+        </div>
+        <div v-else-if="canManage" class="d-flex flex-wrap ga-2">
           <v-btn size="small" variant="flat" color="primary" :disabled="Boolean(installing)" @click="install(template, false)">{{ installing === template.key ? "Installing…" : "Install" }}</v-btn>
           <v-btn v-if="template.sample" size="small" variant="text" :disabled="Boolean(installing)" @click="install(template, true)">With sample data</v-btn>
         </div>
@@ -143,6 +171,46 @@ async function install(template, sample) {
         </li>
       </ul>
     </section>
+    <v-dialog v-model="copyOpen" max-width="460">
+      <v-card v-if="copying" class="pa-2">
+        <v-card-title class="text-wrap">Another {{ copying.name }}</v-card-title>
+        <v-card-text>
+          <p v-if="!copying.fresh" class="mb-3">
+            You have {{ copying.name }} already. The new one will show the same things, since what {{ copying.name }} keeps is
+            shared with your other apps.
+          </p>
+          <p v-else-if="!copying.share" class="mb-3">
+            You have {{ copying.name }} already. The new one starts fresh, with its own {{ things }}: {{ copying.name }} does
+            work on its own, and two apps sharing the same things would each do it.
+          </p>
+          <p v-else class="mb-3">You have {{ copying.name }} already. How should the new one start?</p>
+          <v-radio-group v-if="copying.fresh && copying.share" v-model="fresh" hide-details>
+            <v-radio :value="false" class="mb-2">
+              <template #label>
+                <div>
+                  <div class="font-weight-medium text-on-surface">Share with {{ copying.name }}</div>
+                  <div class="text-body-2 text-on-surface-variant">Both show the same {{ things }}.</div>
+                </div>
+              </template>
+            </v-radio>
+            <v-radio :value="true">
+              <template #label>
+                <div>
+                  <div class="font-weight-medium text-on-surface">Start fresh</div>
+                  <div class="text-body-2 text-on-surface-variant">It keeps its own {{ things }}, separate from {{ copying.name }}.</div>
+                </div>
+              </template>
+            </v-radio>
+          </v-radio-group>
+          <p v-if="copying.fresh && copying.share" class="text-body-2 text-on-surface-variant mt-4">You choose once: this can't be changed later.</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="copying = null">Cancel</v-btn>
+          <v-btn variant="flat" color="primary" @click="installCopy">Add the copy</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

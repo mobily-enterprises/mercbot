@@ -1,6 +1,7 @@
 import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { homePath, requestInHome } from "@/components/mercbot/homeApi.js";
+import { uploadFile } from "./uploadFile.js";
 
 // Client for the Apps routes (packages/apps, D-35). Every app belongs to the current home (D-36);
 // writes carry the CSRF token through JSKIT's client.
@@ -30,26 +31,10 @@ export const appsApi = {
   records: (table, params) => requestInHome(client, `${records(table)}${queryString(params)}`),
   createRecord: (table, values) => requestInHome(client, records(table), { method: "POST", body: { values } }),
   updateRecord: (table, id, values) => requestInHome(client, records(table, id), { method: "PATCH", body: { values } }),
-  // A record's file or picture (D-130), uploaded as a form: the server stores it in Database files and answers the record.
-  attachFile: async (table, id, field, file) => {
-    const form = new FormData();
-    form.append("file", file, file.name);
-    const session = await fetch(AUTH_PATHS.SESSION, { credentials: "include" }).then((response) => response.json()).catch(() => ({}));
-    const response = await fetch(homePath(`${records(table, id)}/files/${encodeURIComponent(field)}`), {
-      method: "POST",
-      credentials: "include",
-      headers: { "csrf-token": String(session.csrfToken || "") },
-      body: form
-    }).catch(() => {
-      // The browser's own words ("Failed to fetch") mean nothing to the person.
-      throw new Error("That file didn't upload: the connection was lost. Check it and try again.");
-    });
-    const body = await response.json().catch(() => ({}));
-    // A 413 without the server's words is a size limit met on the way.
-    const fallback = response.status === 413 ? "That file is too big to add." : "That file didn't upload.";
-    if (!response.ok) throw Object.assign(new Error(body.error || fallback), { status: response.status, data: body });
-    return body.record;
-  },
+  // A record's file or picture (D-130), uploaded as a form: the server stores it in Database files and answers the record;
+  // `onProgress(percent)` hears how much has gone up.
+  attachFile: async (table, id, field, file, onProgress) =>
+    (await uploadFile(homePath(`${records(table, id)}/files/${encodeURIComponent(field)}`), file, { onProgress })).record,
   obsoleteRecord: (table, id) => requestInHome(client, `${records(table, id)}/obsolete`, { method: "POST", body: {} }),
   restoreRecord: (table, id) => requestInHome(client, `${records(table, id)}/restore`, { method: "POST", body: {} }),
   recordHistory: (table, id) => requestInHome(client, `${records(table, id)}/history`),
@@ -82,7 +67,10 @@ export const appsApi = {
   bringBack: (slug) => post(`/retired/${encodeURIComponent(slug)}/bring-back`),
   updateCopy: (slug, screen) => post(`${app(slug)}/copies/${encodeURIComponent(screen)}/update`),
   templates: () => requestInHome(client, "/apps-templates"),
-  installTemplate: (key, sample) => requestInHome(client, `/apps-templates/${encodeURIComponent(key)}/install`, { method: "POST", body: { sample } }),
+  // `again`: another copy of a template the home has an app from already (D-141), named "<template> copy 2"; `fresh`: one
+  // that starts with its own things instead of sharing the first app's.
+  installTemplate: (key, sample, { again = false, fresh = false } = {}) =>
+    requestInHome(client, `/apps-templates/${encodeURIComponent(key)}/install`, { method: "POST", body: { sample, again, fresh } }),
   theme: () => requestInHome(client, "/apps-theme"),
   setTheme: (theme) => requestInHome(client, "/apps-theme", { method: "PUT", body: { theme } }),
   setTimeZone: (timeZone) => requestInHome(client, "/apps-time-zone", { method: "PUT", body: { timeZone } }),

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import fs from "node:fs/promises";
 import https from "node:https";
 import os from "node:os";
@@ -24,20 +25,13 @@ const { LIMITS } = __testables;
 // A bot's command signed in to GitHub (D-128), in real gVisor: git clones a private repository and pushes a branch with
 // the command's key through git's credential helper, commits as the bot through the copy's GitHub App, the key never shows in
 // what the command printed (nor git's base64 form of it) in its answer or its run's record, and it's withdrawn when the
-// command ends. github.com here is a stand-in on this machine, git's own smart HTTP server (git http-backend) behind a
+// command ends. github.com here is a stand-in on this machine, git's smart HTTP (git upload-pack and receive-pack) behind a
 // test authority's certificate, which the gateway is told to use for that name (its `standIns`, for tests only), so
 // nothing reaches GitHub. Runs where gVisor and the toolbox are installed, with git and openssl for the stand-in.
 const has = (command) => spawnSync("sh", ["-c", `command -v ${command}`]).status === 0;
-// git http-backend answers even a request it can't serve with a CGI status; a git that refuses it or drops the
-// request's variables (a host's wrapper, say) can't be the stand-in's server.
-const servesHttp = () => {
-  const answer = spawnSync("git", ["http-backend"], { env: { PATH: process.env.PATH, REQUEST_METHOD: "GET" }, input: "", encoding: "utf8" });
-  return answer.stdout.startsWith("Status:") && !answer.stderr.includes("No REQUEST_METHOD");
-};
 const skip = !shellAvailable(process.env)
   ? "gVisor and the toolbox aren't installed (npm run tools:install)"
-  : !has("git") || !has("openssl") ? "the stand-in GitHub needs git and openssl"
-    : !servesHttp() ? "this machine's git doesn't pass a request to git http-backend, the stand-in GitHub's server" : false;
+  : !has("git") || !has("openssl") ? "the stand-in GitHub needs git and openssl" : false;
 
 // A sandbox's gateway socket lives under TMPDIR, as long here as production's (commandInternet.test.js).
 const PRODUCTION_TMPDIR = "/var/lib/mercbot-server-work/tmp";
@@ -62,7 +56,7 @@ async function certificates(dir) {
   return { caFile: file("ca.pem"), key: await fs.readFile(file("leaf.key")), cert: await fs.readFile(file("leaf.pem")) };
 }
 
-/** ann/site, a private repository with one commit on main, in `root` as git http-backend serves it. */
+/** ann/site, a private repository with one commit on main, in `root`, where the stand-in serves it. */
 async function privateRepository(root) {
   const work = path.join(root, "work");
   const bare = path.join(root, "ann", "site.git");
@@ -76,37 +70,33 @@ async function privateRepository(root) {
   return bare;
 }
 
-/** One request answered by git http-backend (CGI): its status, headers and body. */
-function backend(root, request, body) {
+/**
+ * One request of git's smart HTTP (protocol version 0), answered by git upload-pack or receive-pack itself with
+ * --stateless-rpc, run in the repository, which needs nothing but its path: its status, headers and body.
+ */
+async function backend(root, request, body) {
   const url = new URL(request.url, "https://github.com");
-  const child = spawn("git", ["http-backend"], {
-    env: {
-      PATH: process.env.PATH,
-      GIT_PROJECT_ROOT: root,
-      GIT_HTTP_EXPORT_ALL: "1",
-      REMOTE_USER: "x-access-token",
-      REQUEST_METHOD: request.method,
-      PATH_INFO: decodeURIComponent(url.pathname),
-      QUERY_STRING: url.search.slice(1),
-      CONTENT_TYPE: request.headers["content-type"] || "",
-      CONTENT_LENGTH: String(body.length),
-      HTTP_CONTENT_ENCODING: request.headers["content-encoding"] || "",
-      GIT_PROTOCOL: request.headers["git-protocol"] || ""
-    }
-  });
+  const [, name, part] = /^\/(.+?\.git)\/(info\/refs|git-upload-pack|git-receive-pack)$/u.exec(decodeURIComponent(url.pathname)) || [];
+  const advertise = part === "info/refs";
+  const service = advertise ? url.searchParams.get("service") : part;
+  const repository = name ? path.join(root, name) : "";
+  if (!["git-upload-pack", "git-receive-pack"].includes(service) || !repository.startsWith(`${root}${path.sep}`)) {
+    return { status: 404, headers: {}, body: Buffer.alloc(0) };
+  }
+  const input = request.headers["content-encoding"] === "gzip" ? gunzipSync(body) : body;
+  const child = spawn("git", [service.slice(4), "--stateless-rpc", ...(advertise ? ["--advertise-refs"] : []), "."], { cwd: repository });
   const out = [];
   child.stdout.on("data", (chunk) => out.push(chunk));
-  child.stdin.end(body);
-  return new Promise((resolve, reject) => {
-    child.on("error", reject);
-    child.on("close", () => {
-      const all = Buffer.concat(out);
-      const split = all.indexOf("\r\n\r\n");
-      const head = all.subarray(0, split).toString("utf8").split("\r\n");
-      const headers = Object.fromEntries(head.map((line) => [line.slice(0, line.indexOf(":")).toLowerCase(), line.slice(line.indexOf(":") + 1).trim()]));
-      resolve({ status: Number.parseInt(headers.status || "200", 10), headers, body: all.subarray(split + 4) });
-    });
-  });
+  child.stdin.end(advertise ? "" : input);
+  await new Promise((resolve, reject) => child.on("error", reject).on("close", resolve));
+  // An advertisement starts with the service's own line, then a flush, as git http-backend sends it.
+  const line = `# service=${service}\n`;
+  const head = advertise ? Buffer.from(`${(line.length + 4).toString(16).padStart(4, "0")}${line}0000`) : Buffer.alloc(0);
+  return {
+    status: 200,
+    headers: { "content-type": `application/x-${service}-${advertise ? "advertisement" : "result"}`, "cache-control": "no-cache" },
+    body: Buffer.concat([head, ...out])
+  };
 }
 
 let world = null;

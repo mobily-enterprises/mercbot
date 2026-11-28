@@ -116,3 +116,22 @@ test("adding a team makes the same statements for 1 bot as for 6, in a home of 4
   assert.ok(Object.values(counts).every((count) => count === first), JSON.stringify(counts));
   context.diagnostic(JSON.stringify(counts));
 });
+
+// A ready-made app that comes with a bot (D-144): its library template's bot is made in the home the first time, as Add
+// bots makes one, and the home's bot on that template is used every time after, so there's never a second; a home that
+// has one already (even renamed) keeps it.
+test("an app's bot is made once from the library, and a home's bot on its template is used after that", async (context) => {
+  const kit = await startSurfaces(knex, context);
+  const { homeId, as } = await seedHome(knex, context);
+  const first = await kit.teams.appBot("learner", as("anna"));
+  const again = await kit.teams.appBot("learner", as("ben"));
+  const made = await madeIn(homeId);
+  assert.deepEqual(made.map((row) => [String(row.id), row.name, row.library_template]), [[first.id, "Learner", "learner"]]);
+  assert.deepEqual(again, first);
+
+  const other = await seedHome(knex, context);
+  const own = await other.bot("Miss Page", { library_template: "learner" });
+  assert.deepEqual(await kit.teams.appBot("learner", other.as("anna")), { id: own, name: "Miss Page" });
+  assert.equal((await madeIn(other.homeId)).length, 1, "no second copy");
+  await assert.rejects(kit.teams.appBot("nobody", as("anna")), { statusCode: 400, code: "bots_add_template_unknown" });
+});

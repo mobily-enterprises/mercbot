@@ -33,9 +33,7 @@ export function createAppIcon({ resources, apps, files }) {
     if (icon !== undefined && !isAppIcon(icon)) {
       throw new RegistryError(400, `“${icon}” isn't one of the app pictures.`, { code: "apps_icon_unknown", params: { icon } });
     }
-    if (color !== undefined && !COLOUR.test(String(color))) {
-      throw new RegistryError(400, "A colour is written #RRGGBB, such as #1E5BD8.", { code: "apps_color_invalid" });
-    }
+    checkColour(color);
     const app = await apps.find(slugOrId, options);
     // Choosing a set picture takes a bot's picture away.
     const to = { icon: icon ?? app.icon, color: color ?? app.color, picture: icon === undefined ? app.picture : null };
@@ -45,10 +43,12 @@ export function createAppIcon({ resources, apps, files }) {
 
   /**
    * Puts a bot's picture on an app's or a view's tile: `upload` ({ source, name }, a file the caller may read) must be a
-   * PNG, JPEG, GIF or WebP picture (400 `apps_icon_not_picture`). It's kept with the home's Database files; the one it
-   * replaces goes. Answers { icon, color, picture }.
+   * PNG, JPEG, GIF or WebP picture (400 `apps_icon_not_picture`), and its `color`, when given, goes on in the same
+   * change (400 `apps_color_invalid`). It's kept with the home's Database files; the one it replaces goes. Answers
+   * { icon, color, picture }.
    */
   async function putPicture(actor, slugOrId, upload, options) {
+    checkColour(upload.color);
     const head = Buffer.alloc(16);
     const handle = await open(upload.source, "r");
     await handle.read(head, 0, 16, 0).finally(() => handle.close());
@@ -57,9 +57,16 @@ export function createAppIcon({ resources, apps, files }) {
     if (!writer) throw new RegistryError(503, "Pictures can't be kept right now.", { code: "apps_files_unavailable" });
     const app = await apps.find(slugOrId, options);
     const written = await writer.write(homeIdOf(options), { table: "app-pictures", record: app.id, field: "tile" }, upload.source, upload.name);
-    const to = { icon: app.icon, color: app.color, picture: written.path };
+    const to = { icon: app.icon, color: upload.color ?? app.color, picture: written.path };
     await save(actor, app, to, options);
     return to;
+  }
+
+  /** A colour, when given, is #RRGGBB (400 `apps_color_invalid`). */
+  function checkColour(color) {
+    if (color !== undefined && !COLOUR.test(String(color))) {
+      throw new RegistryError(400, "A colour is written #RRGGBB, such as #1E5BD8.", { code: "apps_color_invalid" });
+    }
   }
 
   /** Writes the tile and its activity entry together, then removes a bot's picture the tile no longer shows. */

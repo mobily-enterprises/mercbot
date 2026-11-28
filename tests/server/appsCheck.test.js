@@ -401,3 +401,32 @@ test("a form names a field its own way in plain words only", () => {
   assert.deepEqual(errorsFor("Aisle"), []);
   for (const label of ["=row.title", "", " padded", "x".repeat(61)]) assert.match(JSON.stringify(errorsFor(label)), /own name for the field/u, JSON.stringify(label));
 });
+
+// A progress bar (D-143) shows a number out of its most (100 unless it says): numbers or number formulas only.
+test("a progress bar shows a number out of its most, and refuses anything else", () => {
+  const shown = app();
+  shown.screens.sales.content.push({ type: "progress", label: "Won", value: "=2.0", max: "=4.0" }, { type: "progress", value: 40 });
+  assert.deepEqual(checkApp(shown, tables), []);
+  const broken = app();
+  broken.screens.sales.content.push({ type: "progress", value: '="half"' }, { type: "progress" }, { type: "progress", value: 3, max: 0 });
+  assert.deepEqual(checkApp(broken, tables).map((error) => `${error.path}: ${error.message}`), [
+    "screens.sales.content[1].value: must be a number, but this formula gives string.",
+    "screens.sales.content[2].value: is how far along it is: a number, or a formula giving one, such as \"=data.course.done\".",
+    "screens.sales.content[3].max: is a number over 0 (100 unless it says), or a formula giving one."
+  ]);
+});
+
+// A celebration (D-143) is a step: its words, or a formula giving them; a public screen may celebrate too.
+test("a button celebrates with words or a formula, on a public screen too", () => {
+  const party = app();
+  party.screens.edit.content[1].buttons[0].do.push({ celebrate: '="Saved " + form.name' });
+  party.screens.list.content[1].onRowClick.push({ celebrate: "Well done!" });
+  party.public = { home: "thanks", tables: {} };
+  party.screens.thanks = { public: true, content: [{ type: "button", label: "Hooray", do: [{ celebrate: "You did it!" }] }] };
+  assert.deepEqual(checkApp(party, tables), []);
+  party.screens.list.content[1].onRowClick.push({ celebrate: { text: "x" } }, { celebrate: "=1.0" });
+  assert.deepEqual(checkApp(party, tables).map((error) => `${error.path}: ${error.message}`), [
+    "screens.list.content[1].onRowClick[2].celebrate: is the words to celebrate with, or a formula giving them.",
+    "screens.list.content[1].onRowClick[3].celebrate: must be string, but this formula gives double."
+  ]);
+});

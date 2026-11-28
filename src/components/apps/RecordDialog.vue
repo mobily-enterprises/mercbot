@@ -113,6 +113,9 @@ const worked = computed(() => {
   return calculate(props.table, formulaRecord(props.table, typed));
 });
 
+// The file going up as the record saves, and how much of it has gone, which its field shows.
+const sending = reactive({ field: "", percent: null });
+
 async function save() {
   saving.value = true;
   problem.value = "";
@@ -127,8 +130,11 @@ async function save() {
     wrote = true;
     made.value = props.record ? null : saved;
     for (const field of fields.value.filter((entry) => chosen[entry.id])) {
+      Object.assign(sending, { field: field.id, percent: null });
       try {
-        saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id]);
+        saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id], (percent) => {
+          sending.percent = percent;
+        });
       } catch (error) {
         // The record is in; this file isn't. Its field says why, and Save tries it again.
         fileProblems[field.id] = errorText(error, "That file didn't upload.");
@@ -150,6 +156,7 @@ async function save() {
     if (wrote) emit("changed");
   } finally {
     saving.value = false;
+    sending.field = "";
   }
 }
 </script>
@@ -173,6 +180,8 @@ async function save() {
           v-model:chosen="chosen[field.id]"
           :field="field"
           :error-messages="problemOf(field) || fileProblems[field.id] || ''"
+          :busy="sending.field === field.id"
+          :progress="sending.percent"
         />
         <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="labelOf(field)" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
         <v-text-field

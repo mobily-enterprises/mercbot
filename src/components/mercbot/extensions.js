@@ -34,6 +34,8 @@
 //   { component }. The component gets the `bot` as the home has it, and may use the chat (shellChat.js).
 // - messageCards: cards for kinds of message Mercbot doesn't show itself, each { kind, component }. The component gets
 //   the `message` and the `chat` that shows it, and may use the chat (shellChat.js).
+// - introSlides: whether a person's first visit to their first home shows Mercbot's intro slides before the shell
+//   (true), or goes straight to the shell (false), for a copy whose own first-run screens take their place (D-142).
 // - peopleActions: the People section's + in the sidebar, at most one, { component, visible }. The shell asks
 //   `visible` once when the sidebar opens; the component gets `homeName` and renders the + itself, with its own dialog
 //   (the + is `<v-btn icon="$add" variant="text" size="small" density="comfortable" aria-label="...">`, as Rooms' and
@@ -50,5 +52,6 @@ export default {
   pageShareParts: [],
   botActions: [],
   messageCards: [],
-  peopleActions: []
+  peopleActions: [],
+  introSlides: true
 };

@@ -25,7 +25,7 @@ const NO_BOTS = Object.freeze({
 
 // Connected apps for scripts (D-136, the bots' mercbot.app-connected): none in a home without bots. A test that needs
 // them gives its own as the input "mercbot.app-connected".
-const NO_CONNECTED_APPS = Object.freeze({
+export const NO_CONNECTED_APPS = Object.freeze({
   usable: () => false,
   choices: async () => [],
   actions: async () => [],
@@ -35,7 +35,9 @@ const NO_CONNECTED_APPS = Object.freeze({
   },
   run: async () => {
     throw new Error("These apps tests have no connected apps.");
-  }
+  },
+  // A ready-made app's bot (D-144): a home without bots makes none, so the app has no bot of its own.
+  appBot: async () => null
 });
 
 /**

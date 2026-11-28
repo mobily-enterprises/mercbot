@@ -41,6 +41,7 @@ home, with every change audited and nothing ever deleted (D-35).
 - `src/components/apps/AppsTable.vue`
 - `src/components/apps/RecordDialog.vue`
 - `src/components/apps/RecordFileField.vue`
+- `src/components/apps/uploadFile.js`
 - `src/components/apps/fieldValues.js`
 - `src/components/apps/tableLinks.js`
 - `src/components/apps/linkPickers.js`
@@ -59,7 +60,11 @@ home, with every change audited and nothing ever deleted (D-35).
 
 - Records live in json-rest-api's AnyAPI storage, one tenant per home (`ws:<id>`); tables and
   fields have permanent ids (`t_…`, `f_…`) that are AnyAPI's resource and field names, while keys
-  and labels live in `app_tables`/`app_fields`. Renaming changes only the registry. Field types:
+  and labels live in `app_tables`/`app_fields`. Renaming changes only the registry. Each server keeps one AnyAPI
+  instance per home (`anyapi.js`), declaring every table; a change to tables or fields is announced
+  (`apps-registry`), and every server drops its instance to build it again, except the one that made a new table or
+  field, whose instance has it already (`changed(…, { inPlace })`), so making one costs what it changes, not the
+  home's other tables. Field types:
   text, email, phone, choice, link, number, money (whole cents), date (YYYY-MM-DD), yesno, and
   (D-130) person (a member's user id, checked against the home's members whenever a write sets it,
   so a record keeps a member who has left until someone sets another, and labelled by name,
@@ -88,7 +93,8 @@ home, with every change audited and nothing ever deleted (D-35).
   or clears it removes the old one after it's in. A picture is PNG, JPEG, GIF or WebP by its
   bytes. A draft's practice data and a visitor add none. Uploads come through
   `POST app-data/tables/:key/records/:id/files/:field` (the files' size limit and picture and
-  video check). `recordFile` serves one by record and field through the gate's visitor rules, for
+  video check), sent by `uploadFile.js` through XMLHttpRequest so the field shows how much has gone up
+  (`RecordFileField.vue` `progress`: a bar and "Uploading… N%"). `recordFile` serves one by record and field through the gate's visitor rules, for
   a copy's public routes. Files lists `/files/db` read-only in every place (files.md).
 - **Related records** (`gate.related`, `relatedRecords.js`): the records linking to one, grouped by
   table and link field, the first 10 of each with its count. That's one read per link field

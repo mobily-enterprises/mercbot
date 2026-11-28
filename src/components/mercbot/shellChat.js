@@ -41,6 +41,14 @@ export function createKeyHolds() {
 }
 
 /**
+ * Whether a person's visit to a home with no chats yet shows the intro slides (MercbotIntro.vue): only in their first
+ * home (D-36), and only when the copy (extensions.js `introSlides`) hasn't first-run screens of its own (D-142).
+ * @param {number} homeCount how many homes the person has
+ * @param {{ introSlides?: boolean }} extensions
+ */
+export const showsIntroSlides = (homeCount, extensions) => homeCount <= 1 && extensions.introSlides !== false;
+
+/**
  * The shell's check, as it starts, of what a copy built on Mercbot adds (extensions.js): a copy still written for a
  * shape that's gone stops here, naming the fix, instead of losing its part without a word.
  * @param {Record<string, unknown>} extensions

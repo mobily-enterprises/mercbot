@@ -65,6 +65,17 @@ An app's screen can show records as cards you move around:
 
 A move is an ordinary change of the record: if the table's rules refuse it (say, a deal can't be won without an amount), the card goes back and you're told why. On a phone, boards and timelines scroll sideways and a calendar shows one week as a list. Ask the Builder for one, for example "show deals as a board by stage".
 
+### Screens that keep up
+
+An open app screen updates by itself when its records change, whoever changes them: someone else in the home, a bot, or one of the app's own jobs. After a moment its lists, totals and progress bars show the change, without reloading. If you're editing a record when that happens, what you've typed stays as it is; the fields you haven't touched show the new values.
+
+A form's link field can offer only some records, such as only the books that are ready: ask the Builder for it.
+
+### Progress bars and celebrations
+
+- A **progress bar** shows how far along something is, such as the lessons done of a course or the chores ticked off this week, with its percentage.
+- A button can **celebrate**: confetti and a few words over the app for a moment, such as "Lesson done!" when someone finishes something. If your device is set to reduce motion, only the words show.
+
 ## Preview, then publish
 
 Every change to an app goes through two stages: draft, then publish.

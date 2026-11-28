@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, inject, ref } from "vue";
 import AppForm from "./AppForm.vue";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
-import { isCalculated } from "@local/apps/shared";
+import { isCalculated, progressPercent } from "@local/apps/shared";
 import { FIELD_REFERENCE, ICON_PATHS, groupLabel, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY, NO_APP_FORM, useAppArea } from "./screenKeys.js";
 import { fileUrl } from "@/components/mercbot/filesApi.js";
@@ -109,6 +109,9 @@ const grandTotalText = computed(() => {
   if (!grand) return "";
   return measureField.value && props.node.measure !== "count" ? showValue(measureField.value, grand.total) : String(grand.count);
 });
+
+// A progress bar (D-143): its value out of its most (100 unless it says), as a whole percentage from 0 to 100.
+const percent = computed(() => progressPercent(value(props.node.value), props.node.max === undefined ? 100 : value(props.node.max)));
 
 const stateName = computed(() => String(props.node.bind || "").split(".")[1]);
 const inputValue = computed({
@@ -294,6 +297,14 @@ const openRow = (record) => props.node.onRowClick && runtime.run(`${props.path}/
       <AppChart v-else :kind="node.kind || 'bar'" :label="String(value(node.label) ?? '')" :rows="rows" :field="groupField" :measure-field="measureField" :measure="node.measure || 'count'" />
       <div v-if="grandTotalText && !isLoading(queryName)" class="d-flex justify-space-between text-body-2 mt-2"><span>Total</span><strong>{{ grandTotalText }}</strong></div>
     </v-card>
+
+    <div v-else-if="node.type === 'progress'" class="app-progress">
+      <div class="d-flex justify-space-between ga-2 text-body-2 mb-1">
+        <span>{{ value(node.label) ?? "" }}</span>
+        <strong>{{ percent }}%</strong>
+      </div>
+      <v-progress-linear :model-value="percent" color="primary" bg-color="surface-container-highest" bg-opacity="1" rounded height="12" :aria-label="String(value(node.label) ?? 'Progress')" />
+    </div>
 
     <AppViewPart v-else-if="node.type === 'view'" :node="node" :path="path" :scope="scope" />
 

@@ -31,6 +31,7 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `src/components/apps/AppCalendar.vue`
 - `src/components/apps/AppTimeline.vue`
 - `src/components/apps/useBoardCards.js`
+- `src/components/apps/AppCelebration.vue`
 
 ## Public contract
 
@@ -104,6 +105,17 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   10 MB), and a picture field takes a photo on a phone. A plain reference to a picture field shows the picture, small,
   to members (`showsPictures`); a visitor sees its name.
 - A create form's `onSubmit` sends (D-137) are sending.md's.
+- **Live screens (D-144):** an app's running screen, as a view's (D-55), follows the home's change stream
+  (`useLiveData`): the queries whose tables changed, roll-up parents included, are read again after a quiet second. An
+  edit form read again keeps what the person typed and hasn't saved and shows the rest as it is now (`fieldValues.js`
+  `refreshedDraft`).
+- **A link field's choices (D-144):** a form field `{ field, choices: "=data.<list>" }` names one of the screen's list
+  queries over the table the link picks from; `linkChoices` answers that query's records with the page's values and the
+  search, through the same access (`check.js` holds it to such a list).
+- **Progress and celebrations (D-143):** a `progress` part shows `value` out of `max` (100 unless it says) as a whole
+  percentage from 0 to 100 (`shared/formulas.js` `progressPercent`), in views too, and `app_try` reads it as
+  `{ progress, percent }`; a `celebrate` step (words or a formula, public screens too) comes back as an effect the frame
+  draws over the app's area with confetti for 2.6 s (`AppCelebration.vue`; none under reduced motion).
 
 - A form names a field its own way (`{ field, label }`: plain words, 1 to 60 characters, checked; shown by
   `AppForm.vue`), as an app does a shared table's general field; a `lines` part takes `preset`, given to every new
@@ -124,3 +136,6 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `tests/server/appsBoards.integration.js`
 - `tests/server/appsForms.integration.js`
 - `tests/client/appForm.vitest.js`
+- `tests/client/appProgress.vitest.js`
+- `tests/client/appLive.vitest.js`
+- `tests/client/fieldValues.vitest.js`

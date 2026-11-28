@@ -100,7 +100,10 @@ const FilesFeature = defineFeature({
       receive: (stream, item, target) => writeUpload(stream, { target, media: files.media, item }),
       limit: UPLOAD_LIMIT,
       // A record's document (D-140): a web page the apps fill in, made into a PDF by the office apps.
-      pdf: (homeId, html, target) => files.apps.htmlToPdf(files.store.homePlace(homeId), html, target)
+      pdf: (homeId, html, target) => files.apps.htmlToPdf(files.store.homePlace(homeId), html, target),
+      // A record's file read as text (D-143): a document, spreadsheet, presentation or PDF, by the office apps; null for
+      // another kind, or where they aren't.
+      text: (homeId, virtualPath) => files.apps.textOf(files.store.homePlace(homeId), virtualPath)
     });
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,

@@ -8,6 +8,7 @@ import AppDetailsPanel from "@/components/apps/AppDetailsPanel.vue";
 import AppTile from "@/components/apps/AppTile.vue";
 import AppNode from "@/components/apps/AppNode.vue";
 import AppTheme from "@/components/apps/AppTheme.vue";
+import AppCelebration from "@/components/apps/AppCelebration.vue";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
@@ -43,6 +44,8 @@ const functions = shallowRef(null);
 const problem = ref("");
 const runtime = shallowRef(null);
 const { snackbar, notify } = useSnackbar();
+// How long a celebration plays before it goes (D-143).
+const CELEBRATION_MS = 2600;
 useAppExit();
 const publishing = ref(false);
 const resetting = ref(false);
@@ -92,11 +95,21 @@ async function confirmConnected() {
   }
 }
 
+// A button's celebration (D-143): its words and confetti over the app's area, for as long as they play.
+const celebration = ref(null);
+let celebrationTimer = null;
+function celebrate(message) {
+  clearTimeout(celebrationTimer);
+  celebration.value = { message, key: (celebration.value?.key ?? 0) + 1 };
+  celebrationTimer = setTimeout(() => (celebration.value = null), CELEBRATION_MS);
+}
+
 function onEffects(result) {
   for (const effect of result.effects || []) {
     if (effect.confirmConnected) confirming.value = [...confirming.value, effect.confirmConnected];
     else if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
     else if (effect.notify) notify(effect.notify);
+    else if (effect.celebrate !== undefined) celebrate(effect.celebrate);
     else if (effect.set) runtime.value.state[effect.set.state] = effect.set.value;
     else if (effect.openDialog) runtime.value.dialogs[`dialog:${effect.openDialog}`] = true;
     else if (effect.closeDialog) runtime.value.dialogs[`dialog:${effect.closeDialog}`] = false;
@@ -160,7 +173,9 @@ watch(() => route.fullPath, (next, previous) => {
 });
 
 provide(APP_SCREEN_KEY, new Proxy({}, { get: (_target, key) => runtime.value?.[key] }));
-useLiveData(computed(() => (isView.value ? runtime.value : null)));
+// Every running screen, an app's as a view's, re-reads what changed in the home's tables (D-55, D-144): a job, a bot or
+// someone else's change shows without reloading.
+useLiveData(computed(() => runtime.value));
 
 // A copy of a view whose original has moved on (D-55): the app asks, once per new version.
 const SKIPPED = "mercbot.view-copies-skipped";
@@ -349,6 +364,7 @@ async function publish() {
             <AppNode v-for="(node, index) in screen.content" :key="index" :node="node" :path="`content/${index}`" />
           </div>
         </main>
+        <AppCelebration v-if="celebration" :key="celebration.key" :message="celebration.message" />
       </div>
 
       <v-bottom-navigation v-if="navItems.length && navStyle === 'bottom'" :model-value="screenKey" grow>
@@ -409,6 +425,7 @@ async function publish() {
   flex: 0 0 auto;
 }
 .app-frame__body {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;

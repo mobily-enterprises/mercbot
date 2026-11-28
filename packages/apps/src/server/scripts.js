@@ -169,7 +169,7 @@ export function createScripts({
   }
 
   /** Saves a script only when it's well formed and every test passes, to the app's draft (D-139). Audited; version + 1. */
-  async function save(actor, appSlug, input, options) {
+  async function save(actor, appSlug, input, options, { fromTemplate = false } = {}) {
     const app = await apps.find(appSlug, options);
     apps.notAView(app, "have scripts");
     const tables = await registry.loadTables(options);
@@ -188,6 +188,8 @@ export function createScripts({
       };
     }
     const row = await appScripts.withTransaction(options, async (txOptions) => {
+      // A script not from the app's template makes it a fork (D-141).
+      if (!fromTemplate) await apps.fork(app, txOptions);
       const saved = await apps.scriptDrafts.save(actor, app.id, input.key, {
         kind: input.kind,
         summary: String(input.summary).trim().slice(0, 300),
@@ -214,6 +216,7 @@ export function createScripts({
     const app = await apps.find(appSlug, options);
     await scriptOf(app, key, options);
     await appScripts.withTransaction(options, async (txOptions) => {
+      await apps.fork(app, txOptions);
       await apps.scriptDrafts.remove(actor, app.id, String(key), txOptions);
       await audit({ actor, via: { kind: "app", appId: app.id }, action: "script", changes: { script: { key, removed: true, draft: true } } }, txOptions);
     });

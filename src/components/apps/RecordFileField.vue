@@ -15,6 +15,8 @@ const props = defineProps({
   errorMessages: { type: String, default: "" },
   // Its file is going up or being taken away: the field shows it, in its own place, and takes nothing else meanwhile.
   busy: { type: Boolean, default: false },
+  // How much of it has gone up, in percent, while it does; null before the browser has said.
+  progress: { type: Number, default: null },
   // Another field's file is: this one takes nothing meanwhile either.
   disabled: { type: Boolean, default: false }
 });
@@ -48,6 +50,7 @@ const photoTaken = (event) => {
       :label="current ? `Replace ${field.label.toLowerCase()}` : label"
       :accept="picture ? 'image/png,image/jpeg,image/gif,image/webp' : undefined"
       :error-messages="errorMessages"
+      :messages="busy && progress !== null ? `Uploading… ${progress}%` : undefined"
       :loading="busy"
       :disabled="busy || disabled"
       :prepend-icon="picture ? '$image' : '$attachFile'"
@@ -56,7 +59,19 @@ const photoTaken = (event) => {
       clearable
       hide-details="auto"
       @update:model-value="(file) => emit('update:chosen', Array.isArray(file) ? file[0] || null : file || null)"
-    />
+    >
+      <template #loader>
+        <v-progress-linear
+          v-if="busy"
+          :model-value="progress ?? 0"
+          :indeterminate="progress === null"
+          color="primary"
+          height="2"
+          absolute
+          :aria-label="`Uploading ${field.label}`"
+        />
+      </template>
+    </v-file-input>
     <template v-if="picture && touch">
       <input ref="camera" type="file" accept="image/*" capture="environment" class="d-none" @change="photoTaken">
       <v-btn variant="text" size="small" prepend-icon="$photoCameraFilled" :disabled="busy || disabled" class="mt-1" @click="camera?.click()">Take a photo</v-btn>

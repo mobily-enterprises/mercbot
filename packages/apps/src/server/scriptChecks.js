@@ -63,7 +63,7 @@ export const hostFor = (kind) =>
           web: { fetch: true },
           connected: { actions: true, run: true },
           people: { me: true },
-          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true } }),
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true, text: true } }),
           // Sending without a button press (D-137): a job's, when the app's owners and admins switched it on.
           ...(kind === "job" ? { notify: { member: true, email: true } } : {})
         };

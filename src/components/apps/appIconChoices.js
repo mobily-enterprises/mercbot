@@ -14,3 +14,12 @@ export function iconGroups(search = "") {
     }))
     .filter((entry) => entry.names.length);
 }
+
+/**
+ * What the picker starts on: the tile's set picture and colour, or no set picture chosen while a bot's picture is on the
+ * tile (choosing one replaces it).
+ */
+export const startingLook = ({ icon, color, picture }) => ({ icon: picture ? null : icon, color });
+
+/** What the picker saves: the colour, and the set picture once one is chosen, so a colour alone keeps a bot's picture. */
+export const lookToSave = ({ icon, color }) => ({ ...(icon ? { icon } : {}), color });
