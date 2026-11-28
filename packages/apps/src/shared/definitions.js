@@ -245,6 +245,8 @@ function convertDefinition(definition, map) {
         const [converted, target] = tableRef(item.table, `${path}.table`);
         item.table = converted;
         if (typeof item.link === "string") item.link = field(target, item.link, `${path}.link`);
+        // What every new line is given besides its link (a shared list's namespace), by field ids.
+        if (item.preset) item.preset = mapValues(item.preset, target, scope, `${path}.preset`);
         inner = { ...scope, row: target, form: target };
       } else if (BOARD_FIELDS[item.type]) {
         // A board's, calendar's or timeline's fields (boards.js), and its card words over the row.
@@ -254,6 +256,7 @@ function convertDefinition(definition, map) {
       }
       for (const [key, value] of Object.entries(item)) {
         if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick", "onClick", "onSubmit"].includes(key)) continue;
+        if (item.type === "lines" && key === "preset") continue;
         if (BOARD_FIELDS[item.type] && ["title", "subtitle", ...BOARD_FIELDS[item.type]].includes(key)) continue;
         item[key] = formula(value, scope, `${path}.${key}`);
       }

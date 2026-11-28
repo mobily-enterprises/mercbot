@@ -1,0 +1,81 @@
+{
+  "key": "list_items",
+  "label": "List items",
+  "description": "Items on simple lists any app keeps: shopping, packing, wishes and the like. Each item names its app's kind of list (kind), so every app sees only its own.",
+  "aliases": [
+    "shopping list",
+    "shopping items",
+    "packing list",
+    "wish list",
+    "list entries"
+  ],
+  "fields": [
+    {
+      "key": "kind",
+      "type": "text",
+      "label": "Kind of list",
+      "required": true
+    },
+    {
+      "key": "list_name",
+      "type": "text",
+      "label": "List"
+    },
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Item",
+      "required": true
+    },
+    {
+      "key": "done",
+      "type": "yesno",
+      "label": "Done"
+    },
+    {
+      "key": "quantity",
+      "type": "number",
+      "label": "Quantity"
+    },
+    {
+      "key": "unit",
+      "type": "text",
+      "label": "Unit"
+    },
+    {
+      "key": "group",
+      "type": "text",
+      "label": "Group"
+    },
+    {
+      "key": "amount",
+      "type": "money",
+      "label": "Amount"
+    },
+    {
+      "key": "due",
+      "type": "date",
+      "label": "Due"
+    },
+    {
+      "key": "person",
+      "type": "person",
+      "label": "Person"
+    },
+    {
+      "key": "link",
+      "type": "url",
+      "label": "Link"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    },
+    {
+      "key": "position",
+      "type": "number",
+      "label": "Position"
+    }
+  ]
+}

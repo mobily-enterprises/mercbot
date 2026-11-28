@@ -19,7 +19,14 @@ import { loadTables, toField } from "./tables.js";
 export const FIELD_TYPES = Object.keys(STORAGE_TYPES);
 const KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 // Names formulas use for themselves can't be field or table names.
-const RESERVED = new Set(["id", "obsolete_at", "state", "params", "data", "row", "form", "user", "today", "now", "me", "visitor"]);
+// Names a formula reads besides fields, and the formula language's own reserved words and type names (a field
+// "namespace" or "list" would make every formula over its table fail to check).
+const RESERVED = new Set([
+  "id", "obsolete_at", "state", "params", "data", "row", "form", "user", "today", "now", "me", "visitor",
+  "as", "break", "const", "continue", "else", "for", "function", "if", "import", "let", "loop", "package", "namespace",
+  "return", "var", "void", "while", "in", "true", "false", "null",
+  "list", "map", "int", "uint", "double", "bool", "string", "bytes", "null_type", "type", "optional", "google"
+]);
 
 /** A refusal of a change to a home's tables, fields or apps, answered with its status, message and code. */
 export class RegistryError extends AppError {

@@ -55,6 +55,9 @@ test("a lines part stands for a linked list with Edit and Remove, an add form an
   assert.deepEqual(add.buttons[0].do, [{ create: { table: "invoice_lines", values: "=form.values", preset: { invoice: "=params.id" } } }]);
   assert.equal(dialog.content[0].record, "=data.line_1");
   assert.equal(expandLines(app(lines({ add: false })).screens.invoice).content[1].content.some((part) => part.type === "form"), false);
+  // A preset (a shared list's kind) is given to every new line, besides its link, which always wins.
+  const preset = expandLines(app(lines({ preset: { kind: "shopping", invoice: "=1" } })).screens.invoice).content[1].content[2];
+  assert.deepEqual(preset.buttons[0].do[0].create.preset, { kind: "shopping", invoice: "=params.id" });
   const plain = app().screens.invoice;
   delete plain.content[1];
   assert.equal(expandLines(plain), plain, "a screen without lines comes back as it is");

@@ -1,0 +1,206 @@
+{
+  "key": "packing_list",
+  "name": "Packing list",
+  "icon": "check",
+  "glyph": "luggage",
+  "color": "#3F4FB8",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "What to pack for each trip, and for whom: tick things off as they go in the bag.",
+  "uses": [
+    "list_items"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "list",
+    "screens": {
+      "list": {
+        "data": {
+          "open": {
+            "from": "list_items",
+            "where": "=kind == \"packing\" && done != true",
+            "sort": "list_name"
+          },
+          "done": {
+            "from": "list_items",
+            "where": "=kind == \"packing\" && done == true",
+            "sort": "title",
+            "limit": 30
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "table": "list_items",
+            "fields": [
+              {
+                "field": "title",
+                "label": "Item"
+              },
+              {
+                "field": "list_name",
+                "label": "Trip"
+              },
+              {
+                "field": "group",
+                "label": "For whom"
+              },
+              {
+                "field": "quantity",
+                "label": "How many"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "list_items",
+                      "values": "=form.values",
+                      "preset": {
+                        "kind": "packing",
+                        "done": false
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  }
+                ],
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Still to pack",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Trip",
+                "value": "=row.list_name"
+              },
+              {
+                "label": "Item",
+                "value": "=row.title"
+              },
+              {
+                "label": "For whom",
+                "value": "=row.group"
+              },
+              {
+                "label": "How many",
+                "value": "=row.quantity"
+              }
+            ],
+            "search": "Find an item",
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Packed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=true"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "check"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=row"
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "close"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Packed",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.done",
+            "columns": [
+              {
+                "label": "Trip",
+                "value": "=row.list_name"
+              },
+              {
+                "label": "Item",
+                "value": "=row.title"
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Unpack",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=false"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "back"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "list_items": [
+      {
+        "kind": "packing",
+        "done": false,
+        "title": "Passports",
+        "list_name": "Summer in Lisbon",
+        "group": "Everyone"
+      },
+      {
+        "kind": "packing",
+        "done": false,
+        "title": "Sun cream",
+        "list_name": "Summer in Lisbon",
+        "group": "Everyone"
+      },
+      {
+        "kind": "packing",
+        "done": false,
+        "title": "Swimming goggles",
+        "list_name": "Summer in Lisbon",
+        "group": "Maya",
+        "quantity": 1
+      }
+    ]
+  }
+}

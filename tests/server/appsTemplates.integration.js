@@ -222,3 +222,24 @@ test("every template installs with its sample data, all of them in one home", as
   }
   assert.deepEqual(problems, []);
 });
+
+// The shared list (D-141): apps keep their items in one list_items table, each app its own kind of list. Shopping list
+// and Meal planner share the kind "shopping", so each sees the other's items; Packing list sees only its own.
+test("list apps share one table, each seeing its own kind of list", async (context) => {
+  const { apps: capability, userId, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-lists" });
+  const { apps, runtime } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const live = {};
+  for (const key of ["shopping_list", "meal_planner", "packing_list"]) {
+    const { app, errors, skipped } = await capability.installTemplate(ctx, key, { sample: true });
+    assert.deepEqual([errors, skipped], [[], 0], key);
+    await apps.publish(ctx.actor, app.slug, {}, ctx.options);
+    live[key] = app.id;
+  }
+  const titles = async (key, screen, query) =>
+    (await runtime.query(ctx, { slug: live[key], version: "live", screen, query })).records.map((record) => record.title).sort();
+  const shopping = await titles("shopping_list", "list", "open");
+  assert.deepEqual(await titles("meal_planner", "shopping", "toGet"), shopping, "one shopping list for both apps");
+  assert.ok(shopping.includes("Milk") && shopping.includes("Lasagne sheets"), "each app's items are on it");
+  assert.deepEqual(await titles("packing_list", "list", "open"), ["Passports", "Sun cream", "Swimming goggles"], "packing keeps its own");
+});

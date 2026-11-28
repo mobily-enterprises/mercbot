@@ -37,7 +37,11 @@ const attaching = reactive({ field: "", failed: "", problem: "", round: 0 });
 const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))
   .filter((entry) => !refersToRemovedField(entry.field))
-  .map((entry) => ({ ...entry, def: table.value?.fields.find((field) => field.key === entry.field) }))
+  // A form may name a field its own way ({ field, label }), as an app does a shared table's general field.
+  .map((entry) => {
+    const def = table.value?.fields.find((field) => field.key === entry.field);
+    return { ...entry, def: def && entry.label ? { ...def, label: entry.label } : def };
+  })
   .filter((entry) => entry.def && !(isFileField(entry.def) && !(creating.value ? runtime.filesOnNew : runtime.attachesFiles))));
 // A create form's chosen files and pictures, by field: they go onto the record once its button has made it.
 const pending = reactive({});

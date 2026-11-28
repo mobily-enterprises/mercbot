@@ -69,6 +69,11 @@ test("tables and fields made on one server work on another", async (context) => 
   assert.equal(contacts.titleFieldId, field("name"));
   await assert.rejects(a.registry.createTable(actor, { key: "contacts" }, options), /already a table/u);
   await assert.rejects(a.registry.createTable(actor, { key: "Bad Key!" }, options), /must start with a letter/u);
+  // The formula language's own words can't name a field or a table: every formula over the table would fail to check.
+  for (const word of ["namespace", "for", "if", "let", "list", "map", "string"]) {
+    await assert.rejects(a.registry.createTable(actor, { key: "notes", fields: [{ key: word, type: "text" }] }, options), { code: "apps_key_reserved" }, word);
+  }
+  await assert.rejects(a.registry.createTable(actor, { key: "package" }, options), { code: "apps_key_reserved" });
   await assert.rejects(a.registry.addField(actor, "contacts", { key: "x", type: "choice" }, options), /at least one choice/u);
 
   // Server B has never seen the table: it builds its instance from the registry.

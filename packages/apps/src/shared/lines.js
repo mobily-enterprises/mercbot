@@ -72,7 +72,8 @@ export function expandLines(screen) {
                 type: "button",
                 label: "Add line",
                 icon: "add",
-                do: [{ create: { table: node.table, values: "=form.values", preset: { [node.link]: `=${id}` } } }]
+                // A new line is given its link, and what the part presets (a shared list's namespace).
+                do: [{ create: { table: node.table, values: "=form.values", preset: { ...(node.preset || {}), [node.link]: `=${id}` } } }]
               }]
             }]),
         {

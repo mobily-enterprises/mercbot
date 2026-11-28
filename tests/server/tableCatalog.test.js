@@ -4,10 +4,10 @@ import { CATALOG, catalogMatch, catalogProblems, needsOf } from "../../packages/
 
 // The shared tables' catalog (D-130) is checked as the server starts: every file here passes, and each kind of broken
 // file is named. Names people use find their table, singular or plural.
-test("the catalog is sound: twelve shared tables, links that resolve, one extension with its one-to-one link", () => {
+test("the catalog is sound: thirteen shared tables, links that resolve, one extension with its one-to-one link", () => {
   assert.deepEqual(catalogProblems([...CATALOG.values()]), []);
   assert.deepEqual([...CATALOG.keys()].sort(), [
-    "contacts", "crm_contacts", "deals", "departments", "event_attendees", "events", "graphics", "organisations", "place_categories", "places", "todo_lists", "todos"
+    "contacts", "crm_contacts", "deals", "departments", "event_attendees", "events", "graphics", "list_items", "organisations", "place_categories", "places", "todo_lists", "todos"
   ]);
   assert.deepEqual(needsOf(CATALOG.get("todos")), ["todo_lists", "contacts"], "its own parent link aside");
   assert.equal(CATALOG.get("crm_contacts").extends, "contacts");

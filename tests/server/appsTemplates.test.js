@@ -28,7 +28,12 @@ test("each template is a valid app on its own tables", () => {
       needsOf(CATALOG.get(key)).forEach(add);
     };
     (template.uses || []).forEach(add);
-    const own = [...[...shared].map((key) => CATALOG.get(key)), ...template.tables];
+    // A table of the template's own with a shared table's key adds its fields to that table, as installing does.
+    const sharedTables = [...shared].map((key) => CATALOG.get(key)).map((entry) => {
+      const extra = template.tables.find((table) => table.key === entry.key);
+      return extra ? { ...entry, fields: [...entry.fields, ...extra.fields.filter((field) => !entry.fields.some((known) => known.key === field.key))] } : entry;
+    });
+    const own = [...sharedTables, ...template.tables.filter((table) => !shared.has(table.key))];
     const tables = own.map((table) => ({
       id: `t_${table.key}`,
       key: table.key,

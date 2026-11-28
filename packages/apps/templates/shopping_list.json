@@ -1,0 +1,220 @@
+{
+  "key": "shopping_list",
+  "name": "Shopping list",
+  "icon": "check",
+  "glyph": "shoppingCart",
+  "color": "#0B7A5B",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "One shopping list for the whole home, by aisle: add what's needed, tick it off in the shop. Meal planner adds to the same list.",
+  "uses": [
+    "list_items"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "list",
+    "screens": {
+      "list": {
+        "data": {
+          "open": {
+            "from": "list_items",
+            "where": "=kind == \"shopping\" && done != true",
+            "sort": "group"
+          },
+          "done": {
+            "from": "list_items",
+            "where": "=kind == \"shopping\" && done == true",
+            "sort": "title",
+            "limit": 30
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "table": "list_items",
+            "fields": [
+              {
+                "field": "title",
+                "label": "Item"
+              },
+              {
+                "field": "quantity",
+                "label": "How many"
+              },
+              "unit",
+              {
+                "field": "group",
+                "label": "Aisle"
+              },
+              {
+                "field": "list_name",
+                "label": "Which shop"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "list_items",
+                      "values": "=form.values",
+                      "preset": {
+                        "kind": "shopping",
+                        "done": false
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  }
+                ],
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "To get",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.title"
+              },
+              {
+                "label": "How many",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Unit",
+                "value": "=row.unit"
+              },
+              {
+                "label": "Aisle",
+                "value": "=row.group"
+              },
+              {
+                "label": "Shop",
+                "value": "=row.list_name"
+              }
+            ],
+            "search": "Find an item",
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Got it",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=true"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "check"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=row"
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "close"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "In the trolley",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.done",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.title"
+              },
+              {
+                "label": "How many",
+                "value": "=row.quantity"
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Put back",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=false"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "back"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "list_items": [
+      {
+        "kind": "shopping",
+        "done": false,
+        "title": "Milk",
+        "quantity": 2,
+        "unit": "litres",
+        "group": "Dairy and eggs"
+      },
+      {
+        "kind": "shopping",
+        "done": false,
+        "title": "Apples",
+        "quantity": 6,
+        "group": "Fruit and veg"
+      },
+      {
+        "kind": "shopping",
+        "done": false,
+        "title": "Washing-up liquid",
+        "quantity": 1,
+        "group": "Household"
+      },
+      {
+        "kind": "shopping",
+        "done": false,
+        "title": "Bread",
+        "quantity": 1,
+        "unit": "loaf",
+        "group": "Bakery",
+        "list_name": "Corner shop"
+      }
+    ]
+  }
+}

@@ -393,3 +393,11 @@ test("a list's search box: true or a label, and only on a list of a table's reco
   searched.screens.list.content[1].search = 3;
   assert.match(JSON.stringify(checkApp(searched, tables)), /search.*is true, or the search box's label/u);
 });
+
+// A form's own name for a field (D-141) is plain words: a formula, a blank or an over-long name is refused.
+test("a form names a field its own way in plain words only", () => {
+  const notes = [{ id: "t_n", key: "notes", label: "Notes", obsolete: false, fields: [{ id: "f_t", key: "title", label: "Title", type: "text", options: {}, obsolete: false }] }];
+  const errorsFor = (label) => checkApp({ home: "s", screens: { s: { content: [{ type: "form", table: "notes", fields: [{ field: "title", label }], buttons: [] }] } } }, notes);
+  assert.deepEqual(errorsFor("Aisle"), []);
+  for (const label of ["=row.title", "", " padded", "x".repeat(61)]) assert.match(JSON.stringify(errorsFor(label)), /own name for the field/u, JSON.stringify(label));
+});

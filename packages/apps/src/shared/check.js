@@ -28,7 +28,7 @@ const CATALOG = {
   dialog: ["key", "title", "content"],
   view: ["view", "copy", "screen", "params"],
   // Line items (lines.js): the shown record's child records, added, edited and removed in place.
-  lines: ["record", "table", "link", "columns", "fields", "label", "add"],
+  lines: ["record", "table", "link", "columns", "fields", "label", "add", "preset"],
   // Boards, calendars and timelines (boards.js): cards moved to change their records.
   ...BOARD_CATALOG
 };
@@ -675,6 +675,8 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         (node.fields || []).forEach((entry, index) => {
           const item = typeof entry === "string" ? { field: entry } : entry;
           for (const key of ["showIf", "required"]) formula(`${path}.fields[${index}].${key}`, item[key], formVariables, "bool");
+          // A form's own name for a field ("Aisle" for a shared list's Group): plain words, never a formula.
+          if (item.label !== undefined && !/^[^=\s].{0,59}$/su.test(String(item.label))) report(`${path}.fields[${index}].label`, "is the form's own name for the field: plain words, 1 to 60 characters.");
         });
         checkNodes(`${path}.buttons`, node.buttons, formVariables, depth + 1);
         if (node.onSubmit !== undefined) checkOnSubmit(`${path}.onSubmit`, node.onSubmit, node.table ? table : null, { report, formula, variables });

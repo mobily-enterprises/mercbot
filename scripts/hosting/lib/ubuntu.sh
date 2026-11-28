@@ -57,8 +57,26 @@ host_unpack_deb() { # deb dir
   dpkg-deb -x "$1" "$2"
 }
 
+# Ubuntu packages for this machine, downloaded into the current folder: with the host's apt lists, or, where they hold
+# none of them (a host whose lists were never fetched, which only root can refresh), with lists of the host's own
+# sources fetched into DOWNLOADS/apt, as the toolbox's are.
+host_apt_download() { # downloads package...
+  local DOWNLOADS="$1" apt
+  shift
+  apt-get download "$@" >/dev/null 2>&1 && return 0
+  apt="$DOWNLOADS/apt"
+  mkdir -p "$apt/etc/apt/sources.list.d" "$apt/etc/apt/apt.conf.d" "$apt/etc/apt/preferences.d" \
+    "$apt/var/lib/apt/lists/partial" "$apt/var/cache/apt/archives/partial"
+  cp /etc/apt/sources.list.d/*.sources "$apt/etc/apt/sources.list.d/" 2>/dev/null || true
+  [ -f /etc/apt/sources.list ] && cp /etc/apt/sources.list "$apt/etc/apt/sources.list"
+  local apt_opts=(-o "Dir::Etc=$apt/etc/apt" -o "Dir::State=$apt/var/lib/apt" -o "Dir::Cache=$apt/var/cache/apt"
+    -o Debug::NoLocking=1 -o Dir::Etc::Parts="$apt/etc/apt/apt.conf.d" -o Dir::Etc::TrustedParts=/etc/apt/trusted.gpg.d)
+  apt-get "${apt_opts[@]}" update -qq
+  apt-get "${apt_opts[@]}" download "$@" >/dev/null
+}
+
 # The programs bots' desktops run on the host beside the toolbox, the system's own where it has
-# them, else Ubuntu's packages for this machine, downloaded with the host's apt and unpacked into
+# them, else Ubuntu's packages for this machine (host_apt_download) unpacked into
 # TOOLS: tint2 and hsetroot, and xterm. The apps and Chrome draw with the toolbox's own Mesa, in
 # gVisor (D-49).
 host_desktop_tools() { # tools downloads
@@ -66,7 +84,7 @@ host_desktop_tools() { # tools downloads
   # The bot's desktop (D-23): tint2 draws the top bar and dock, hsetroot the wallpaper.
   if { ! command -v tint2 >/dev/null 2>&1 || ! command -v hsetroot >/dev/null 2>&1; } && [ ! -x "$TOOLS/desktop/usr/bin/tint2" ]; then
     rm -f "$DOWNLOADS"/tint2_*.deb "$DOWNLOADS"/hsetroot_*.deb
-    (cd "$DOWNLOADS" && apt-get download tint2 hsetroot >/dev/null)
+    (cd "$DOWNLOADS" && host_apt_download "$DOWNLOADS" tint2 hsetroot)
     for deb in "$DOWNLOADS"/tint2_*.deb "$DOWNLOADS"/hsetroot_*.deb; do dpkg-deb -x "$deb" "$TOOLS/desktop"; done
     echo "Desktop bar and wallpaper tools unpacked"
   fi
@@ -74,7 +92,7 @@ host_desktop_tools() { # tools downloads
   # The Terminal on bots' desktops (D-47): xterm draws it; what runs in it is in gVisor.
   if ! command -v xterm >/dev/null 2>&1 && [ ! -x "$TOOLS/desktop/usr/bin/xterm" ]; then
     rm -f "$DOWNLOADS"/xterm_*.deb "$DOWNLOADS"/libutempter0_*.deb
-    (cd "$DOWNLOADS" && apt-get download xterm libutempter0 >/dev/null)
+    (cd "$DOWNLOADS" && host_apt_download "$DOWNLOADS" xterm libutempter0)
     for deb in "$DOWNLOADS"/xterm_*.deb "$DOWNLOADS"/libutempter0_*.deb; do dpkg-deb -x "$deb" "$TOOLS/desktop"; done
     echo "xterm unpacked"
   fi

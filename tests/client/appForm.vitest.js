@@ -63,8 +63,8 @@ const runtime = {
   reloadChanged: async () => {}
 };
 
-async function render() {
-  const app = createSSRApp({ render: () => h(AppForm, { node: { type: "form", record: "=data.poster", fields: ["title", "picture"] }, path: "content/0" }) });
+async function render(fields = ["title", "picture"]) {
+  const app = createSSRApp({ render: () => h(AppForm, { node: { type: "form", record: "=data.poster", fields }, path: "content/0" }) });
   app.provide(APP_SCREEN_KEY, runtime);
   app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
   return renderToString(app);
@@ -96,5 +96,15 @@ describe("a live app's form with a picture field", () => {
     await Promise.all([first, second]);
     calls.uploading = null;
     expect(calls.api).toEqual([["attachFile", "graphics", "5", "picture", { name: "one.png" }]]);
+  });
+});
+
+// A form may name a field its own way (D-141), as an app does a shared table's general field ("Aisle" for its group).
+describe("a form's own name for a field", () => {
+  it("labels the field with the form's name, and the field's own name elsewhere", async () => {
+    const named = await render([{ field: "title", label: "Poster name" }]);
+    expect(named).toContain("Poster name");
+    expect(named).not.toContain(">Title<");
+    expect(await render(["title"])).toContain("Title");
   });
 });

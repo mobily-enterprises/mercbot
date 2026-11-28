@@ -1,0 +1,204 @@
+{
+  "key": "wish_list",
+  "name": "Wish list",
+  "icon": "check",
+  "glyph": "favorite",
+  "color": "#C2185B",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Everyone's wishes in one place, with roughly what each costs and where to find it, so presents are easy to choose.",
+  "uses": [
+    "list_items"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "list",
+    "screens": {
+      "list": {
+        "data": {
+          "open": {
+            "from": "list_items",
+            "where": "=kind == \"wishes\" && done != true",
+            "sort": "title"
+          },
+          "done": {
+            "from": "list_items",
+            "where": "=kind == \"wishes\" && done == true",
+            "sort": "title",
+            "limit": 30
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "table": "list_items",
+            "fields": [
+              {
+                "field": "title",
+                "label": "Wish"
+              },
+              {
+                "field": "person",
+                "label": "Whose wish"
+              },
+              {
+                "field": "amount",
+                "label": "About how much"
+              },
+              {
+                "field": "link",
+                "label": "Where to find it"
+              },
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "list_items",
+                      "values": "=form.values",
+                      "preset": {
+                        "kind": "wishes",
+                        "done": false
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  }
+                ],
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Wished for",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Wish",
+                "value": "=row.title"
+              },
+              {
+                "label": "Whose",
+                "value": "=row.person"
+              },
+              {
+                "label": "About",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Where",
+                "value": "=row.link"
+              }
+            ],
+            "search": "Find a wish",
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Given",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=true"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "check"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=row"
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "close"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Already given",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.done",
+            "columns": [
+              {
+                "label": "Wish",
+                "value": "=row.title"
+              },
+              {
+                "label": "Whose",
+                "value": "=row.person"
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Not given",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=false"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "subtle",
+                "icon": "back"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "list_items": [
+      {
+        "kind": "wishes",
+        "done": false,
+        "title": "Bike helmet",
+        "amount": 4500,
+        "link": "https://example.com/helmet"
+      },
+      {
+        "kind": "wishes",
+        "done": false,
+        "title": "Watercolour set",
+        "amount": 2500
+      },
+      {
+        "kind": "wishes",
+        "done": false,
+        "title": "Board game night",
+        "notes": "Any cooperative game"
+      }
+    ]
+  }
+}

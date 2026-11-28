@@ -8,7 +8,7 @@
     "family",
     "personal"
   ],
-  "description": "Plan the week's meals on a calendar; what each needs goes onto one shopping list, ticked off in the shop.",
+  "description": "Plan the week's meals on a calendar; what each needs goes onto the home's one shopping list, ticked off in the shop.",
   "tables": [
     {
       "key": "meals",
@@ -49,43 +49,13 @@
       ]
     },
     {
-      "key": "shopping_items",
+      "key": "list_items",
       "fields": [
-        {
-          "key": "item",
-          "type": "text",
-          "required": true
-        },
-        {
-          "key": "quantity",
-          "type": "text",
-          "label": "How much"
-        },
-        {
-          "key": "aisle",
-          "type": "choice",
-          "choices": [
-            "Fruit and veg",
-            "Bakery",
-            "Dairy and eggs",
-            "Meat and fish",
-            "Cupboard",
-            "Frozen",
-            "Drinks",
-            "Household",
-            "Other"
-          ]
-        },
-        {
-          "key": "got_it",
-          "type": "yesno",
-          "label": "Got it"
-        },
         {
           "key": "meal",
           "type": "link",
-          "target": "meals",
-          "label": "For"
+          "label": "For meal",
+          "target": "meals"
         }
       ]
     }
@@ -171,19 +141,29 @@
       "shopping": {
         "data": {
           "toGet": {
-            "from": "shopping_items",
-            "where": "=got_it != true",
-            "sort": "aisle"
+            "from": "list_items",
+            "where": "=kind == \"shopping\" && done != true",
+            "sort": "group"
           }
         },
         "content": [
           {
             "type": "form",
-            "table": "shopping_items",
+            "table": "list_items",
             "fields": [
-              "item",
-              "quantity",
-              "aisle"
+              {
+                "field": "title",
+                "label": "Item"
+              },
+              {
+                "field": "quantity",
+                "label": "How many"
+              },
+              "unit",
+              {
+                "field": "group",
+                "label": "Aisle"
+              }
             ],
             "buttons": [
               {
@@ -195,10 +175,11 @@
                 "do": [
                   {
                     "create": {
-                      "table": "shopping_items",
+                      "table": "list_items",
                       "values": "=form.values",
                       "preset": {
-                        "got_it": false
+                        "kind": "shopping",
+                        "done": false
                       }
                     }
                   },
@@ -215,15 +196,19 @@
             "columns": [
               {
                 "label": "Item",
-                "value": "=row.item"
+                "value": "=row.title"
               },
               {
-                "label": "How much",
+                "label": "How many",
                 "value": "=row.quantity"
               },
               {
+                "label": "Unit",
+                "value": "=row.unit"
+              },
+              {
                 "label": "Aisle",
-                "value": "=row.aisle"
+                "value": "=row.group"
               },
               {
                 "label": "For",
@@ -241,7 +226,7 @@
                     "update": {
                       "record": "=row",
                       "set": {
-                        "got_it": "=true"
+                        "done": "=true"
                       }
                     }
                   },
@@ -383,32 +368,49 @@
             "type": "lines",
             "label": "What to buy for it",
             "record": "=data.item",
-            "table": "shopping_items",
+            "table": "list_items",
             "link": "meal",
             "columns": [
               {
                 "label": "Item",
-                "value": "=row.item"
+                "value": "=row.title"
               },
               {
-                "label": "How much",
+                "label": "How many",
                 "value": "=row.quantity"
               },
               {
                 "label": "Aisle",
-                "value": "=row.aisle"
+                "value": "=row.group"
               },
               {
                 "label": "Got it",
-                "value": "=row.got_it"
+                "value": "=row.done"
               }
             ],
             "fields": [
-              "item",
-              "quantity",
-              "aisle",
-              "got_it"
-            ]
+              {
+                "field": "title",
+                "label": "Item"
+              },
+              {
+                "field": "quantity",
+                "label": "How many"
+              },
+              "unit",
+              {
+                "field": "group",
+                "label": "Aisle"
+              },
+              {
+                "field": "done",
+                "label": "Got it"
+              }
+            ],
+            "preset": {
+              "kind": "shopping",
+              "done": false
+            }
           },
           {
             "type": "row",
@@ -518,42 +520,50 @@
         "recipe": "https://example.com/tacos"
       }
     ],
-    "shopping_items": [
+    "list_items": [
       {
-        "item": "Lasagne sheets",
-        "quantity": "1 box",
-        "aisle": "Cupboard",
-        "got_it": false,
+        "kind": "shopping",
+        "title": "Lasagne sheets",
+        "quantity": 1.0,
+        "unit": "box",
+        "group": "Cupboard",
+        "done": false,
         "meal": {
           "sample": "meals",
           "dish": "Vegetable lasagne"
         }
       },
       {
-        "item": "Courgettes",
-        "quantity": "2",
-        "aisle": "Fruit and veg",
-        "got_it": false,
+        "kind": "shopping",
+        "title": "Courgettes",
+        "quantity": 2.0,
+        "group": "Fruit and veg",
+        "done": false,
         "meal": {
           "sample": "meals",
           "dish": "Vegetable lasagne"
         }
       },
       {
-        "item": "Eggs",
-        "quantity": "6",
-        "aisle": "Dairy and eggs",
-        "got_it": false,
+        "kind": "shopping",
+        "title": "Eggs",
+        "quantity": 6.0,
+        "group": "Dairy and eggs",
+        "done": false,
         "meal": {
           "sample": "meals",
           "dish": "Pancakes"
         }
       },
       {
-        "item": "Washing-up liquid",
-        "aisle": "Household",
-        "got_it": false
+        "kind": "shopping",
+        "title": "Washing-up liquid",
+        "group": "Household",
+        "done": false
       }
     ]
-  }
+  },
+  "uses": [
+    "list_items"
+  ]
 }
