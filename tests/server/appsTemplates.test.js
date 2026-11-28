@@ -70,5 +70,6 @@ test("each template's summary carries its picture, kinds of use and what its scr
   assert.deepEqual([byKey.invoices.icon, byKey.invoices.audiences], ["receipt", ["business"]]);
   assert.ok(byKey.invoices.abilities.includes("lines"), "invoices add up their lines");
   assert.ok(byKey.event_signups.abilities.includes("public") && byKey.event_signups.abilities.includes("sends"), "a public page that sends");
+  assert.ok(byKey.staff.abilities.includes("private"), "staff records keep salaries in a table meant to be private");
   assert.ok(templateSummaries().every((entry) => entry.icon !== "star" || TEMPLATES.find((template) => template.key === entry.key).glyph === "star"), "no template falls back to the star");
 });

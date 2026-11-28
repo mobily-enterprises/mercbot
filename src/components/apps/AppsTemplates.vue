@@ -37,7 +37,8 @@ const ABILITIES = Object.freeze({
   calendar: "Calendar",
   timeline: "Timeline",
   public: "Public page",
-  sends: "Sends email"
+  sends: "Sends email",
+  private: "Private details"
 });
 function clearFilters() {
   router.replace({ query: { ...route.query, audience: undefined, q: undefined } });

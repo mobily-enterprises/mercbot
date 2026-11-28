@@ -177,8 +177,8 @@ function sampleLinks(row, made) {
   return values;
 }
 
-/** What a template's screens do, for its card: line items, a board, a calendar, a timeline, a public page, sending. */
-function abilitiesOf(definition) {
+/** What a template does, for its card: line items, a board, a calendar, a timeline, a public page, sending, private details. */
+function abilitiesOf(definition, tables = []) {
   const parts = JSON.stringify(definition.screens || {});
   const has = (type) => parts.includes(`"type":"${type}"`);
   return [
@@ -187,7 +187,9 @@ function abilitiesOf(definition) {
     ...(has("calendar") ? ["calendar"] : []),
     ...(has("timeline") ? ["timeline"] : []),
     ...(definition.public ? ["public"] : []),
-    ...(parts.includes('"onSubmit"') ? ["sends"] : [])
+    ...(parts.includes('"onSubmit"') ? ["sends"] : []),
+    // A table meant to be made private (D-138), such as staff records' salaries: its key ends in _private.
+    ...(tables.some((table) => table.key.endsWith("_private")) ? ["private"] : [])
   ];
 }
 
@@ -198,7 +200,7 @@ export const templateSummaries = () => TEMPLATES.map((template) => ({
   icon: template.glyph || template.icon,
   color: template.color,
   audiences: template.audiences || [],
-  abilities: abilitiesOf(template.definition),
+  abilities: abilitiesOf(template.definition, template.tables),
   needs: template.needs?.words || null,
   description: template.description,
   screens: Object.keys(template.definition.screens).length,
