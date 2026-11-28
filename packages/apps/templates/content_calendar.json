@@ -1,0 +1,478 @@
+{
+  "key": "content_calendar",
+  "name": "Content calendar",
+  "icon": "calendar",
+  "glyph": "campaign",
+  "color": "#C2185B",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Posts, newsletters and blog pieces on a calendar and a board, from idea to published, with their pictures.",
+  "uses": [
+    "graphics"
+  ],
+  "tables": [
+    {
+      "key": "content_posts",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "channel",
+          "type": "choice",
+          "choices": [
+            "Instagram",
+            "Facebook",
+            "LinkedIn",
+            "X",
+            "TikTok",
+            "Newsletter",
+            "Blog"
+          ]
+        },
+        {
+          "key": "publish_on",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Idea",
+            "Writing",
+            "Ready",
+            "Scheduled",
+            "Published"
+          ]
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "copy",
+          "type": "longtext",
+          "label": "Words"
+        },
+        {
+          "key": "graphic",
+          "type": "link",
+          "target": "graphics",
+          "label": "Picture"
+        },
+        {
+          "key": "link",
+          "type": "url"
+        },
+        {
+          "key": "tags",
+          "type": "tags"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "calendar",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "calendar"
+        },
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "posts",
+          "label": "All posts",
+          "icon": "search"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "content_posts",
+            "where": "=publish_on >= addDays(today(), -31)",
+            "sort": "publish_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Drag a post to another day to move it.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New post",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_post"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "publish_on",
+            "title": "=row.title",
+            "subtitle": "=row.channel",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "post",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "board": {
+        "data": {
+          "open": {
+            "from": "content_posts",
+            "where": "=status != \"Published\" || publish_on >= addDays(today(), -14)",
+            "sort": "publish_on"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.open",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.channel + \" · \" + formatDate(row.publish_on, \"d MMM\")",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "post",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "posts": {
+        "data": {
+          "all": {
+            "from": "content_posts",
+            "sort": "-publish_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New post",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_post"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.publish_on"
+              },
+              {
+                "label": "Post",
+                "value": "=row.title"
+              },
+              {
+                "label": "Channel",
+                "value": "=row.channel"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              }
+            ],
+            "search": "Find a post",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "post",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "post": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "content_posts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "channel",
+              "publish_on",
+              "status",
+              "owner",
+              "copy",
+              "graphic",
+              "link",
+              "tags"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "posts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "posts"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this post? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "posts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_post": {
+        "content": [
+          {
+            "type": "form",
+            "table": "content_posts",
+            "fields": [
+              "title",
+              "channel",
+              "publish_on",
+              "owner",
+              "copy",
+              "graphic",
+              "tags"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "content_posts",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Idea"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "calendar"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "posts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byChannel": {
+            "from": "content_posts",
+            "where": "=publish_on >= startOfMonth(today())",
+            "groupBy": "channel"
+          },
+          "byWeek": {
+            "from": "content_posts",
+            "where": "=status == \"Published\"",
+            "groupBy": "publish_on",
+            "by": "week"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "This month by channel",
+                "rows": "=data.byChannel"
+              },
+              {
+                "type": "chart",
+                "kind": "line",
+                "label": "Published each week",
+                "rows": "=data.byWeek"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "content_posts": [
+      {
+        "title": "Behind the scenes: packing day",
+        "channel": "Instagram",
+        "publish_on": "2026-12-02",
+        "status": "Ready",
+        "copy": "Ever wondered how your order gets to you?"
+      },
+      {
+        "title": "December newsletter",
+        "channel": "Newsletter",
+        "publish_on": "2026-12-05",
+        "status": "Writing",
+        "tags": [
+          "seasonal"
+        ]
+      },
+      {
+        "title": "Gift guide",
+        "channel": "Blog",
+        "publish_on": "2026-12-09",
+        "status": "Idea",
+        "tags": [
+          "seasonal",
+          "gifts"
+        ]
+      }
+    ]
+  }
+}

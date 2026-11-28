@@ -1,0 +1,564 @@
+{
+  "key": "work_orders",
+  "name": "Jobs and work orders",
+  "icon": "calendar",
+  "glyph": "handyman",
+  "color": "#C24A0C",
+  "audiences": [
+    "business"
+  ],
+  "description": "Jobs for your crews on a timeline and a board, each with its address, parts and before and after photos.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "work_orders",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Job"
+        },
+        {
+          "key": "customer",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "address",
+          "type": "longtext"
+        },
+        {
+          "key": "starts",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "finishes",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "crew",
+          "type": "choice",
+          "choices": [
+            "Crew A",
+            "Crew B",
+            "Crew C"
+          ]
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Booked",
+            "In progress",
+            "Waiting for parts",
+            "Done",
+            "Invoiced"
+          ]
+        },
+        {
+          "key": "priority",
+          "type": "choice",
+          "choices": [
+            "Normal",
+            "Urgent"
+          ]
+        },
+        {
+          "key": "price",
+          "type": "money",
+          "min": 0,
+          "label": "Agreed price"
+        },
+        {
+          "key": "before_photo",
+          "type": "image"
+        },
+        {
+          "key": "after_photo",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "work_parts",
+      "fields": [
+        {
+          "key": "work_order",
+          "type": "link",
+          "target": "work_orders",
+          "required": true,
+          "label": "Job"
+        },
+        {
+          "key": "part",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "min": 0
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "min": 0,
+          "label": "Cost each"
+        },
+        {
+          "key": "line_cost",
+          "type": "money",
+          "formula": "=quantity * cost"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "schedule",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "schedule",
+          "label": "Schedule",
+          "icon": "calendar"
+        },
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "jobs",
+          "label": "Jobs",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "schedule": {
+        "data": {
+          "current": {
+            "from": "work_orders",
+            "where": "=finishes >= addDays(today(), -14)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Each crew's jobs. Drag a bar to move a job.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New job",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_job"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "timeline",
+            "rows": "=data.current",
+            "start": "starts",
+            "end": "finishes",
+            "groupBy": "crew",
+            "title": "=row.title",
+            "subtitle": "=row.status",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "job",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "board": {
+        "data": {
+          "all": {
+            "from": "work_orders",
+            "where": "=status != \"Invoiced\" || finishes >= addDays(today(), -30)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.crew + \" · \" + formatDate(row.starts, \"d MMM\")",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "job",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "jobs": {
+        "data": {
+          "all": {
+            "from": "work_orders",
+            "sort": "-starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New job",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_job"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Job",
+                "value": "=row.title"
+              },
+              {
+                "label": "Customer",
+                "value": "=row.customer"
+              },
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Crew",
+                "value": "=row.crew"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Price",
+                "value": "=row.price"
+              }
+            ],
+            "search": "Find a job",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "job",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "job": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "work_orders",
+            "id": "=params.id"
+          },
+          "parts": {
+            "from": "work_parts",
+            "where": "=work_order == params.id",
+            "groupBy": "work_order",
+            "sum": "line_cost"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "customer",
+              "address",
+              "starts",
+              "finishes",
+              "crew",
+              "status",
+              "priority",
+              "price",
+              "before_photo",
+              "after_photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Parts used",
+            "record": "=data.item",
+            "table": "work_parts",
+            "link": "work_order",
+            "columns": [
+              {
+                "label": "Part",
+                "value": "=row.part"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Cost each",
+                "value": "=row.cost"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.line_cost"
+              }
+            ],
+            "fields": [
+              "part",
+              "quantity",
+              "cost"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Parts",
+            "rows": "=data.parts"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this job? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_job": {
+        "content": [
+          {
+            "type": "form",
+            "table": "work_orders",
+            "fields": [
+              "title",
+              "customer",
+              "address",
+              "starts",
+              "finishes",
+              "crew",
+              "priority",
+              "price",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "work_orders",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Booked"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "schedule"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "contacts": [
+      {
+        "name": "Sofia Marin",
+        "phone": "+44 7700 900456",
+        "address": "14 Elm Road, Bristol"
+      }
+    ],
+    "work_orders": [
+      {
+        "title": "Bathroom refit",
+        "customer": {
+          "sample": "contacts",
+          "name": "Sofia Marin"
+        },
+        "address": "14 Elm Road, Bristol",
+        "starts": "2026-11-30",
+        "finishes": "2026-12-04",
+        "crew": "Crew A",
+        "status": "Booked",
+        "priority": "Normal",
+        "price": 480000
+      },
+      {
+        "title": "Boiler leak",
+        "starts": "2026-11-28",
+        "finishes": "2026-11-28",
+        "crew": "Crew B",
+        "status": "In progress",
+        "priority": "Urgent",
+        "price": 18000
+      }
+    ],
+    "work_parts": [
+      {
+        "work_order": {
+          "sample": "work_orders",
+          "title": "Bathroom refit"
+        },
+        "part": "Thermostatic shower valve",
+        "quantity": 1,
+        "cost": 13900
+      },
+      {
+        "work_order": {
+          "sample": "work_orders",
+          "title": "Bathroom refit"
+        },
+        "part": "Wall tiles (box)",
+        "quantity": 8,
+        "cost": 2450
+      }
+    ]
+  }
+}

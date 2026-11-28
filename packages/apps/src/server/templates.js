@@ -47,7 +47,7 @@ export async function installTemplate({ registry, apps, gate, catalog }, ctx, ke
   if (!template) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
   const { options, actor } = ctx;
   await prepareTables({ registry, catalog }, ctx, template);
-  const app = await apps.createApp(actor, { name: template.name, icon: template.icon, color: template.color }, options);
+  const app = await apps.createApp(actor, { name: template.name, icon: template.glyph || template.icon, color: template.color }, options);
   const { errors = [] } = await apps.saveDraft(actor, app.slug, template.definition, `From the ${template.name} template`, options);
   // It remembers its template, so the Builder can tell when the template changes (D-130).
   await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(template) }, options);
@@ -147,12 +147,29 @@ function sampleLinks(row, made) {
   return values;
 }
 
-/** What the Templates tab shows of each. */
+/** What a template's screens do, for its card: line items, a board, a calendar, a timeline, a public page, sending. */
+function abilitiesOf(definition) {
+  const parts = JSON.stringify(definition.screens || {});
+  const has = (type) => parts.includes(`"type":"${type}"`);
+  return [
+    ...(has("lines") ? ["lines"] : []),
+    ...(has("board") ? ["board"] : []),
+    ...(has("calendar") ? ["calendar"] : []),
+    ...(has("timeline") ? ["timeline"] : []),
+    ...(definition.public ? ["public"] : []),
+    ...(parts.includes('"onSubmit"') ? ["sends"] : [])
+  ];
+}
+
+/** What the Templates tab shows of each: its picture, the kinds of use it serves and what it needs switched on. */
 export const templateSummaries = () => TEMPLATES.map((template) => ({
   key: template.key,
   name: template.name,
-  icon: template.icon,
+  icon: template.glyph || template.icon,
   color: template.color,
+  audiences: template.audiences || [],
+  abilities: abilitiesOf(template.definition),
+  needs: template.needs?.words || null,
   description: template.description,
   screens: Object.keys(template.definition.screens).length,
   tables: [...(template.uses || []), ...template.tables.map((table) => table.key)],

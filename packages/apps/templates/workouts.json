@@ -1,0 +1,432 @@
+{
+  "key": "workouts",
+  "name": "Workouts",
+  "icon": "chart",
+  "glyph": "fitnessCenter",
+  "color": "#B3261E",
+  "audiences": [
+    "personal"
+  ],
+  "description": "Runs, rides, swims and gym sessions: minutes and distance week by week, and how hard each felt.",
+  "tables": [
+    {
+      "key": "workouts",
+      "fields": [
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Run",
+            "Walk",
+            "Cycle",
+            "Swim",
+            "Gym",
+            "Yoga",
+            "Sport",
+            "Other"
+          ]
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "required": true,
+          "min": 1,
+          "max": 1440
+        },
+        {
+          "key": "distance_km",
+          "type": "number",
+          "min": 0,
+          "max": 1000,
+          "label": "Distance (km)"
+        },
+        {
+          "key": "effort",
+          "type": "choice",
+          "choices": [
+            "Easy",
+            "Steady",
+            "Hard",
+            "All out"
+          ]
+        },
+        {
+          "key": "pace",
+          "type": "number",
+          "label": "Minutes per km",
+          "formula": "=distance_km > 0.0 ? minutes / distance_km : 0.0"
+        },
+        {
+          "key": "notes",
+          "type": "text",
+          "label": "How it felt"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "log",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "log",
+          "label": "Log",
+          "icon": "search"
+        },
+        {
+          "screen": "weeks",
+          "label": "Weeks",
+          "icon": "chart"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "calendar"
+        }
+      ]
+    },
+    "screens": {
+      "log": {
+        "data": {
+          "all": {
+            "from": "workouts",
+            "sort": "-on"
+          },
+          "thisWeek": {
+            "from": "workouts",
+            "where": "=on >= startOfWeek(today())",
+            "groupBy": "kind",
+            "sum": "minutes",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New workout",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_workout"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Minutes this week",
+            "rows": "=data.thisWeek"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "Minutes",
+                "value": "=row.minutes"
+              },
+              {
+                "label": "Km",
+                "value": "=row.distance_km"
+              },
+              {
+                "label": "Min/km",
+                "value": "=row.pace"
+              },
+              {
+                "label": "Effort",
+                "value": "=row.effort"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "workout",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "workout": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "workouts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "on",
+              "kind",
+              "minutes",
+              "distance_km",
+              "effort",
+              "pace",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "log"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "log"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this workout? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "log"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_workout": {
+        "content": [
+          {
+            "type": "form",
+            "table": "workouts",
+            "fields": [
+              "on",
+              "kind",
+              "minutes",
+              "distance_km",
+              "effort",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "workouts",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "log"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "log"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "weeks": {
+        "data": {
+          "minutes": {
+            "from": "workouts",
+            "where": "=on >= addDays(today(), -84)",
+            "groupBy": "on",
+            "by": "week",
+            "sum": "minutes"
+          },
+          "km": {
+            "from": "workouts",
+            "where": "=on >= addDays(today(), -84)",
+            "groupBy": "on",
+            "by": "week",
+            "sum": "distance_km"
+          },
+          "kinds": {
+            "from": "workouts",
+            "where": "=on >= addDays(today(), -84)",
+            "groupBy": "kind"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "line",
+            "label": "Minutes each week",
+            "rows": "=data.minutes",
+            "measure": "total"
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "Kilometres each week",
+                "rows": "=data.km",
+                "measure": "total"
+              },
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Sessions by kind",
+                "rows": "=data.kinds"
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "recent": {
+            "from": "workouts",
+            "where": "=on >= addDays(today(), -45)",
+            "sort": "on"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.recent",
+            "date": "on",
+            "title": "=row.kind + \" \" + string(int(row.minutes)) + \" min\"",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "workout",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "workouts": [
+      {
+        "on": "2026-11-23",
+        "kind": "Run",
+        "minutes": 32,
+        "distance_km": 5.2,
+        "effort": "Steady",
+        "notes": "Legs heavy at first."
+      },
+      {
+        "on": "2026-11-25",
+        "kind": "Gym",
+        "minutes": 45,
+        "effort": "Hard"
+      },
+      {
+        "on": "2026-11-26",
+        "kind": "Cycle",
+        "minutes": 70,
+        "distance_km": 24,
+        "effort": "Easy"
+      }
+    ]
+  }
+}

@@ -1,0 +1,600 @@
+{
+  "key": "expenses",
+  "name": "Expense claims",
+  "icon": "check",
+  "glyph": "receiptLong",
+  "color": "#00796B",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "People claim what they spent, with receipts; an approver approves, rejects or marks it paid.",
+  "tables": [
+    {
+      "key": "expense_claims",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "claimant",
+          "type": "person"
+        },
+        {
+          "key": "submitted",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Submitted",
+            "Approved",
+            "Rejected",
+            "Paid"
+          ]
+        },
+        {
+          "key": "approver",
+          "type": "person"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "expense_items",
+      "fields": [
+        {
+          "key": "claim",
+          "type": "link",
+          "target": "expense_claims",
+          "required": true
+        },
+        {
+          "key": "spent_on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "category",
+          "type": "choice",
+          "choices": [
+            "Travel",
+            "Meals",
+            "Lodging",
+            "Supplies",
+            "Software",
+            "Other"
+          ]
+        },
+        {
+          "key": "description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "required": true,
+          "min": 1
+        },
+        {
+          "key": "receipt",
+          "type": "image"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "claims",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "claims",
+          "label": "Claims",
+          "icon": "check"
+        },
+        {
+          "screen": "approvals",
+          "label": "Approvals",
+          "icon": "star"
+        },
+        {
+          "screen": "spending",
+          "label": "Spending",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "claims": {
+        "data": {
+          "all": {
+            "from": "expense_claims",
+            "sort": "-submitted"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New claim",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_claim"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Claim",
+                "value": "=row.title"
+              },
+              {
+                "label": "Who",
+                "value": "=row.claimant"
+              },
+              {
+                "label": "Submitted",
+                "value": "=row.submitted"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a claim",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "claim",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "claim": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "expense_claims",
+            "id": "=params.id"
+          },
+          "total": {
+            "from": "expense_items",
+            "where": "=claim == params.id",
+            "groupBy": "claim",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "claimant",
+              "approver",
+              "submitted",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "claims"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "claims"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "What was spent",
+            "record": "=data.item",
+            "table": "expense_items",
+            "link": "claim",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.spent_on"
+              },
+              {
+                "label": "Category",
+                "value": "=row.category"
+              },
+              {
+                "label": "What",
+                "value": "=row.description"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Receipt",
+                "value": "=row.receipt"
+              }
+            ],
+            "fields": [
+              "spent_on",
+              "category",
+              "description",
+              "amount",
+              "receipt"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Claim total",
+            "rows": "=data.total"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Submit for approval",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Draft\"",
+                "confirm": "Submit this claim for approval?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Submitted",
+                        "submitted": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Submitted for approval.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Approve",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Submitted\"",
+                "confirm": "Approve this claim?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Approved"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Approved.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Reject",
+                "icon": "close",
+                "showIf": "=data.item.status == \"Submitted\"",
+                "confirm": "Reject this claim?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Rejected"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Rejected.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Mark paid",
+                "icon": "save",
+                "showIf": "=data.item.status == \"Approved\"",
+                "confirm": "Mark this claim as paid?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Paid"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked paid.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this claim? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "claims"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_claim": {
+        "content": [
+          {
+            "type": "form",
+            "table": "expense_claims",
+            "fields": [
+              "title",
+              "claimant",
+              "approver",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "expense_claims",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Draft"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "claims"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "claims"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "approvals": {
+        "data": {
+          "all": {
+            "from": "expense_claims",
+            "where": "=status != \"Draft\"",
+            "sort": "-submitted"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Claims waiting for a decision, and where the others got to. Open one to see its receipts.",
+            "size": "body"
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.submitted",
+            "move": false,
+            "onClick": [
+              {
+                "go": {
+                  "screen": "claim",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "spending": {
+        "data": {
+          "byCategory": {
+            "from": "expense_items",
+            "groupBy": "category",
+            "sum": "amount",
+            "grandTotal": true
+          },
+          "byMonth": {
+            "from": "expense_items",
+            "groupBy": "spent_on",
+            "by": "month",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "line",
+                "label": "Spending by month",
+                "rows": "=data.byMonth",
+                "measure": "total"
+              },
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "By category",
+                "rows": "=data.byCategory",
+                "measure": "total"
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "By category",
+            "rows": "=data.byCategory"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "expense_claims": [
+      {
+        "title": "Client visit, Lyon",
+        "submitted": "2026-11-20",
+        "status": "Submitted",
+        "notes": "Two days at the Lyon office."
+      },
+      {
+        "title": "Team offsite supplies",
+        "status": "Draft"
+      }
+    ],
+    "expense_items": [
+      {
+        "claim": {
+          "sample": "expense_claims",
+          "title": "Client visit, Lyon"
+        },
+        "spent_on": "2026-11-17",
+        "category": "Travel",
+        "description": "Train, return",
+        "amount": 12800
+      },
+      {
+        "claim": {
+          "sample": "expense_claims",
+          "title": "Client visit, Lyon"
+        },
+        "spent_on": "2026-11-17",
+        "category": "Lodging",
+        "description": "Hotel, one night",
+        "amount": 14500
+      },
+      {
+        "claim": {
+          "sample": "expense_claims",
+          "title": "Client visit, Lyon"
+        },
+        "spent_on": "2026-11-18",
+        "category": "Meals",
+        "description": "Lunch with the client",
+        "amount": 6340
+      },
+      {
+        "claim": {
+          "sample": "expense_claims",
+          "title": "Team offsite supplies"
+        },
+        "spent_on": "2026-11-25",
+        "category": "Supplies",
+        "description": "Sticky notes and markers",
+        "amount": 2399
+      }
+    ]
+  }
+}

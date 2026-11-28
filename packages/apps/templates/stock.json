@@ -2,7 +2,11 @@
   "key": "stock",
   "name": "Stock",
   "icon": "check",
+  "glyph": "inventory2",
   "color": "#0B7A5B",
+  "audiences": [
+    "business"
+  ],
   "description": "Items, how many you have and where; each shows when it's time to reorder.",
   "tables": [
     {

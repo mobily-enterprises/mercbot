@@ -1,0 +1,656 @@
+{
+  "key": "room_bookings",
+  "name": "Room bookings",
+  "icon": "calendar",
+  "glyph": "meetingRoom",
+  "color": "#C24A0C",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Meeting rooms and who has booked them, on a week calendar you can drag bookings around on.",
+  "tables": [
+    {
+      "key": "rooms",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "floor",
+          "type": "text"
+        },
+        {
+          "key": "seats",
+          "type": "number",
+          "min": 1
+        },
+        {
+          "key": "has_screen",
+          "type": "yesno",
+          "label": "Has a screen"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "key": "room_bookings",
+      "fields": [
+        {
+          "key": "room",
+          "type": "link",
+          "target": "rooms",
+          "required": true
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "What for"
+        },
+        {
+          "key": "starts",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "ends",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "booked_by",
+          "type": "person"
+        },
+        {
+          "key": "people",
+          "type": "number",
+          "min": 1
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "week",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "week",
+          "label": "This week",
+          "icon": "calendar"
+        },
+        {
+          "screen": "bookings",
+          "label": "Bookings",
+          "icon": "search"
+        },
+        {
+          "screen": "rooms",
+          "label": "Rooms",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "week": {
+        "data": {
+          "soon": {
+            "from": "room_bookings",
+            "where": "=ends >= addDays(today(), -7)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Book a room",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_booking"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "starts",
+            "end": "ends",
+            "title": "=row.title",
+            "span": "week",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "booking",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "bookings": {
+        "data": {
+          "all": {
+            "from": "room_bookings",
+            "where": "=ends >= today()",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New booking",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_booking"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Room",
+                "value": "=row.room"
+              },
+              {
+                "label": "What for",
+                "value": "=row.title"
+              },
+              {
+                "label": "Booked by",
+                "value": "=row.booked_by"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "booking",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "booking": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "room_bookings",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "room",
+              "title",
+              "starts",
+              "ends",
+              "booked_by",
+              "people"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "bookings"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "bookings"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this booking? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "bookings"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_booking": {
+        "content": [
+          {
+            "type": "form",
+            "table": "room_bookings",
+            "fields": [
+              "room",
+              "title",
+              "starts",
+              "ends",
+              "people"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Book",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "room_bookings",
+                      "values": "=form.values",
+                      "preset": {
+                        "booked_by": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "week"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "bookings"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "rooms": {
+        "data": {
+          "all": {
+            "from": "rooms",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New room",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_room"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Room",
+                "value": "=row.name"
+              },
+              {
+                "label": "Floor",
+                "value": "=row.floor"
+              },
+              {
+                "label": "Seats",
+                "value": "=row.seats"
+              },
+              {
+                "label": "Screen",
+                "value": "=row.has_screen"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "room",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "room": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "rooms",
+            "id": "=params.id"
+          },
+          "next": {
+            "from": "room_bookings",
+            "where": "=room == params.id && ends >= today()",
+            "sort": "starts",
+            "limit": 20
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "floor",
+              "seats",
+              "has_screen",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "rooms"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "rooms"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Coming up",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.next",
+            "columns": [
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "What for",
+                "value": "=row.title"
+              },
+              {
+                "label": "Booked by",
+                "value": "=row.booked_by"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "booking",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this room? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "rooms"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_room": {
+        "content": [
+          {
+            "type": "form",
+            "table": "rooms",
+            "fields": [
+              "name",
+              "floor",
+              "seats",
+              "has_screen",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "rooms",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "rooms"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "rooms"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "rooms": [
+      {
+        "name": "Atlas",
+        "floor": "1",
+        "seats": 8,
+        "has_screen": true
+      },
+      {
+        "name": "Nook",
+        "floor": "2",
+        "seats": 3,
+        "has_screen": false
+      }
+    ],
+    "room_bookings": [
+      {
+        "room": {
+          "sample": "rooms",
+          "name": "Atlas"
+        },
+        "title": "Quarterly planning",
+        "starts": "2026-12-01T09:00:00.000Z",
+        "ends": "2026-12-01T11:00:00.000Z",
+        "people": 7
+      },
+      {
+        "room": {
+          "sample": "rooms",
+          "name": "Nook"
+        },
+        "title": "Interview: designer",
+        "starts": "2026-12-02T14:00:00.000Z",
+        "ends": "2026-12-02T15:00:00.000Z",
+        "people": 3
+      }
+    ]
+  }
+}

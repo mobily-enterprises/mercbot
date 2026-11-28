@@ -2,7 +2,14 @@
   "key": "todos",
   "name": "To-dos",
   "icon": "check",
+  "glyph": "checklist",
   "color": "#14C16F",
+  "audiences": [
+    "corporate",
+    "business",
+    "family",
+    "personal"
+  ],
   "description": "Named lists of to-dos, by department and person: who does what, by when, and what's overdue.",
   "uses": [
     "todos"

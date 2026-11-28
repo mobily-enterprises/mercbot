@@ -1,0 +1,482 @@
+{
+  "key": "family_health",
+  "name": "Family health",
+  "icon": "check",
+  "glyph": "medicalInformation",
+  "color": "#B3261E",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Each person's appointments, vaccinations, prescriptions and results, with what's due next. Best kept private.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "family_members",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "birthday",
+          "type": "date"
+        },
+        {
+          "key": "doctor",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "health_number",
+          "type": "text",
+          "label": "Health or insurance number"
+        },
+        {
+          "key": "allergies",
+          "type": "longtext"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "health_events",
+      "fields": [
+        {
+          "key": "member",
+          "type": "link",
+          "target": "family_members",
+          "required": true,
+          "label": "Who"
+        },
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Appointment",
+            "Vaccination",
+            "Prescription",
+            "Test result",
+            "Illness",
+            "Dentist",
+            "Eyes",
+            "Other"
+          ]
+        },
+        {
+          "key": "with_whom",
+          "type": "text",
+          "label": "With"
+        },
+        {
+          "key": "next_due",
+          "type": "date"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        },
+        {
+          "key": "document",
+          "type": "file"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "people",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "people",
+          "label": "People",
+          "icon": "person"
+        },
+        {
+          "screen": "due",
+          "label": "Coming up",
+          "icon": "calendar"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "people": {
+        "data": {
+          "all": {
+            "from": "family_members",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New person",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_member"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Health details are personal: ask an owner or admin to make both tables private in the Data tab (Who can see it).",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Birthday",
+                "value": "=row.birthday"
+              },
+              {
+                "label": "Doctor",
+                "value": "=row.doctor"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "member",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "member": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "family_members",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "birthday",
+              "doctor",
+              "health_number",
+              "allergies",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "History",
+            "record": "=data.item",
+            "table": "health_events",
+            "link": "member",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "With",
+                "value": "=row.with_whom"
+              },
+              {
+                "label": "Next due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Notes",
+                "value": "=row.notes"
+              }
+            ],
+            "fields": [
+              "on",
+              "kind",
+              "with_whom",
+              "next_due",
+              "notes",
+              "document"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this person? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_member": {
+        "content": [
+          {
+            "type": "form",
+            "table": "family_members",
+            "fields": [
+              "name",
+              "birthday",
+              "doctor",
+              "health_number",
+              "allergies",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "family_members",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "due": {
+        "data": {
+          "soon": {
+            "from": "health_events",
+            "where": "=next_due >= today() && next_due <= addDays(today(), 120)",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Check-ups, boosters and repeat prescriptions due in the next four months.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.soon",
+            "columns": [
+              {
+                "label": "Due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Who",
+                "value": "=row.member"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "With",
+                "value": "=row.with_whom"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "member",
+                  "params": {
+                    "id": "=row.member"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "health_events",
+            "where": "=on >= addDays(today(), -45)",
+            "sort": "on"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "on",
+            "title": "=row.kind",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "member",
+                  "params": {
+                    "id": "=row.member"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "family_members": [
+      {
+        "name": "Maya",
+        "birthday": "2016-05-14",
+        "allergies": "Penicillin"
+      },
+      {
+        "name": "Theo",
+        "birthday": "2019-02-02"
+      }
+    ],
+    "health_events": [
+      {
+        "member": {
+          "sample": "family_members",
+          "name": "Maya"
+        },
+        "on": "2026-10-12",
+        "kind": "Dentist",
+        "with_whom": "Dr Lee",
+        "next_due": "2027-04-12",
+        "notes": "All good."
+      },
+      {
+        "member": {
+          "sample": "family_members",
+          "name": "Theo"
+        },
+        "on": "2026-09-03",
+        "kind": "Vaccination",
+        "with_whom": "School nurse",
+        "next_due": "2027-01-15",
+        "notes": "Flu spray; booster due in January."
+      }
+    ]
+  }
+}

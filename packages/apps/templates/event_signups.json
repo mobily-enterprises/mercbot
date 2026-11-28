@@ -1,0 +1,710 @@
+{
+  "key": "event_signups",
+  "name": "Event sign-ups",
+  "icon": "calendar",
+  "glyph": "confirmationNumber",
+  "color": "#B3261E",
+  "audiences": [
+    "corporate",
+    "business",
+    "family"
+  ],
+  "description": "A public page of your events; people sign up for one, get a confirmation email, and you see who's coming.",
+  "uses": [
+    "events"
+  ],
+  "tables": [
+    {
+      "key": "signups",
+      "fields": [
+        {
+          "key": "event",
+          "type": "link",
+          "target": "events",
+          "required": true
+        },
+        {
+          "key": "name",
+          "type": "text",
+          "required": true,
+          "label": "Your name"
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "guests",
+          "type": "number",
+          "min": 0,
+          "max": 10,
+          "label": "Guests you're bringing"
+        },
+        {
+          "key": "note",
+          "type": "text",
+          "label": "Anything we should know"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Going",
+            "Waiting list",
+            "Cancelled"
+          ]
+        },
+        {
+          "key": "signed_up",
+          "type": "date"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "events",
+    "public": {
+      "home": "upcoming",
+      "tables": {
+        "events": {
+          "can": [
+            "list",
+            "get"
+          ],
+          "rows": "=status == \"Confirmed\"",
+          "read": [
+            "title",
+            "starts",
+            "ends",
+            "notes",
+            "status"
+          ]
+        },
+        "signups": {
+          "can": [
+            "create"
+          ],
+          "write": [
+            "event",
+            "name",
+            "email",
+            "guests",
+            "note",
+            "status",
+            "signed_up"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "events",
+          "label": "Events",
+          "icon": "calendar"
+        },
+        {
+          "screen": "signups",
+          "label": "Sign-ups",
+          "icon": "person"
+        },
+        {
+          "screen": "upcoming",
+          "label": "Public page",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "events": {
+        "data": {
+          "all": {
+            "from": "events",
+            "sort": "-starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New event",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_event"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Only Confirmed events show on the public page.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Event",
+                "value": "=row.title"
+              },
+              {
+                "label": "Place",
+                "value": "=row.place"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find an event",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "event",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "event": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "events",
+            "id": "=params.id"
+          },
+          "going": {
+            "from": "signups",
+            "where": "=event == params.id",
+            "sort": "name"
+          },
+          "count": {
+            "from": "signups",
+            "where": "=event == params.id && status == \"Going\"",
+            "groupBy": "status",
+            "sum": "guests"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "starts",
+              "ends",
+              "place",
+              "organiser",
+              "status",
+              "poster",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "events"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "events"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Who's coming",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.going",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Guests",
+                "value": "=row.guests"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Note",
+                "value": "=row.note"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "signup",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Guests they're bringing",
+            "rows": "=data.count"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this event? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "events"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_event": {
+        "content": [
+          {
+            "type": "form",
+            "table": "events",
+            "fields": [
+              "title",
+              "starts",
+              "ends",
+              "place",
+              "organiser",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "events",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planned"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "events"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "events"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "signups": {
+        "data": {
+          "all": {
+            "from": "signups",
+            "sort": "-signed_up"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Signed up",
+                "value": "=row.signed_up"
+              },
+              {
+                "label": "Event",
+                "value": "=row.event"
+              },
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Guests",
+                "value": "=row.guests"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find someone",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "signup",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "signup": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "signups",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "event",
+              "name",
+              "email",
+              "guests",
+              "note",
+              "status"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "signups"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "signups"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "upcoming": {
+        "public": true,
+        "data": {
+          "coming": {
+            "from": "events",
+            "where": "=starts >= today()",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Coming up",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.coming",
+            "columns": [
+              {
+                "label": "When",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Event",
+                "value": "=row.title"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "join",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "join": {
+        "public": true,
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "event": {
+            "record": "events",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "=data.event.title",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "=formatDate(data.event.starts, \"EEEE d MMMM, HH:mm\")",
+            "size": "body"
+          },
+          {
+            "type": "text",
+            "value": "=data.event.notes",
+            "size": "body"
+          },
+          {
+            "type": "form",
+            "table": "signups",
+            "fields": [
+              "name",
+              "email",
+              "guests",
+              "note"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Sign me up",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "signups",
+                      "values": "=form.values",
+                      "preset": {
+                        "event": "=params.id",
+                        "status": "Going",
+                        "signed_up": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "go": {
+                      "screen": "signed_up"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "upcoming"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "email": {
+                  "to": "=record.email",
+                  "subject": "=\"You're signed up: \" + data.event.title",
+                  "text": "=\"Thanks, \" + record.name + \". See you on \" + formatDate(data.event.starts, \"d MMMM\") + \".\""
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "signed_up": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "You're signed up.",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "We've emailed you the details.",
+            "size": "body"
+          },
+          {
+            "type": "button",
+            "label": "See other events",
+            "do": [
+              {
+                "go": {
+                  "screen": "upcoming"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "events": [
+      {
+        "title": "Winter open evening",
+        "starts": "2026-12-10T18:00:00.000Z",
+        "ends": "2026-12-10T20:30:00.000Z",
+        "status": "Confirmed",
+        "notes": "Mulled wine, music and a look behind the scenes."
+      },
+      {
+        "title": "New year workshop",
+        "starts": "2027-01-16T10:00:00.000Z",
+        "ends": "2027-01-16T13:00:00.000Z",
+        "status": "Planned"
+      }
+    ],
+    "signups": [
+      {
+        "event": {
+          "sample": "events",
+          "title": "Winter open evening"
+        },
+        "name": "Rosa Lind",
+        "email": "rosa@example.com",
+        "guests": 1,
+        "status": "Going",
+        "signed_up": "2026-11-22"
+      },
+      {
+        "event": {
+          "sample": "events",
+          "title": "Winter open evening"
+        },
+        "name": "Omar Haddad",
+        "email": "omar@example.com",
+        "guests": 0,
+        "status": "Going",
+        "signed_up": "2026-11-25"
+      }
+    ]
+  }
+}

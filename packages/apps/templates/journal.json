@@ -1,0 +1,367 @@
+{
+  "key": "journal",
+  "name": "Journal",
+  "icon": "edit",
+  "glyph": "editNote",
+  "color": "#8E2C8E",
+  "audiences": [
+    "personal"
+  ],
+  "description": "A private diary: a few lines a day, your mood and what you're grateful for, on a calendar. Best kept private.",
+  "tables": [
+    {
+      "key": "journal_entries",
+      "fields": [
+        {
+          "key": "day",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "title",
+          "type": "text"
+        },
+        {
+          "key": "mood",
+          "type": "choice",
+          "choices": [
+            "Great",
+            "Good",
+            "Okay",
+            "Low",
+            "Bad"
+          ]
+        },
+        {
+          "key": "entry",
+          "type": "longtext",
+          "required": true,
+          "label": "Today"
+        },
+        {
+          "key": "grateful_for",
+          "type": "text",
+          "label": "Grateful for"
+        },
+        {
+          "key": "tags",
+          "type": "tags"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "entries",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "entries",
+          "label": "Entries",
+          "icon": "edit"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "calendar"
+        },
+        {
+          "screen": "moods",
+          "label": "Moods",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "entries": {
+        "data": {
+          "all": {
+            "from": "journal_entries",
+            "sort": "-day"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New entry",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_entry"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Only you should read this: ask an owner or admin to make Journal entries private (Data → Who can see it).",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Day",
+                "value": "=row.day"
+              },
+              {
+                "label": "Title",
+                "value": "=row.title"
+              },
+              {
+                "label": "Mood",
+                "value": "=row.mood",
+                "display": "chip"
+              },
+              {
+                "label": "Grateful for",
+                "value": "=row.grateful_for"
+              }
+            ],
+            "search": "Search your journal",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "entry",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "entry": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "journal_entries",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "day",
+              "title",
+              "mood",
+              "entry",
+              "grateful_for",
+              "tags",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this entry? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_entry": {
+        "content": [
+          {
+            "type": "form",
+            "table": "journal_entries",
+            "fields": [
+              "title",
+              "mood",
+              "entry",
+              "grateful_for",
+              "tags",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save today's entry",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "journal_entries",
+                      "values": "=form.values",
+                      "preset": {
+                        "day": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "recent": {
+            "from": "journal_entries",
+            "where": "=day >= addDays(today(), -62)",
+            "sort": "day"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.recent",
+            "date": "day",
+            "title": "=row.mood",
+            "subtitle": "=row.title",
+            "span": "month",
+            "move": false,
+            "onClick": [
+              {
+                "go": {
+                  "screen": "entry",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "moods": {
+        "data": {
+          "moods": {
+            "from": "journal_entries",
+            "where": "=day >= addDays(today(), -90)",
+            "groupBy": "mood"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "Your moods, the last 90 days",
+            "rows": "=data.moods"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "journal_entries": [
+      {
+        "day": "2026-11-25",
+        "title": "First frost",
+        "mood": "Good",
+        "entry": "Walked to work in the cold. The park was white and quiet.",
+        "grateful_for": "Hot coffee",
+        "tags": [
+          "walks"
+        ]
+      },
+      {
+        "day": "2026-11-26",
+        "mood": "Okay",
+        "entry": "Long day of meetings. Cooked something simple and slept early."
+      }
+    ]
+  }
+}

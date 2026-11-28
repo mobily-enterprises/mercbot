@@ -2,7 +2,12 @@
   "key": "hiring",
   "name": "Hiring pipeline",
   "icon": "star",
+  "glyph": "personSearch",
   "color": "#A15C00",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
   "description": "Candidates for each role and how far they've got.",
   "tables": [
     {

@@ -1,0 +1,464 @@
+{
+  "key": "habits",
+  "name": "Habit tracker",
+  "icon": "check",
+  "glyph": "selfImprovement",
+  "color": "#00796B",
+  "audiences": [
+    "personal"
+  ],
+  "description": "The habits you're building: tick one off each day and watch the weeks fill up.",
+  "tables": [
+    {
+      "key": "habits",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "why",
+          "type": "text",
+          "label": "Why it matters"
+        },
+        {
+          "key": "per_week",
+          "type": "number",
+          "min": 1,
+          "max": 7,
+          "label": "Times a week"
+        },
+        {
+          "key": "active",
+          "type": "yesno"
+        },
+        {
+          "key": "started",
+          "type": "date"
+        }
+      ]
+    },
+    {
+      "key": "habit_checks",
+      "fields": [
+        {
+          "key": "habit",
+          "type": "link",
+          "target": "habits",
+          "required": true
+        },
+        {
+          "key": "day",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "note",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "today",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "today",
+          "label": "Today",
+          "icon": "check"
+        },
+        {
+          "screen": "week",
+          "label": "This week",
+          "icon": "chart"
+        },
+        {
+          "screen": "habits",
+          "label": "Habits",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "today": {
+        "data": {
+          "active": {
+            "from": "habits",
+            "where": "=active == true",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "=\"Today is \" + formatDate(today(), \"EEEE d MMMM\") + \". Press Done for each habit you kept.\"",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.active",
+            "columns": [
+              {
+                "label": "Habit",
+                "value": "=row.name"
+              },
+              {
+                "label": "Why",
+                "value": "=row.why"
+              },
+              {
+                "label": "Times a week",
+                "value": "=row.per_week"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "habit",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Done today",
+                "icon": "check",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "habit_checks",
+                      "values": {
+                        "habit": "=row.id",
+                        "day": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Well done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "week": {
+        "data": {
+          "thisWeek": {
+            "from": "habit_checks",
+            "where": "=day >= startOfWeek(today())",
+            "groupBy": "habit"
+          },
+          "byWeek": {
+            "from": "habit_checks",
+            "where": "=day >= addDays(today(), -84)",
+            "groupBy": "day",
+            "by": "week"
+          }
+        },
+        "content": [
+          {
+            "type": "totals",
+            "label": "Done this week",
+            "rows": "=data.thisWeek"
+          },
+          {
+            "type": "chart",
+            "kind": "line",
+            "label": "Ticks each week",
+            "rows": "=data.byWeek"
+          }
+        ]
+      },
+      "habits": {
+        "data": {
+          "all": {
+            "from": "habits",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New habit",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_habit"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Habit",
+                "value": "=row.name"
+              },
+              {
+                "label": "Times a week",
+                "value": "=row.per_week"
+              },
+              {
+                "label": "Active",
+                "value": "=row.active"
+              },
+              {
+                "label": "Since",
+                "value": "=row.started"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "habit",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "habit": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "habits",
+            "id": "=params.id"
+          },
+          "byWeek": {
+            "from": "habit_checks",
+            "where": "=habit == params.id && day >= addDays(today(), -84)",
+            "groupBy": "day",
+            "by": "week"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "why",
+              "per_week",
+              "active",
+              "started"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "habits"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "habits"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Each week",
+            "rows": "=data.byWeek"
+          },
+          {
+            "type": "lines",
+            "label": "Days done",
+            "record": "=data.item",
+            "table": "habit_checks",
+            "link": "habit",
+            "columns": [
+              {
+                "label": "Day",
+                "value": "=row.day"
+              },
+              {
+                "label": "Note",
+                "value": "=row.note"
+              }
+            ],
+            "fields": [
+              "day",
+              "note"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this habit? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "habits"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_habit": {
+        "content": [
+          {
+            "type": "form",
+            "table": "habits",
+            "fields": [
+              "name",
+              "why",
+              "per_week",
+              "started"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "habits",
+                      "values": "=form.values",
+                      "preset": {
+                        "active": true
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "habits"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "habits"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "habits": [
+      {
+        "name": "Walk 30 minutes",
+        "why": "Clearer head, better sleep",
+        "per_week": 5,
+        "active": true,
+        "started": "2026-11-02"
+      },
+      {
+        "name": "Read before bed",
+        "per_week": 7,
+        "active": true,
+        "started": "2026-11-09"
+      }
+    ],
+    "habit_checks": [
+      {
+        "habit": {
+          "sample": "habits",
+          "name": "Walk 30 minutes"
+        },
+        "day": "2026-11-24"
+      },
+      {
+        "habit": {
+          "sample": "habits",
+          "name": "Walk 30 minutes"
+        },
+        "day": "2026-11-25",
+        "note": "Along the river"
+      },
+      {
+        "habit": {
+          "sample": "habits",
+          "name": "Read before bed"
+        },
+        "day": "2026-11-25"
+      }
+    ]
+  }
+}

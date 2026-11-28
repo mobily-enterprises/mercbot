@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { checkApp } from "../../packages/apps/src/shared/check.js";
-import { __testables } from "../../packages/apps/src/server/templates.js";
+import { __testables, templateSummaries } from "../../packages/apps/src/server/templates.js";
 import { CATALOG, needsOf } from "../../packages/apps/src/server/tableCatalog.js";
+import { readdirSync } from "node:fs";
+import { APP_ICON_NAMES } from "../../packages/apps/src/shared/appIcons.js";
 
 const { TEMPLATES } = __testables;
 
@@ -10,8 +12,15 @@ const { TEMPLATES } = __testables;
 // it uses (D-130) with those they link to, and its sample records only use those tables' fields, each link to another of
 // the sample's records naming one.
 test("each template is a valid app on its own tables", () => {
-  assert.deepEqual(TEMPLATES.map((template) => template.key).sort(), ["bookings", "contact_form", "contacts", "crm", "hiring", "leave", "stock", "todos"]);
+  const files = readdirSync(new URL("../../packages/apps/templates/", import.meta.url)).filter((name) => name.endsWith(".json"));
+  assert.deepEqual(TEMPLATES.map((template) => template.key).sort(), files.map((name) => name.replace(/\.json$/u, "")).sort(), "one template per file");
+  assert.ok(TEMPLATES.length >= 58, `${TEMPLATES.length} templates`);
+  const AUDIENCES = ["corporate", "business", "family", "personal"];
   for (const template of TEMPLATES) {
+    // Each wears a picture that fits it and says which kinds of use it serves, in the filter's order.
+    assert.ok(APP_ICON_NAMES.includes(template.glyph), `${template.key}: glyph ${template.glyph}`);
+    assert.ok(template.audiences?.length && template.audiences.every((key) => AUDIENCES.includes(key)), `${template.key}: audiences`);
+    assert.deepEqual(template.audiences, AUDIENCES.filter((key) => template.audiences.includes(key)), `${template.key}: audiences in order`);
     const shared = new Set();
     const add = (key) => {
       if (shared.has(key)) return;
@@ -35,7 +44,8 @@ test("each template is a valid app on its own tables", () => {
         for (const [field, value] of Object.entries(row)) {
           const spec = table.fields.find((entry) => entry.key === field);
           assert.ok(spec, `${template.key}: ${key}.${field} isn't a field`);
-          if (!value || typeof value !== "object") continue;
+          // A tags field's list is a value; only `{ sample, ... }` is a link, as installing reads it (sampleLinks).
+          if (!value || typeof value !== "object" || Array.isArray(value)) continue;
           // A link to the sample's own record: the table the field links to, made earlier in the sample, and one row of it.
           const { sample: target, ...match } = value;
           const order = Object.keys(template.sample);
@@ -47,4 +57,13 @@ test("each template is a valid app on its own tables", () => {
     }
     assert.ok(template.name && template.description && template.icon && /^#[0-9A-F]{6}$/iu.test(template.color), `${template.key}: name, description, icon and colour`);
   }
+});
+
+// The Templates tab learns each template's picture, kinds of use and what its screens do (D-141).
+test("each template's summary carries its picture, kinds of use and what its screens do", () => {
+  const byKey = Object.fromEntries(templateSummaries().map((entry) => [entry.key, entry]));
+  assert.deepEqual([byKey.invoices.icon, byKey.invoices.audiences], ["receipt", ["business"]]);
+  assert.ok(byKey.invoices.abilities.includes("lines"), "invoices add up their lines");
+  assert.ok(byKey.event_signups.abilities.includes("public") && byKey.event_signups.abilities.includes("sends"), "a public page that sends");
+  assert.ok(templateSummaries().every((entry) => entry.icon !== "star" || TEMPLATES.find((template) => template.key === entry.key).glyph === "star"), "no template falls back to the star");
 });

@@ -2,7 +2,14 @@
   "key": "contacts",
   "name": "Contacts",
   "icon": "person",
+  "glyph": "contacts",
   "color": "#1E86FC",
+  "audiences": [
+    "corporate",
+    "business",
+    "family",
+    "personal"
+  ],
   "description": "The home's people and organisations in one place: find anyone, see their organisation and what's linked to them.",
   "uses": [
     "contacts",

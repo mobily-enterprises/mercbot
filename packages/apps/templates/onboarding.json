@@ -1,0 +1,553 @@
+{
+  "key": "onboarding",
+  "name": "New starter onboarding",
+  "icon": "person",
+  "glyph": "wavingHand",
+  "color": "#0B7A5B",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Each new starter's checklist, from before day one to the end of the first month, and who does each step.",
+  "uses": [
+    "departments"
+  ],
+  "tables": [
+    {
+      "key": "starters",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "role",
+          "type": "text"
+        },
+        {
+          "key": "department",
+          "type": "link",
+          "target": "departments"
+        },
+        {
+          "key": "start_date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email"
+        },
+        {
+          "key": "manager",
+          "type": "person"
+        },
+        {
+          "key": "buddy",
+          "type": "person"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Preparing",
+            "First week",
+            "First month",
+            "Done"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "onboarding_steps",
+      "fields": [
+        {
+          "key": "starter",
+          "type": "link",
+          "target": "starters",
+          "required": true
+        },
+        {
+          "key": "step",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "stage",
+          "type": "choice",
+          "choices": [
+            "Before day one",
+            "Day one",
+            "First week",
+            "First month"
+          ]
+        },
+        {
+          "key": "due",
+          "type": "date"
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "done",
+          "type": "yesno"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "starters",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "starters",
+          "label": "Starters",
+          "icon": "person"
+        },
+        {
+          "screen": "steps",
+          "label": "Steps to do",
+          "icon": "check"
+        },
+        {
+          "screen": "calendar",
+          "label": "Start dates",
+          "icon": "calendar"
+        }
+      ]
+    },
+    "screens": {
+      "starters": {
+        "data": {
+          "all": {
+            "from": "starters",
+            "sort": "-start_date"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New starter",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_starter"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Department",
+                "value": "=row.department"
+              },
+              {
+                "label": "Starts",
+                "value": "=row.start_date"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a starter",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "starter",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "starter": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "starters",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "role",
+              "department",
+              "start_date",
+              "email",
+              "manager",
+              "buddy",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "starters"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "starters"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Checklist",
+            "record": "=data.item",
+            "table": "onboarding_steps",
+            "link": "starter",
+            "columns": [
+              {
+                "label": "Step",
+                "value": "=row.step"
+              },
+              {
+                "label": "When",
+                "value": "=row.stage"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Who",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Done",
+                "value": "=row.done"
+              }
+            ],
+            "fields": [
+              "step",
+              "stage",
+              "due",
+              "owner",
+              "done"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this starter? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "starters"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_starter": {
+        "content": [
+          {
+            "type": "form",
+            "table": "starters",
+            "fields": [
+              "name",
+              "role",
+              "department",
+              "start_date",
+              "email",
+              "manager",
+              "buddy",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "starters",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Preparing"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "starters"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "starters"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "steps": {
+        "data": {
+          "open": {
+            "from": "onboarding_steps",
+            "where": "=done != true",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Every starter's steps that aren't done yet, soonest first.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Starter",
+                "value": "=row.starter"
+              },
+              {
+                "label": "Step",
+                "value": "=row.step"
+              },
+              {
+                "label": "When",
+                "value": "=row.stage"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Who",
+                "value": "=row.owner"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "starter",
+                  "params": {
+                    "id": "=row.starter"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Done",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=true"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "starters",
+            "where": "=start_date >= addDays(today(), -31)",
+            "sort": "start_date"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "start_date",
+            "title": "=row.name",
+            "subtitle": "=row.role",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "starter",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "starters": [
+      {
+        "name": "Priya Shah",
+        "role": "Product designer",
+        "start_date": "2027-01-04",
+        "email": "priya@example.com",
+        "status": "Preparing"
+      }
+    ],
+    "onboarding_steps": [
+      {
+        "starter": {
+          "sample": "starters",
+          "name": "Priya Shah"
+        },
+        "step": "Order a laptop and a second screen",
+        "stage": "Before day one",
+        "due": "2026-12-18",
+        "done": true
+      },
+      {
+        "starter": {
+          "sample": "starters",
+          "name": "Priya Shah"
+        },
+        "step": "Create her accounts and add her to the design chat",
+        "stage": "Before day one",
+        "due": "2026-12-22",
+        "done": false
+      },
+      {
+        "starter": {
+          "sample": "starters",
+          "name": "Priya Shah"
+        },
+        "step": "Welcome lunch with the team",
+        "stage": "Day one",
+        "due": "2027-01-04",
+        "done": false
+      },
+      {
+        "starter": {
+          "sample": "starters",
+          "name": "Priya Shah"
+        },
+        "step": "First check-in with her manager",
+        "stage": "First week",
+        "due": "2027-01-08",
+        "done": false
+      },
+      {
+        "starter": {
+          "sample": "starters",
+          "name": "Priya Shah"
+        },
+        "step": "Thirty-day review",
+        "stage": "First month",
+        "due": "2027-02-03",
+        "done": false
+      }
+    ]
+  }
+}

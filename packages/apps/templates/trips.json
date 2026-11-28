@@ -1,0 +1,584 @@
+{
+  "key": "trips",
+  "name": "Trip planner",
+  "icon": "calendar",
+  "glyph": "flight",
+  "color": "#0A6FB8",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Each trip's bookings day by day, its costs against the budget, and a packing list to tick off.",
+  "tables": [
+    {
+      "key": "trips",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "destination",
+          "type": "text"
+        },
+        {
+          "key": "starts",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "ends",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Dreaming",
+            "Planning",
+            "Booked",
+            "Done"
+          ]
+        },
+        {
+          "key": "travellers",
+          "type": "text",
+          "label": "Who's going"
+        },
+        {
+          "key": "budget",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "trip_items",
+      "fields": [
+        {
+          "key": "trip",
+          "type": "link",
+          "target": "trips",
+          "required": true
+        },
+        {
+          "key": "day",
+          "type": "date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Flight",
+            "Train",
+            "Car",
+            "Stay",
+            "Activity",
+            "Food",
+            "Other"
+          ]
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "What"
+        },
+        {
+          "key": "booking_ref",
+          "type": "text",
+          "label": "Booking reference"
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "link",
+          "type": "url"
+        },
+        {
+          "key": "ticket",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "key": "packing_items",
+      "fields": [
+        {
+          "key": "trip",
+          "type": "link",
+          "target": "trips",
+          "required": true
+        },
+        {
+          "key": "item",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "for_whom",
+          "type": "text",
+          "label": "For"
+        },
+        {
+          "key": "packed",
+          "type": "yesno"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "timeline",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "timeline",
+          "label": "Trips",
+          "icon": "calendar"
+        },
+        {
+          "screen": "trip_list",
+          "label": "All trips",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "timeline": {
+        "data": {
+          "coming": {
+            "from": "trips",
+            "where": "=ends >= addDays(today(), -30)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New trip",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_trip"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "timeline",
+            "rows": "=data.coming",
+            "start": "starts",
+            "end": "ends",
+            "groupBy": "status",
+            "title": "=row.name",
+            "subtitle": "=row.destination",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "trip",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "trip_list": {
+        "data": {
+          "all": {
+            "from": "trips",
+            "sort": "-starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New trip",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_trip"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Trip",
+                "value": "=row.name"
+              },
+              {
+                "label": "Where",
+                "value": "=row.destination"
+              },
+              {
+                "label": "From",
+                "value": "=row.starts"
+              },
+              {
+                "label": "To",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Budget",
+                "value": "=row.budget"
+              }
+            ],
+            "search": "Find a trip",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "trip",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "trip": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "trips",
+            "id": "=params.id"
+          },
+          "spent": {
+            "from": "trip_items",
+            "where": "=trip == params.id",
+            "groupBy": "trip",
+            "sum": "cost"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "destination",
+              "starts",
+              "ends",
+              "status",
+              "travellers",
+              "budget",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "trip_list"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "trip_list"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Plan",
+            "record": "=data.item",
+            "table": "trip_items",
+            "link": "trip",
+            "columns": [
+              {
+                "label": "Day",
+                "value": "=row.day"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "What",
+                "value": "=row.title"
+              },
+              {
+                "label": "Reference",
+                "value": "=row.booking_ref"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.cost"
+              }
+            ],
+            "fields": [
+              "day",
+              "kind",
+              "title",
+              "booking_ref",
+              "cost",
+              "link",
+              "ticket"
+            ]
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "field",
+                "label": "Budget",
+                "value": "=data.item.budget"
+              },
+              {
+                "type": "totals",
+                "label": "Booked so far",
+                "rows": "=data.spent"
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Packing list",
+            "record": "=data.item",
+            "table": "packing_items",
+            "link": "trip",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.item"
+              },
+              {
+                "label": "For",
+                "value": "=row.for_whom"
+              },
+              {
+                "label": "Packed",
+                "value": "=row.packed"
+              }
+            ],
+            "fields": [
+              "item",
+              "for_whom",
+              "packed"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this trip? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "trip_list"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_trip": {
+        "content": [
+          {
+            "type": "form",
+            "table": "trips",
+            "fields": [
+              "name",
+              "destination",
+              "starts",
+              "ends",
+              "travellers",
+              "budget",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "trips",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planning"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "timeline"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "trip_list"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "trips": [
+      {
+        "name": "Lisbon long weekend",
+        "destination": "Lisbon",
+        "starts": "2027-02-12",
+        "ends": "2027-02-15",
+        "status": "Booked",
+        "travellers": "Ana and Luis",
+        "budget": 120000
+      }
+    ],
+    "trip_items": [
+      {
+        "trip": {
+          "sample": "trips",
+          "name": "Lisbon long weekend"
+        },
+        "day": "2027-02-12",
+        "kind": "Flight",
+        "title": "Morning flight out",
+        "booking_ref": "K7Q2PX",
+        "cost": 21800
+      },
+      {
+        "trip": {
+          "sample": "trips",
+          "name": "Lisbon long weekend"
+        },
+        "day": "2027-02-12",
+        "kind": "Stay",
+        "title": "Guesthouse in Alfama, 3 nights",
+        "cost": 41400
+      },
+      {
+        "trip": {
+          "sample": "trips",
+          "name": "Lisbon long weekend"
+        },
+        "day": "2027-02-13",
+        "kind": "Activity",
+        "title": "Tram 28 and the castle"
+      }
+    ],
+    "packing_items": [
+      {
+        "trip": {
+          "sample": "trips",
+          "name": "Lisbon long weekend"
+        },
+        "item": "Passports",
+        "packed": false
+      },
+      {
+        "trip": {
+          "sample": "trips",
+          "name": "Lisbon long weekend"
+        },
+        "item": "Comfortable shoes",
+        "for_whom": "Both",
+        "packed": false
+      }
+    ]
+  }
+}

@@ -2,7 +2,12 @@
   "key": "leave",
   "name": "Leave requests",
   "icon": "calendar",
+  "glyph": "beachAccess",
   "color": "#7E3FB2",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
   "description": "People ask for time off; someone approves or declines it.",
   "tables": [
     {

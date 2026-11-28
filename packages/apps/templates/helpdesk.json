@@ -1,0 +1,539 @@
+{
+  "key": "helpdesk",
+  "name": "IT helpdesk",
+  "icon": "phone",
+  "glyph": "supportAgent",
+  "color": "#1E5BD8",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "People report what's broken; tickets move across a board from New to Resolved, with priorities.",
+  "tables": [
+    {
+      "key": "tickets",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "What's wrong"
+        },
+        {
+          "key": "details",
+          "type": "longtext"
+        },
+        {
+          "key": "requester",
+          "type": "person"
+        },
+        {
+          "key": "category",
+          "type": "choice",
+          "choices": [
+            "Hardware",
+            "Software",
+            "Access",
+            "Network",
+            "Other"
+          ]
+        },
+        {
+          "key": "priority",
+          "type": "choice",
+          "choices": [
+            "Low",
+            "Normal",
+            "High",
+            "Urgent"
+          ]
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "New",
+            "In progress",
+            "Waiting",
+            "Resolved"
+          ]
+        },
+        {
+          "key": "assignee",
+          "type": "person"
+        },
+        {
+          "key": "opened",
+          "type": "datetime"
+        },
+        {
+          "key": "resolved_on",
+          "type": "date"
+        },
+        {
+          "key": "screenshot",
+          "type": "image"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "mine",
+          "label": "Mine",
+          "icon": "person"
+        },
+        {
+          "screen": "tickets",
+          "label": "All tickets",
+          "icon": "search"
+        },
+        {
+          "screen": "new_ticket",
+          "label": "Report a problem",
+          "icon": "add"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "open": {
+            "from": "tickets",
+            "where": "=status != \"Resolved\" || resolved_on >= addDays(today(), -7)",
+            "sort": "-opened"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.open",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.priority + \" · \" + row.category",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "ticket",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "mine": {
+        "data": {
+          "mine": {
+            "from": "tickets",
+            "where": "=assignee == me.id && status != \"Resolved\"",
+            "sort": "-opened"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Tickets assigned to you that aren't resolved yet.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.mine",
+            "columns": [
+              {
+                "label": "Ticket",
+                "value": "=row.title"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Opened",
+                "value": "=row.opened"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "ticket",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Resolve",
+                "emphasis": "subtle",
+                "icon": "check",
+                "confirm": "Mark this ticket resolved?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Resolved",
+                        "resolved_on": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "tickets": {
+        "data": {
+          "all": {
+            "from": "tickets",
+            "sort": "-opened"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New ticket",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_ticket"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Ticket",
+                "value": "=row.title"
+              },
+              {
+                "label": "From",
+                "value": "=row.requester"
+              },
+              {
+                "label": "Category",
+                "value": "=row.category"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "With",
+                "value": "=row.assignee"
+              },
+              {
+                "label": "Opened",
+                "value": "=row.opened"
+              }
+            ],
+            "search": "Find a ticket",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "ticket",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "ticket": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "tickets",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "details",
+              "requester",
+              "category",
+              "priority",
+              "status",
+              "assignee",
+              "resolved_on",
+              "screenshot"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "tickets"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Resolve",
+                "icon": "check",
+                "showIf": "=data.item.status != \"Resolved\"",
+                "confirm": "Mark this ticket resolved?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Resolved",
+                        "resolved_on": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Resolved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "tickets"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this ticket? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "tickets"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_ticket": {
+        "content": [
+          {
+            "type": "form",
+            "table": "tickets",
+            "fields": [
+              "title",
+              "details",
+              "category",
+              "priority",
+              "screenshot"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "tickets",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "New",
+                        "opened": "=now()",
+                        "requester": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "tickets"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "notify": {
+                  "to": "owners",
+                  "text": "=\"New ticket (\" + record.priority + \"): \" + record.title"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byCategory": {
+            "from": "tickets",
+            "groupBy": "category"
+          },
+          "byWeek": {
+            "from": "tickets",
+            "groupBy": "resolved_on",
+            "by": "week"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Tickets by category",
+                "rows": "=data.byCategory"
+              },
+              {
+                "type": "chart",
+                "kind": "line",
+                "label": "Resolved each week",
+                "rows": "=data.byWeek"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "tickets": [
+      {
+        "title": "Can't connect to the office VPN",
+        "details": "Says my certificate expired since this morning.",
+        "category": "Network",
+        "priority": "High",
+        "status": "New",
+        "opened": "2026-11-26T08:40:00.000Z"
+      },
+      {
+        "title": "Need access to the finance drive",
+        "category": "Access",
+        "priority": "Normal",
+        "status": "In progress",
+        "opened": "2026-11-24T13:05:00.000Z"
+      },
+      {
+        "title": "Second monitor flickers",
+        "category": "Hardware",
+        "priority": "Low",
+        "status": "Waiting",
+        "opened": "2026-11-20T10:15:00.000Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,557 @@
+{
+  "key": "okrs",
+  "name": "Goals and key results",
+  "icon": "star",
+  "glyph": "flag",
+  "color": "#3F4FB8",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Objectives for the quarter, each with measurable key results and how far along they are.",
+  "uses": [
+    "departments"
+  ],
+  "tables": [
+    {
+      "key": "objectives",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "department",
+          "type": "link",
+          "target": "departments"
+        },
+        {
+          "key": "quarter",
+          "type": "choice",
+          "choices": [
+            "Q1",
+            "Q2",
+            "Q3",
+            "Q4"
+          ]
+        },
+        {
+          "key": "year",
+          "type": "number",
+          "min": 2000,
+          "max": 2100
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "On track",
+            "At risk",
+            "Off track",
+            "Done"
+          ]
+        },
+        {
+          "key": "why",
+          "type": "longtext",
+          "label": "Why it matters"
+        }
+      ]
+    },
+    {
+      "key": "key_results",
+      "fields": [
+        {
+          "key": "objective",
+          "type": "link",
+          "target": "objectives",
+          "required": true
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "start_value",
+          "type": "number",
+          "label": "Start"
+        },
+        {
+          "key": "target",
+          "type": "number",
+          "required": true
+        },
+        {
+          "key": "current",
+          "type": "number"
+        },
+        {
+          "key": "unit",
+          "type": "text"
+        },
+        {
+          "key": "progress",
+          "type": "number",
+          "label": "Progress (%)",
+          "formula": "=target == start_value ? 0.0 : (current - start_value) / (target - start_value) * 100.0"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "objectives",
+          "label": "Objectives",
+          "icon": "check"
+        },
+        {
+          "screen": "results",
+          "label": "Key results",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "all": {
+            "from": "objectives",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Move an objective to change its status.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New objective",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_objective"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.quarter",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "objective",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "objectives": {
+        "data": {
+          "all": {
+            "from": "objectives",
+            "sort": "title"
+          },
+          "byStatus": {
+            "from": "objectives",
+            "groupBy": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New objective",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_objective"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Objective",
+                "value": "=row.title"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Quarter",
+                "value": "=row.quarter"
+              },
+              {
+                "label": "Year",
+                "value": "=row.year"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find an objective",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "objective",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "Objectives by status",
+            "rows": "=data.byStatus"
+          }
+        ]
+      },
+      "objective": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "objectives",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "owner",
+              "department",
+              "quarter",
+              "year",
+              "status",
+              "why"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "objectives"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "objectives"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Key results",
+            "record": "=data.item",
+            "table": "key_results",
+            "link": "objective",
+            "columns": [
+              {
+                "label": "Key result",
+                "value": "=row.title"
+              },
+              {
+                "label": "Now",
+                "value": "=row.current"
+              },
+              {
+                "label": "Target",
+                "value": "=row.target"
+              },
+              {
+                "label": "Unit",
+                "value": "=row.unit"
+              },
+              {
+                "label": "Progress (%)",
+                "value": "=row.progress"
+              }
+            ],
+            "fields": [
+              "title",
+              "owner",
+              "start_value",
+              "target",
+              "current",
+              "unit"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this objective? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "objectives"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_objective": {
+        "content": [
+          {
+            "type": "form",
+            "table": "objectives",
+            "fields": [
+              "title",
+              "owner",
+              "department",
+              "quarter",
+              "year",
+              "why"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "objectives",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "On track"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "objectives"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "objectives"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "results": {
+        "data": {
+          "all": {
+            "from": "key_results",
+            "sort": "objective"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Objective",
+                "value": "=row.objective"
+              },
+              {
+                "label": "Key result",
+                "value": "=row.title"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Now",
+                "value": "=row.current"
+              },
+              {
+                "label": "Target",
+                "value": "=row.target"
+              },
+              {
+                "label": "Progress (%)",
+                "value": "=row.progress"
+              }
+            ],
+            "search": "Find a key result",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "objective",
+                  "params": {
+                    "id": "=row.objective"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "objectives": [
+      {
+        "title": "Delight new customers",
+        "quarter": "Q1",
+        "year": 2027,
+        "status": "On track",
+        "why": "Happy first months keep customers for years."
+      },
+      {
+        "title": "Ship the mobile app",
+        "quarter": "Q1",
+        "year": 2027,
+        "status": "At risk"
+      }
+    ],
+    "key_results": [
+      {
+        "objective": {
+          "sample": "objectives",
+          "title": "Delight new customers"
+        },
+        "title": "Onboarding satisfaction score",
+        "start_value": 72,
+        "target": 90,
+        "current": 81,
+        "unit": "points"
+      },
+      {
+        "objective": {
+          "sample": "objectives",
+          "title": "Delight new customers"
+        },
+        "title": "Median first reply time",
+        "start_value": 24,
+        "target": 4,
+        "current": 9,
+        "unit": "hours"
+      },
+      {
+        "objective": {
+          "sample": "objectives",
+          "title": "Ship the mobile app"
+        },
+        "title": "Beta testers",
+        "start_value": 0,
+        "target": 200,
+        "current": 60,
+        "unit": "people"
+      }
+    ]
+  }
+}

@@ -2,7 +2,12 @@
   "key": "contact_form",
   "name": "Contact form",
   "icon": "mail",
+  "glyph": "contactMail",
   "color": "#1C1C1C",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
   "description": "A public form anyone can send, and a list of what came in. Make it public from its details.",
   "tables": [
     {

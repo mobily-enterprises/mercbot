@@ -1,0 +1,525 @@
+{
+  "key": "meetings",
+  "name": "Meeting notes and actions",
+  "icon": "edit",
+  "glyph": "groups",
+  "color": "#7E3FB2",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Each meeting's agenda, notes and decisions, with the actions agreed and who owns them.",
+  "tables": [
+    {
+      "key": "meetings",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "held_on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Team",
+            "One-to-one",
+            "Board",
+            "Client",
+            "Project",
+            "Other"
+          ]
+        },
+        {
+          "key": "chair",
+          "type": "person"
+        },
+        {
+          "key": "attendees",
+          "type": "text"
+        },
+        {
+          "key": "agenda",
+          "type": "longtext"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        },
+        {
+          "key": "decisions",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "meeting_actions",
+      "fields": [
+        {
+          "key": "meeting",
+          "type": "link",
+          "target": "meetings",
+          "required": true
+        },
+        {
+          "key": "action",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "due",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Open",
+            "Done",
+            "Dropped"
+          ]
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "meetings",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "meetings",
+          "label": "Meetings",
+          "icon": "calendar"
+        },
+        {
+          "screen": "actions",
+          "label": "Open actions",
+          "icon": "check"
+        },
+        {
+          "screen": "my_actions",
+          "label": "My actions",
+          "icon": "person"
+        }
+      ]
+    },
+    "screens": {
+      "meetings": {
+        "data": {
+          "all": {
+            "from": "meetings",
+            "sort": "-held_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New meeting",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_meeting"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.held_on"
+              },
+              {
+                "label": "Meeting",
+                "value": "=row.title"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Chair",
+                "value": "=row.chair"
+              }
+            ],
+            "search": "Find a meeting",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "meeting",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "meeting": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "meetings",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "held_on",
+              "kind",
+              "chair",
+              "attendees",
+              "agenda",
+              "notes",
+              "decisions"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "meetings"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "meetings"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Actions",
+            "record": "=data.item",
+            "table": "meeting_actions",
+            "link": "meeting",
+            "columns": [
+              {
+                "label": "Action",
+                "value": "=row.action"
+              },
+              {
+                "label": "Who",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "fields": [
+              "action",
+              "owner",
+              "due",
+              "status"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this meeting? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "meetings"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_meeting": {
+        "content": [
+          {
+            "type": "form",
+            "table": "meetings",
+            "fields": [
+              "title",
+              "held_on",
+              "kind",
+              "chair",
+              "attendees",
+              "agenda"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "meetings",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "meetings"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "meetings"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "actions": {
+        "data": {
+          "open": {
+            "from": "meeting_actions",
+            "where": "=status == \"Open\" || status == \"\"",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Action",
+                "value": "=row.action"
+              },
+              {
+                "label": "Who",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "From",
+                "value": "=row.meeting"
+              }
+            ],
+            "search": "Find an action",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "meeting",
+                  "params": {
+                    "id": "=row.meeting"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Done",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Done"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "my_actions": {
+        "data": {
+          "mine": {
+            "from": "meeting_actions",
+            "where": "=owner == me.id && status != \"Done\" && status != \"Dropped\"",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Actions you own that are still open.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.mine",
+            "columns": [
+              {
+                "label": "Action",
+                "value": "=row.action"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "From",
+                "value": "=row.meeting"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "meeting",
+                  "params": {
+                    "id": "=row.meeting"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Done",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Done"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "meetings": [
+      {
+        "title": "Weekly team meeting",
+        "held_on": "2026-11-23",
+        "kind": "Team",
+        "attendees": "Ana, Ben, Chloé",
+        "agenda": "Launch plan\nHiring\nAny other business",
+        "decisions": "Launch moves to 12 January."
+      }
+    ],
+    "meeting_actions": [
+      {
+        "meeting": {
+          "sample": "meetings",
+          "title": "Weekly team meeting"
+        },
+        "action": "Tell the customers about the new launch date",
+        "due": "2026-11-30",
+        "status": "Open"
+      },
+      {
+        "meeting": {
+          "sample": "meetings",
+          "title": "Weekly team meeting"
+        },
+        "action": "Post the designer role",
+        "due": "2026-11-27",
+        "status": "Done"
+      }
+    ]
+  }
+}

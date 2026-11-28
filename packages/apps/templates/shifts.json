@@ -1,0 +1,492 @@
+{
+  "key": "shifts",
+  "name": "Staff rota",
+  "icon": "calendar",
+  "glyph": "calendarViewWeek",
+  "color": "#00796B",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Shifts on a week calendar and in each person's lane; drag one to move it, and see who's on today.",
+  "tables": [
+    {
+      "key": "shifts",
+      "fields": [
+        {
+          "key": "who",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "role",
+          "type": "choice",
+          "choices": [
+            "Front",
+            "Kitchen",
+            "Bar",
+            "Floor",
+            "Office",
+            "Delivery"
+          ]
+        },
+        {
+          "key": "starts",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "ends",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "key": "location",
+          "type": "text"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Planned",
+            "Confirmed",
+            "Swapped",
+            "Off sick"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "week",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "week",
+          "label": "Week",
+          "icon": "calendar"
+        },
+        {
+          "screen": "lanes",
+          "label": "By person",
+          "icon": "person"
+        },
+        {
+          "screen": "today",
+          "label": "Today",
+          "icon": "check"
+        },
+        {
+          "screen": "shifts",
+          "label": "All shifts",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "week": {
+        "data": {
+          "soon": {
+            "from": "shifts",
+            "where": "=ends >= addDays(today(), -7)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New shift",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_shift"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "starts",
+            "end": "ends",
+            "title": "=row.who + \" · \" + row.role",
+            "subtitle": "=formatDate(row.starts, \"HH:mm\") + \"–\" + formatDate(row.ends, \"HH:mm\")",
+            "span": "week",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "shift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "lanes": {
+        "data": {
+          "soon": {
+            "from": "shifts",
+            "where": "=ends >= addDays(today(), -7) && starts <= addDays(today(), 21)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "timeline",
+            "rows": "=data.soon",
+            "start": "starts",
+            "end": "ends",
+            "groupBy": "who",
+            "title": "=row.role",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "shift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "today": {
+        "data": {
+          "on": {
+            "from": "shifts",
+            "where": "=starts >= today() && starts < addDays(today(), 1)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Who's working today.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.on",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.who"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "From",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Until",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "shift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Off sick",
+                "emphasis": "subtle",
+                "icon": "close",
+                "confirm": "Mark this shift as off sick?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Off sick"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "shifts": {
+        "data": {
+          "all": {
+            "from": "shifts",
+            "sort": "-starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New shift",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_shift"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Who",
+                "value": "=row.who"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a person",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "shift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "shift": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "shifts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "who",
+              "role",
+              "starts",
+              "ends",
+              "location",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "shifts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "shifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this shift? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "shifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_shift": {
+        "content": [
+          {
+            "type": "form",
+            "table": "shifts",
+            "fields": [
+              "who",
+              "role",
+              "starts",
+              "ends",
+              "location",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "shifts",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planned"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "week"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "shifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "shifts": [
+      {
+        "who": "Mia",
+        "role": "Front",
+        "starts": "2026-11-30T08:00:00.000Z",
+        "ends": "2026-11-30T14:00:00.000Z",
+        "status": "Confirmed"
+      },
+      {
+        "who": "Leo",
+        "role": "Kitchen",
+        "starts": "2026-11-30T10:00:00.000Z",
+        "ends": "2026-11-30T18:00:00.000Z",
+        "status": "Confirmed"
+      },
+      {
+        "who": "Mia",
+        "role": "Bar",
+        "starts": "2026-12-01T16:00:00.000Z",
+        "ends": "2026-12-01T23:00:00.000Z",
+        "status": "Planned"
+      }
+    ]
+  }
+}

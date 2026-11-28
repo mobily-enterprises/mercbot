@@ -1,0 +1,537 @@
+{
+  "key": "pet_care",
+  "name": "Pet care",
+  "icon": "star",
+  "glyph": "pets",
+  "color": "#A15C00",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Your pets, their vet visits, jabs, flea and worm treatments and weight, with what's due next.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "pets",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "species",
+          "type": "choice",
+          "choices": [
+            "Dog",
+            "Cat",
+            "Rabbit",
+            "Guinea pig",
+            "Bird",
+            "Fish",
+            "Reptile",
+            "Horse",
+            "Other"
+          ]
+        },
+        {
+          "key": "breed",
+          "type": "text"
+        },
+        {
+          "key": "birthday",
+          "type": "date"
+        },
+        {
+          "key": "microchip",
+          "type": "text",
+          "unique": true,
+          "label": "Microchip number"
+        },
+        {
+          "key": "vet",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "insurance",
+          "type": "text"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "pet_care_events",
+      "fields": [
+        {
+          "key": "pet",
+          "type": "link",
+          "target": "pets",
+          "required": true
+        },
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Vet visit",
+            "Vaccination",
+            "Flea and worm",
+            "Grooming",
+            "Weigh-in",
+            "Medicine",
+            "Other"
+          ]
+        },
+        {
+          "key": "next_due",
+          "type": "date"
+        },
+        {
+          "key": "weight_kg",
+          "type": "number",
+          "min": 0,
+          "label": "Weight (kg)"
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "pets",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "pets",
+          "label": "Pets",
+          "icon": "star"
+        },
+        {
+          "screen": "due",
+          "label": "Due soon",
+          "icon": "calendar"
+        },
+        {
+          "screen": "costs",
+          "label": "Costs",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "pets": {
+        "data": {
+          "all": {
+            "from": "pets",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New pet",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_pet"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Species",
+                "value": "=row.species"
+              },
+              {
+                "label": "Breed",
+                "value": "=row.breed"
+              },
+              {
+                "label": "Birthday",
+                "value": "=row.birthday"
+              },
+              {
+                "label": "Vet",
+                "value": "=row.vet"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "pet",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "pet": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "pets",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "species",
+              "breed",
+              "birthday",
+              "microchip",
+              "vet",
+              "insurance",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "pets"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "pets"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Care",
+            "record": "=data.item",
+            "table": "pet_care_events",
+            "link": "pet",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Next due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Weight (kg)",
+                "value": "=row.weight_kg"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.cost"
+              }
+            ],
+            "fields": [
+              "on",
+              "kind",
+              "next_due",
+              "weight_kg",
+              "cost",
+              "notes"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this pet? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "pets"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_pet": {
+        "content": [
+          {
+            "type": "form",
+            "table": "pets",
+            "fields": [
+              "name",
+              "species",
+              "breed",
+              "birthday",
+              "microchip",
+              "vet",
+              "insurance",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "pets",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "pets"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "pets"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "due": {
+        "data": {
+          "soon": {
+            "from": "pet_care_events",
+            "where": "=next_due >= addDays(today(), -7) && next_due <= addDays(today(), 45)",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Treatments and check-ups due from last week to six weeks ahead.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.soon",
+            "columns": [
+              {
+                "label": "Due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Pet",
+                "value": "=row.pet"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "pet",
+                  "params": {
+                    "id": "=row.pet"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "next_due",
+            "title": "=row.kind",
+            "span": "month",
+            "move": false,
+            "onClick": [
+              {
+                "go": {
+                  "screen": "pet",
+                  "params": {
+                    "id": "=row.pet"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "costs": {
+        "data": {
+          "byPet": {
+            "from": "pet_care_events",
+            "where": "=on >= addDays(today(), -365)",
+            "groupBy": "pet",
+            "sum": "cost",
+            "grandTotal": true
+          },
+          "byKind": {
+            "from": "pet_care_events",
+            "groupBy": "kind",
+            "sum": "cost"
+          }
+        },
+        "content": [
+          {
+            "type": "totals",
+            "label": "The last year, by pet",
+            "rows": "=data.byPet"
+          },
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "By kind",
+            "rows": "=data.byKind",
+            "measure": "total"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "pets": [
+      {
+        "name": "Biscuit",
+        "species": "Dog",
+        "breed": "Beagle",
+        "birthday": "2021-06-10",
+        "microchip": "985112004567321"
+      }
+    ],
+    "pet_care_events": [
+      {
+        "pet": {
+          "sample": "pets",
+          "name": "Biscuit"
+        },
+        "on": "2026-10-02",
+        "kind": "Vaccination",
+        "next_due": "2027-10-02",
+        "cost": 6500,
+        "notes": "Annual booster."
+      },
+      {
+        "pet": {
+          "sample": "pets",
+          "name": "Biscuit"
+        },
+        "on": "2026-11-01",
+        "kind": "Flea and worm",
+        "next_due": "2026-12-01",
+        "cost": 1800
+      },
+      {
+        "pet": {
+          "sample": "pets",
+          "name": "Biscuit"
+        },
+        "on": "2026-11-01",
+        "kind": "Weigh-in",
+        "weight_kg": 12.4
+      }
+    ]
+  }
+}

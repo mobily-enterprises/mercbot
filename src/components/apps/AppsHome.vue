@@ -10,7 +10,7 @@ import AppsLook from "./AppsLook.vue";
 import AppsScripts from "./AppsScripts.vue";
 import AppsTemplates from "./AppsTemplates.vue";
 import { appsApi } from "./appsApi.js";
-import { ICON_PATHS } from "./appRuntime.js";
+import { appGlyph } from "./appRuntime.js";
 import { useAppExit } from "./useAppExit.js";
 import { useSnackbar } from "./useSnackbar.js";
 
@@ -147,7 +147,7 @@ async function chooseBuilder() {
         </v-chip-group>
         <div v-if="showing === 'retired'" class="apps-home__grid">
           <v-card v-for="view in state.retired" :key="view.view" flat class="pa-4 apps-home__tile">
-            <v-avatar :color="view.color" size="44" rounded="lg"><v-icon :icon="ICON_PATHS[view.icon] || ICON_PATHS.apps" color="white" /></v-avatar>
+            <v-avatar :color="view.color" size="44" rounded="lg"><v-icon :icon="appGlyph(view.icon)" color="white" /></v-avatar>
             <div class="text-subtitle-1 font-weight-medium mt-3">{{ view.title }}</div>
             <div class="d-flex align-center flex-wrap ga-2 mt-1">
               <v-chip size="x-small" variant="tonal">Retired</v-chip>
@@ -166,7 +166,7 @@ async function chooseBuilder() {
             :to="paths.page(`/apps/${app.slug}${!app.liveVersionId && app.draftVersionId ? '?version=draft' : ''}`)"
           >
             <div class="d-flex align-start ga-3">
-              <v-avatar :color="app.color" size="44" rounded="lg"><v-icon :icon="ICON_PATHS[app.icon] || ICON_PATHS.apps" color="white" /></v-avatar>
+              <v-avatar :color="app.color" size="44" rounded="lg"><v-icon :icon="appGlyph(app.icon)" color="white" /></v-avatar>
               <v-spacer />
               <v-menu>
                 <template #activator="{ props: menuProps }">

@@ -1,6 +1,6 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
-import { ICONS } from "@local/apps/shared";
+import { APP_ICON_NAMES } from "@local/apps/shared";
 
 /**
  * A definition as a tool's input: models often send the whole object as a JSON string, and refusing
@@ -90,7 +90,7 @@ export function buildViewTools({ views, call, botId, userId, isBuilder, ctx, fai
           view: z.string().max(64).optional().describe("The view's key, when changing one you have"),
           title: z.string().min(2).max(80),
           summary: z.string().max(300).describe("One line on what it shows, for its card"),
-          icon: z.enum(ICONS).optional(),
+          icon: z.enum(APP_ICON_NAMES).optional().describe("A picture that fits what it shows, from the app icons in your skill"),
           definition: definitionInput("An object: data (named queries), content (the parts to show), and optionally params, state and style")
         }),
         execute: (input, options) => viewSave(input, options)

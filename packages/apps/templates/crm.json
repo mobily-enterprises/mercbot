@@ -2,7 +2,12 @@
   "key": "crm",
   "name": "CRM",
   "icon": "person",
+  "glyph": "handshake",
   "color": "#1E5BD8",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
   "description": "Your pipeline on the home's contacts: each contact's stage, value and next step, and the deals you're working on.",
   "uses": [
     "contacts",

@@ -1,0 +1,570 @@
+{
+  "key": "projects",
+  "name": "Projects",
+  "icon": "chart",
+  "glyph": "viewTimeline",
+  "color": "#0A6FB8",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Projects on a timeline, by status, each with its milestones, budget and health.",
+  "uses": [
+    "organisations",
+    "departments"
+  ],
+  "tables": [
+    {
+      "key": "projects",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "client",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "department",
+          "type": "link",
+          "target": "departments"
+        },
+        {
+          "key": "lead",
+          "type": "person"
+        },
+        {
+          "key": "starts",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "ends",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Planned",
+            "Active",
+            "On hold",
+            "Done",
+            "Cancelled"
+          ]
+        },
+        {
+          "key": "health",
+          "type": "choice",
+          "choices": [
+            "Green",
+            "Amber",
+            "Red"
+          ]
+        },
+        {
+          "key": "budget",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "summary",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "project_milestones",
+      "fields": [
+        {
+          "key": "project",
+          "type": "link",
+          "target": "projects",
+          "required": true
+        },
+        {
+          "key": "milestone",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "due",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "done",
+          "type": "yesno"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "timeline",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "timeline",
+          "label": "Timeline",
+          "icon": "chart"
+        },
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "projects",
+          "label": "Projects",
+          "icon": "search"
+        },
+        {
+          "screen": "milestones",
+          "label": "Milestones",
+          "icon": "calendar"
+        }
+      ]
+    },
+    "screens": {
+      "timeline": {
+        "data": {
+          "current": {
+            "from": "projects",
+            "where": "=ends >= addDays(today(), -30) && status != \"Cancelled\"",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Drag a bar to move a project's dates.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New project",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_project"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "timeline",
+            "rows": "=data.current",
+            "start": "starts",
+            "end": "ends",
+            "groupBy": "status",
+            "title": "=row.name",
+            "subtitle": "=row.health",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "project",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "board": {
+        "data": {
+          "all": {
+            "from": "projects",
+            "where": "=status != \"Cancelled\"",
+            "sort": "ends"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.name",
+            "subtitle": "=\"Ends \" + formatDate(row.ends, \"d MMM yyyy\")",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "project",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "projects": {
+        "data": {
+          "all": {
+            "from": "projects",
+            "sort": "-starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New project",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_project"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Project",
+                "value": "=row.name"
+              },
+              {
+                "label": "Client",
+                "value": "=row.client"
+              },
+              {
+                "label": "Lead",
+                "value": "=row.lead"
+              },
+              {
+                "label": "Starts",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Health",
+                "value": "=row.health",
+                "display": "chip"
+              },
+              {
+                "label": "Budget",
+                "value": "=row.budget"
+              }
+            ],
+            "search": "Find a project",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "project",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "project": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "projects",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "client",
+              "department",
+              "lead",
+              "starts",
+              "ends",
+              "status",
+              "health",
+              "budget",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "projects"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "projects"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Milestones",
+            "record": "=data.item",
+            "table": "project_milestones",
+            "link": "project",
+            "columns": [
+              {
+                "label": "Milestone",
+                "value": "=row.milestone"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Who",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Done",
+                "value": "=row.done"
+              }
+            ],
+            "fields": [
+              "milestone",
+              "due",
+              "owner",
+              "done"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this project? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "projects"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_project": {
+        "content": [
+          {
+            "type": "form",
+            "table": "projects",
+            "fields": [
+              "name",
+              "client",
+              "department",
+              "lead",
+              "starts",
+              "ends",
+              "budget",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "projects",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planned",
+                        "health": "Green"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "projects"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "projects"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "milestones": {
+        "data": {
+          "soon": {
+            "from": "project_milestones",
+            "where": "=done != true && due >= addDays(today(), -45)",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "due",
+            "title": "=row.milestone",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "project",
+                  "params": {
+                    "id": "=row.project"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "projects": [
+      {
+        "name": "Website relaunch",
+        "starts": "2026-11-02",
+        "ends": "2027-01-29",
+        "status": "Active",
+        "health": "Amber",
+        "budget": 2500000,
+        "summary": "New design, new shop, same address."
+      },
+      {
+        "name": "Warehouse move",
+        "starts": "2027-02-01",
+        "ends": "2027-03-15",
+        "status": "Planned",
+        "health": "Green",
+        "budget": 4000000
+      }
+    ],
+    "project_milestones": [
+      {
+        "project": {
+          "sample": "projects",
+          "name": "Website relaunch"
+        },
+        "milestone": "Designs signed off",
+        "due": "2026-11-30",
+        "done": false
+      },
+      {
+        "project": {
+          "sample": "projects",
+          "name": "Website relaunch"
+        },
+        "milestone": "Shop goes live",
+        "due": "2027-01-25",
+        "done": false
+      },
+      {
+        "project": {
+          "sample": "projects",
+          "name": "Warehouse move"
+        },
+        "milestone": "New lease signed",
+        "due": "2026-12-15",
+        "done": false
+      }
+    ]
+  }
+}

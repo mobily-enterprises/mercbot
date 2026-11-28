@@ -1,0 +1,739 @@
+{
+  "key": "budget",
+  "name": "Budget",
+  "icon": "chart",
+  "glyph": "accountBalanceWallet",
+  "color": "#0B7A5B",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "What comes in and goes out, by category against a monthly limit, month by month.",
+  "tables": [
+    {
+      "key": "budget_categories",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Needs",
+            "Wants",
+            "Savings",
+            "Income"
+          ]
+        },
+        {
+          "key": "monthly_limit",
+          "type": "money",
+          "min": 0,
+          "label": "Monthly limit"
+        }
+      ]
+    },
+    {
+      "key": "transactions",
+      "fields": [
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "category",
+          "type": "link",
+          "target": "budget_categories"
+        },
+        {
+          "key": "direction",
+          "type": "choice",
+          "choices": [
+            "Out",
+            "In"
+          ],
+          "label": "In or out"
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "account",
+          "type": "choice",
+          "choices": [
+            "Card",
+            "Cash",
+            "Bank transfer",
+            "Other"
+          ]
+        },
+        {
+          "key": "receipt",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "month",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "month",
+          "label": "This month",
+          "icon": "chart"
+        },
+        {
+          "screen": "transactions",
+          "label": "Transactions",
+          "icon": "search"
+        },
+        {
+          "screen": "trend",
+          "label": "Month by month",
+          "icon": "calendar"
+        },
+        {
+          "screen": "categories",
+          "label": "Categories",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "month": {
+        "data": {
+          "spent": {
+            "from": "transactions",
+            "where": "=direction == \"Out\" && on >= startOfMonth(today())",
+            "groupBy": "category",
+            "sum": "amount",
+            "grandTotal": true
+          },
+          "earned": {
+            "from": "transactions",
+            "where": "=direction == \"In\" && on >= startOfMonth(today())",
+            "groupBy": "category",
+            "sum": "amount",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add a transaction",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_transaction"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Spent this month",
+                "rows": "=data.spent",
+                "measure": "total"
+              },
+              {
+                "type": "totals",
+                "label": "Spent this month, by category",
+                "rows": "=data.spent"
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "In this month",
+            "rows": "=data.earned"
+          }
+        ]
+      },
+      "transactions": {
+        "data": {
+          "all": {
+            "from": "transactions",
+            "sort": "-on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New transaction",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_transaction"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "What",
+                "value": "=row.description"
+              },
+              {
+                "label": "Category",
+                "value": "=row.category"
+              },
+              {
+                "label": "In or out",
+                "value": "=row.direction",
+                "display": "chip"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              }
+            ],
+            "search": "Find a transaction",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "transaction",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "transaction": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "transactions",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "on",
+              "description",
+              "category",
+              "direction",
+              "amount",
+              "account",
+              "receipt",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "transactions"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "transactions"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this transaction? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "transactions"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_transaction": {
+        "content": [
+          {
+            "type": "form",
+            "table": "transactions",
+            "fields": [
+              "on",
+              "description",
+              "category",
+              "direction",
+              "amount",
+              "account",
+              "receipt",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "transactions",
+                      "values": "=form.values",
+                      "preset": {}
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "month"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "transactions"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "trend": {
+        "data": {
+          "spent": {
+            "from": "transactions",
+            "where": "=direction == \"Out\" && on >= addDays(today(), -365)",
+            "groupBy": "on",
+            "by": "month",
+            "sum": "amount"
+          },
+          "earned": {
+            "from": "transactions",
+            "where": "=direction == \"In\" && on >= addDays(today(), -365)",
+            "groupBy": "on",
+            "by": "month",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Spent each month",
+            "rows": "=data.spent",
+            "measure": "total"
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "In each month",
+            "rows": "=data.earned",
+            "measure": "total"
+          }
+        ]
+      },
+      "categories": {
+        "data": {
+          "all": {
+            "from": "budget_categories",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New category",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_category"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Category",
+                "value": "=row.name"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "Monthly limit",
+                "value": "=row.monthly_limit"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "category",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "category": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "budget_categories",
+            "id": "=params.id"
+          },
+          "spent": {
+            "from": "transactions",
+            "where": "=category == params.id && direction == \"Out\" && on >= startOfMonth(today())",
+            "groupBy": "category",
+            "sum": "amount"
+          },
+          "recent": {
+            "from": "transactions",
+            "where": "=category == params.id",
+            "sort": "-on",
+            "limit": 20
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "kind",
+              "monthly_limit"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "categories"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "categories"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Spent this month",
+            "rows": "=data.spent"
+          },
+          {
+            "type": "table",
+            "rows": "=data.recent",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "What",
+                "value": "=row.description"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "transaction",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this category? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "categories"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_category": {
+        "content": [
+          {
+            "type": "form",
+            "table": "budget_categories",
+            "fields": [
+              "name",
+              "kind",
+              "monthly_limit"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "budget_categories",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "categories"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "categories"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "budget_categories": [
+      {
+        "name": "Groceries",
+        "kind": "Needs",
+        "monthly_limit": 40000
+      },
+      {
+        "name": "Eating out",
+        "kind": "Wants",
+        "monthly_limit": 15000
+      },
+      {
+        "name": "Salary",
+        "kind": "Income"
+      }
+    ],
+    "transactions": [
+      {
+        "on": "2026-11-25",
+        "description": "Supermarket",
+        "category": {
+          "sample": "budget_categories",
+          "name": "Groceries"
+        },
+        "direction": "Out",
+        "amount": 6420,
+        "account": "Card"
+      },
+      {
+        "on": "2026-11-22",
+        "description": "Pizza with friends",
+        "category": {
+          "sample": "budget_categories",
+          "name": "Eating out"
+        },
+        "direction": "Out",
+        "amount": 2850,
+        "account": "Card"
+      },
+      {
+        "on": "2026-11-25",
+        "description": "November salary",
+        "category": {
+          "sample": "budget_categories",
+          "name": "Salary"
+        },
+        "direction": "In",
+        "amount": 285000,
+        "account": "Bank transfer"
+      }
+    ]
+  }
+}

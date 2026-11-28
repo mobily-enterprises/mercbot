@@ -1,0 +1,607 @@
+{
+  "key": "invoices",
+  "name": "Invoices",
+  "icon": "check",
+  "glyph": "receipt",
+  "color": "#0B7A5B",
+  "audiences": [
+    "business"
+  ],
+  "description": "Invoices with their lines and totals, from draft to sent to paid, with the overdue ones flagged.",
+  "uses": [
+    "contacts",
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "invoices",
+      "fields": [
+        {
+          "key": "number",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "customer",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "contact",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "issued",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "due",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Sent",
+            "Paid",
+            "Cancelled"
+          ]
+        },
+        {
+          "key": "paid_on",
+          "type": "date"
+        },
+        {
+          "key": "overdue",
+          "type": "yesno",
+          "formula": "=status == \"Sent\" && due < today()"
+        },
+        {
+          "key": "notes",
+          "type": "longtext",
+          "label": "Notes on the invoice"
+        },
+        {
+          "key": "document",
+          "type": "file",
+          "label": "PDF"
+        }
+      ]
+    },
+    {
+      "key": "invoice_lines",
+      "fields": [
+        {
+          "key": "invoice",
+          "type": "link",
+          "target": "invoices",
+          "required": true
+        },
+        {
+          "key": "item",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "unit_price",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "formula": "=quantity * unit_price"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "invoices",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "invoices",
+          "label": "Invoices",
+          "icon": "check"
+        },
+        {
+          "screen": "unpaid",
+          "label": "Unpaid",
+          "icon": "calendar"
+        },
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "invoices": {
+        "data": {
+          "all": {
+            "from": "invoices",
+            "sort": "-issued"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New invoice",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_invoice"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Number",
+                "value": "=row.number"
+              },
+              {
+                "label": "Customer",
+                "value": "=row.customer"
+              },
+              {
+                "label": "Issued",
+                "value": "=row.issued"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Overdue",
+                "value": "=row.overdue"
+              }
+            ],
+            "search": "Find an invoice",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "invoice",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "invoice": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "invoices",
+            "id": "=params.id"
+          },
+          "total": {
+            "from": "invoice_lines",
+            "where": "=invoice == params.id",
+            "groupBy": "invoice",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "number",
+              "customer",
+              "contact",
+              "issued",
+              "due",
+              "status",
+              "paid_on",
+              "overdue",
+              "notes",
+              "document"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "invoices"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "invoices"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Lines",
+            "record": "=data.item",
+            "table": "invoice_lines",
+            "link": "invoice",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.item"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Unit price",
+                "value": "=row.unit_price"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              }
+            ],
+            "fields": [
+              "item",
+              "quantity",
+              "unit_price"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Total",
+            "rows": "=data.total"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Mark as sent",
+                "icon": "mail",
+                "showIf": "=data.item.status == \"Draft\"",
+                "confirm": "Mark this invoice as sent?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Sent"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked as sent.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Mark as paid",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Sent\"",
+                "confirm": "Mark this invoice as paid today?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Paid",
+                        "paid_on": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked as paid.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this invoice? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "invoices"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_invoice": {
+        "content": [
+          {
+            "type": "form",
+            "table": "invoices",
+            "fields": [
+              "number",
+              "customer",
+              "contact",
+              "issued",
+              "due",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "invoices",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Draft"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "invoices"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "invoices"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "unpaid": {
+        "data": {
+          "unpaid": {
+            "from": "invoices",
+            "where": "=status == \"Sent\"",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Sent and not yet paid, the oldest due date first.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.unpaid",
+            "columns": [
+              {
+                "label": "Number",
+                "value": "=row.number"
+              },
+              {
+                "label": "Customer",
+                "value": "=row.customer"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Overdue",
+                "value": "=row.overdue"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "invoice",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Paid",
+                "emphasis": "subtle",
+                "icon": "check",
+                "confirm": "Mark this invoice as paid today?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Paid",
+                        "paid_on": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "board": {
+        "data": {
+          "all": {
+            "from": "invoices",
+            "where": "=status != \"Cancelled\" && issued >= addDays(today(), -120)",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.number",
+            "subtitle": "=\"Due \" + formatDate(row.due, \"d MMM\")",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "invoice",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Greenleaf Café",
+        "kind": "Company"
+      }
+    ],
+    "invoices": [
+      {
+        "number": "INV-1041",
+        "customer": {
+          "sample": "organisations",
+          "name": "Greenleaf Café"
+        },
+        "issued": "2026-11-02",
+        "due": "2026-12-02",
+        "status": "Sent"
+      },
+      {
+        "number": "INV-1042",
+        "customer": {
+          "sample": "organisations",
+          "name": "Greenleaf Café"
+        },
+        "issued": "2026-11-24",
+        "due": "2026-12-24",
+        "status": "Draft"
+      }
+    ],
+    "invoice_lines": [
+      {
+        "invoice": {
+          "sample": "invoices",
+          "number": "INV-1041"
+        },
+        "item": "Menu design",
+        "quantity": 1,
+        "unit_price": 45000
+      },
+      {
+        "invoice": {
+          "sample": "invoices",
+          "number": "INV-1041"
+        },
+        "item": "Printed menus",
+        "quantity": 40,
+        "unit_price": 350
+      },
+      {
+        "invoice": {
+          "sample": "invoices",
+          "number": "INV-1042"
+        },
+        "item": "Website updates (hours)",
+        "quantity": 3,
+        "unit_price": 6500
+      }
+    ]
+  }
+}

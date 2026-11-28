@@ -1,0 +1,412 @@
+{
+  "key": "visitor_log",
+  "name": "Visitor sign-in",
+  "icon": "person",
+  "glyph": "badge",
+  "color": "#1C1C1C",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "A sign-in page for the reception tablet: visitors say who they're seeing, and their host is told.",
+  "tables": [
+    {
+      "key": "office_visits",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true,
+          "label": "Your name"
+        },
+        {
+          "key": "company",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "type": "email"
+        },
+        {
+          "key": "visiting",
+          "type": "text",
+          "required": true,
+          "label": "Who you're visiting"
+        },
+        {
+          "key": "purpose",
+          "type": "choice",
+          "choices": [
+            "Meeting",
+            "Interview",
+            "Delivery",
+            "Contractor",
+            "Other"
+          ]
+        },
+        {
+          "key": "arrived",
+          "type": "datetime"
+        },
+        {
+          "key": "left_at",
+          "type": "datetime",
+          "label": "Left"
+        },
+        {
+          "key": "badge_number",
+          "type": "text"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Here",
+            "Left"
+          ]
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "here",
+    "public": {
+      "home": "sign_in",
+      "tables": {
+        "office_visits": {
+          "can": [
+            "create"
+          ],
+          "write": [
+            "name",
+            "company",
+            "email",
+            "visiting",
+            "purpose",
+            "arrived",
+            "status"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "here",
+          "label": "In the building",
+          "icon": "person"
+        },
+        {
+          "screen": "visits",
+          "label": "All visits",
+          "icon": "search"
+        },
+        {
+          "screen": "sign_in",
+          "label": "Sign-in page",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "here": {
+        "data": {
+          "here": {
+            "from": "office_visits",
+            "where": "=status == \"Here\"",
+            "sort": "-arrived"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Everyone signed in and not yet out. Press Signed out as they leave.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.here",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Company",
+                "value": "=row.company"
+              },
+              {
+                "label": "Visiting",
+                "value": "=row.visiting"
+              },
+              {
+                "label": "Purpose",
+                "value": "=row.purpose"
+              },
+              {
+                "label": "Arrived",
+                "value": "=row.arrived"
+              },
+              {
+                "label": "Badge",
+                "value": "=row.badge_number"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "visit",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Signed out",
+                "emphasis": "subtle",
+                "icon": "close",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Left",
+                        "left_at": "=now()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "visits": {
+        "data": {
+          "all": {
+            "from": "office_visits",
+            "sort": "-arrived"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Arrived",
+                "value": "=row.arrived"
+              },
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Company",
+                "value": "=row.company"
+              },
+              {
+                "label": "Visiting",
+                "value": "=row.visiting"
+              },
+              {
+                "label": "Left",
+                "value": "=row.left_at"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a visitor",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "visit",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "visit": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "office_visits",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "company",
+              "email",
+              "visiting",
+              "purpose",
+              "arrived",
+              "left_at",
+              "badge_number",
+              "status"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "here"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "here"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "sign_in": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Welcome. Please sign in.",
+            "size": "title"
+          },
+          {
+            "type": "form",
+            "table": "office_visits",
+            "fields": [
+              "name",
+              "company",
+              "email",
+              "visiting",
+              "purpose"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Sign in",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "office_visits",
+                      "values": "=form.values",
+                      "preset": {
+                        "arrived": "=now()",
+                        "status": "Here"
+                      }
+                    }
+                  },
+                  {
+                    "go": {
+                      "screen": "welcome"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "notify": {
+                  "to": "owners",
+                  "text": "=record.name + \" is at reception to see \" + record.visiting + \".\""
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "welcome": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Thanks, you're signed in.",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "We've told your host you're here. Please take a seat.",
+            "size": "body"
+          },
+          {
+            "type": "button",
+            "label": "Sign in someone else",
+            "do": [
+              {
+                "go": {
+                  "screen": "sign_in"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "office_visits": [
+      {
+        "name": "Marta Kowalska",
+        "company": "Kowalska Design",
+        "visiting": "Ana Ruiz",
+        "purpose": "Meeting",
+        "arrived": "2026-11-27T09:02:00.000Z",
+        "status": "Here",
+        "badge_number": "V-12"
+      },
+      {
+        "name": "Tom Becker",
+        "company": "Swift Couriers",
+        "visiting": "Reception",
+        "purpose": "Delivery",
+        "arrived": "2026-11-27T08:15:00.000Z",
+        "left_at": "2026-11-27T08:20:00.000Z",
+        "status": "Left"
+      }
+    ]
+  }
+}

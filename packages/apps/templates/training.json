@@ -1,0 +1,665 @@
+{
+  "key": "training",
+  "name": "Training records",
+  "icon": "check",
+  "glyph": "school",
+  "color": "#8E2C8E",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Courses and certificates: who completed what, their scores, and which certificates expire soon.",
+  "tables": [
+    {
+      "key": "courses",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "provider",
+          "type": "text"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Mandatory",
+            "Safety",
+            "Skills",
+            "Certification",
+            "Induction"
+          ]
+        },
+        {
+          "key": "valid_months",
+          "type": "number",
+          "min": 0,
+          "label": "Valid for (months)"
+        },
+        {
+          "key": "link",
+          "type": "url"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "training_records",
+      "fields": [
+        {
+          "key": "who",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "course",
+          "type": "link",
+          "target": "courses",
+          "required": true
+        },
+        {
+          "key": "completed_on",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "expires_on",
+          "type": "date"
+        },
+        {
+          "key": "score",
+          "type": "number",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "key": "expired",
+          "type": "yesno",
+          "formula": "=expires_on != \"\" && expires_on < today()"
+        },
+        {
+          "key": "certificate",
+          "type": "file"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "records",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "records",
+          "label": "Records",
+          "icon": "check"
+        },
+        {
+          "screen": "expiring",
+          "label": "Expiring",
+          "icon": "calendar"
+        },
+        {
+          "screen": "courses",
+          "label": "Courses",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "records": {
+        "data": {
+          "all": {
+            "from": "training_records",
+            "sort": "-completed_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New record",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_record"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.who"
+              },
+              {
+                "label": "Course",
+                "value": "=row.course"
+              },
+              {
+                "label": "Completed",
+                "value": "=row.completed_on"
+              },
+              {
+                "label": "Expires",
+                "value": "=row.expires_on"
+              },
+              {
+                "label": "Score",
+                "value": "=row.score"
+              },
+              {
+                "label": "Expired",
+                "value": "=row.expired"
+              }
+            ],
+            "search": "Find a person or course",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "record",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "record": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "training_records",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "who",
+              "course",
+              "completed_on",
+              "expires_on",
+              "score",
+              "expired",
+              "certificate",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "records"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "records"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this record? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "records"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_record": {
+        "content": [
+          {
+            "type": "form",
+            "table": "training_records",
+            "fields": [
+              "who",
+              "course",
+              "completed_on",
+              "expires_on",
+              "score",
+              "certificate",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "training_records",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "records"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "records"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expiring": {
+        "data": {
+          "soon": {
+            "from": "training_records",
+            "where": "=expires_on >= today() && expires_on <= addDays(today(), 60)",
+            "sort": "expires_on"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Certificates that expire in the next 60 days: book the refresher now.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.soon",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.who"
+              },
+              {
+                "label": "Course",
+                "value": "=row.course"
+              },
+              {
+                "label": "Expires",
+                "value": "=row.expires_on"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "record",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "courses": {
+        "data": {
+          "all": {
+            "from": "courses",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New course",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Course",
+                "value": "=row.name"
+              },
+              {
+                "label": "Provider",
+                "value": "=row.provider"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "Valid (months)",
+                "value": "=row.valid_months"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "course",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "course": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "courses",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "provider",
+              "kind",
+              "valid_months",
+              "link",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "courses"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "courses"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Who has done it",
+            "record": "=data.item",
+            "table": "training_records",
+            "link": "course",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.who"
+              },
+              {
+                "label": "Completed",
+                "value": "=row.completed_on"
+              },
+              {
+                "label": "Expires",
+                "value": "=row.expires_on"
+              },
+              {
+                "label": "Score",
+                "value": "=row.score"
+              }
+            ],
+            "fields": [
+              "who",
+              "completed_on",
+              "expires_on",
+              "score",
+              "certificate"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this course? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "courses"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_course": {
+        "content": [
+          {
+            "type": "form",
+            "table": "courses",
+            "fields": [
+              "name",
+              "provider",
+              "kind",
+              "valid_months",
+              "link",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "courses",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "courses"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "courses"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "courses": [
+      {
+        "name": "First aid at work",
+        "provider": "Red Cross",
+        "kind": "Safety",
+        "valid_months": 36
+      },
+      {
+        "name": "Data protection basics",
+        "provider": "In house",
+        "kind": "Mandatory",
+        "valid_months": 12
+      }
+    ],
+    "training_records": [
+      {
+        "who": "Ana Ruiz",
+        "course": {
+          "sample": "courses",
+          "name": "First aid at work"
+        },
+        "completed_on": "2024-01-15",
+        "expires_on": "2027-01-15",
+        "score": 92
+      },
+      {
+        "who": "Ben Okafor",
+        "course": {
+          "sample": "courses",
+          "name": "Data protection basics"
+        },
+        "completed_on": "2025-12-01",
+        "expires_on": "2026-12-01",
+        "score": 85
+      }
+    ]
+  }
+}

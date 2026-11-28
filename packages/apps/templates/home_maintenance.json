@@ -1,0 +1,424 @@
+{
+  "key": "home_maintenance",
+  "name": "Home maintenance",
+  "icon": "check",
+  "glyph": "homeRepairService",
+  "color": "#7A4E2D",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Boiler service, gutters, smoke alarms: what's due when, who does it, what it cost. Press Done to plan the next.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "home_jobs",
+      "fields": [
+        {
+          "key": "task",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "area",
+          "type": "choice",
+          "choices": [
+            "Kitchen",
+            "Bathroom",
+            "Heating",
+            "Electrics",
+            "Plumbing",
+            "Roof and gutters",
+            "Garden",
+            "Safety",
+            "Appliances",
+            "Other"
+          ]
+        },
+        {
+          "key": "every_months",
+          "type": "number",
+          "min": 0,
+          "max": 120,
+          "label": "Every (months)"
+        },
+        {
+          "key": "last_done",
+          "type": "date"
+        },
+        {
+          "key": "next_due",
+          "type": "date"
+        },
+        {
+          "key": "who_does_it",
+          "type": "link",
+          "target": "contacts",
+          "label": "Who does it"
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "min": 0,
+          "label": "Last cost"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        },
+        {
+          "key": "receipt",
+          "type": "file"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "jobs",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "jobs",
+          "label": "Jobs",
+          "icon": "check"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "calendar"
+        },
+        {
+          "screen": "spending",
+          "label": "Spending",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "jobs": {
+        "data": {
+          "all": {
+            "from": "home_jobs",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New job",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_job"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Next due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Job",
+                "value": "=row.task"
+              },
+              {
+                "label": "Area",
+                "value": "=row.area"
+              },
+              {
+                "label": "Last done",
+                "value": "=row.last_done"
+              },
+              {
+                "label": "Who",
+                "value": "=row.who_does_it"
+              }
+            ],
+            "search": "Find a job",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "job",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "job": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "home_jobs",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "task",
+              "area",
+              "every_months",
+              "last_done",
+              "next_due",
+              "who_does_it",
+              "cost",
+              "notes",
+              "receipt"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Done today",
+                "icon": "check",
+                "showIf": "=data.item.every_months > 0.0",
+                "confirm": "Record it done today and plan the next one?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "last_done": "=today()",
+                        "next_due": "=addMonths(today(), data.item.every_months)"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done: the next one is planned.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this job? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_job": {
+        "content": [
+          {
+            "type": "form",
+            "table": "home_jobs",
+            "fields": [
+              "task",
+              "area",
+              "every_months",
+              "last_done",
+              "next_due",
+              "who_does_it",
+              "cost",
+              "notes",
+              "receipt"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "home_jobs",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "jobs"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "home_jobs",
+            "where": "=next_due >= addDays(today(), -60)",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "next_due",
+            "title": "=row.task",
+            "subtitle": "=row.area",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "job",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "spending": {
+        "data": {
+          "byArea": {
+            "from": "home_jobs",
+            "groupBy": "area",
+            "sum": "cost",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "Last cost by area",
+            "rows": "=data.byArea",
+            "measure": "total"
+          },
+          {
+            "type": "totals",
+            "label": "By area",
+            "rows": "=data.byArea"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "home_jobs": [
+      {
+        "task": "Boiler service",
+        "area": "Heating",
+        "every_months": 12,
+        "last_done": "2025-12-03",
+        "next_due": "2026-12-03",
+        "cost": 9500
+      },
+      {
+        "task": "Test the smoke alarms",
+        "area": "Safety",
+        "every_months": 1,
+        "last_done": "2026-11-01",
+        "next_due": "2026-12-01",
+        "cost": 0
+      },
+      {
+        "task": "Clear the gutters",
+        "area": "Roof and gutters",
+        "every_months": 6,
+        "last_done": "2026-05-20",
+        "next_due": "2026-11-20",
+        "cost": 6000
+      }
+    ]
+  }
+}

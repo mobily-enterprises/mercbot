@@ -2,6 +2,7 @@ import { createTool } from "@jskit-ai/agent/server";
 import { definitionFrom, definitionInput } from "./viewTools.js";
 import { z } from "zod";
 import { FIELD_TYPES } from "@local/apps/server/registry";
+import { APP_ICON_NAMES } from "@local/apps/shared";
 import { SCRIPT_GUIDE, writeScript } from "./scriptWriter.js";
 
 // The home's Builder's own apps tools (D-35, D-48), beyond the records and watches every bot has:
@@ -457,24 +458,7 @@ ${SCRIPT_GUIDE}`,
         description: "Builder: create a new, empty app. Then save its first draft with app_save_draft.",
         inputSchema: z.object({
           name: z.string().min(1).max(80),
-          icon: z
-            .enum([
-              "search",
-              "edit",
-              "back",
-              "save",
-              "add",
-              "open",
-              "check",
-              "close",
-              "person",
-              "mail",
-              "phone",
-              "calendar",
-              "chart",
-              "star"
-            ])
-            .optional(),
+          icon: z.enum(APP_ICON_NAMES).optional().describe("A picture that fits what the app does, from the app icons in your skill"),
           color: z
             .string()
             .regex(/^#[0-9a-fA-F]{6}$/u)

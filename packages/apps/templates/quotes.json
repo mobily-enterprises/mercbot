@@ -1,0 +1,565 @@
+{
+  "key": "quotes",
+  "name": "Quotes",
+  "icon": "edit",
+  "glyph": "requestQuote",
+  "color": "#1E5BD8",
+  "audiences": [
+    "business"
+  ],
+  "description": "Quotes with their lines and totals; move them from Draft to Sent to Accepted and see what's still open.",
+  "uses": [
+    "contacts",
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "quotes",
+      "fields": [
+        {
+          "key": "number",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "For"
+        },
+        {
+          "key": "customer",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "contact",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "issued",
+          "type": "date"
+        },
+        {
+          "key": "valid_until",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Sent",
+            "Accepted",
+            "Declined",
+            "Expired"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        },
+        {
+          "key": "document",
+          "type": "file",
+          "label": "PDF"
+        }
+      ]
+    },
+    {
+      "key": "quote_lines",
+      "fields": [
+        {
+          "key": "quote",
+          "type": "link",
+          "target": "quotes",
+          "required": true
+        },
+        {
+          "key": "item",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "unit_price",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "formula": "=quantity * unit_price"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "quotes",
+          "label": "Quotes",
+          "icon": "edit"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "all": {
+            "from": "quotes",
+            "where": "=issued >= addDays(today(), -180) || status == \"Draft\"",
+            "sort": "-issued"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New quote",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_quote"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.number + \" · \" + row.title",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "quote",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "quotes": {
+        "data": {
+          "all": {
+            "from": "quotes",
+            "sort": "-issued"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New quote",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_quote"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Number",
+                "value": "=row.number"
+              },
+              {
+                "label": "For",
+                "value": "=row.title"
+              },
+              {
+                "label": "Customer",
+                "value": "=row.customer"
+              },
+              {
+                "label": "Issued",
+                "value": "=row.issued"
+              },
+              {
+                "label": "Valid until",
+                "value": "=row.valid_until"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a quote",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "quote",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "quote": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "quotes",
+            "id": "=params.id"
+          },
+          "total": {
+            "from": "quote_lines",
+            "where": "=quote == params.id",
+            "groupBy": "quote",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "number",
+              "title",
+              "customer",
+              "contact",
+              "issued",
+              "valid_until",
+              "status",
+              "notes",
+              "document"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "quotes"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "quotes"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Lines",
+            "record": "=data.item",
+            "table": "quote_lines",
+            "link": "quote",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.item"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Unit price",
+                "value": "=row.unit_price"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              }
+            ],
+            "fields": [
+              "item",
+              "quantity",
+              "unit_price"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Total",
+            "rows": "=data.total"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Accepted",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Sent\"",
+                "confirm": "Mark this quote accepted?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Accepted"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked accepted.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Declined",
+                "icon": "close",
+                "showIf": "=data.item.status == \"Sent\"",
+                "confirm": "Mark this quote declined?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Declined"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked declined.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this quote? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "quotes"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_quote": {
+        "content": [
+          {
+            "type": "form",
+            "table": "quotes",
+            "fields": [
+              "number",
+              "title",
+              "customer",
+              "contact",
+              "issued",
+              "valid_until",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "quotes",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Draft"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "quotes"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "quotes"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byStatus": {
+            "from": "quotes",
+            "groupBy": "status"
+          },
+          "byMonth": {
+            "from": "quotes",
+            "groupBy": "issued",
+            "by": "month"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Quotes by status",
+                "rows": "=data.byStatus"
+              },
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "Quotes each month",
+                "rows": "=data.byMonth"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Harbour Dental",
+        "kind": "Company"
+      }
+    ],
+    "quotes": [
+      {
+        "number": "Q-0317",
+        "title": "New reception signage",
+        "customer": {
+          "sample": "organisations",
+          "name": "Harbour Dental"
+        },
+        "issued": "2026-11-20",
+        "valid_until": "2026-12-20",
+        "status": "Sent"
+      }
+    ],
+    "quote_lines": [
+      {
+        "quote": {
+          "sample": "quotes",
+          "number": "Q-0317"
+        },
+        "item": "Sign design",
+        "quantity": 1,
+        "unit_price": 38000
+      },
+      {
+        "quote": {
+          "sample": "quotes",
+          "number": "Q-0317"
+        },
+        "item": "Brushed steel sign, fitted",
+        "quantity": 1,
+        "unit_price": 129000
+      }
+    ]
+  }
+}

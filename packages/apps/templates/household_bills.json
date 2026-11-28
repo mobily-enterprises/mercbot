@@ -1,0 +1,461 @@
+{
+  "key": "household_bills",
+  "name": "Household bills",
+  "icon": "calendar",
+  "glyph": "payments",
+  "color": "#4A5B68",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Rent, energy, phone and insurance: what each costs, when it's due, and a Paid button that moves it on.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "bills",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "payee",
+          "type": "link",
+          "target": "organisations",
+          "label": "Paid to"
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "every",
+          "type": "choice",
+          "choices": [
+            "Week",
+            "Month",
+            "Quarter",
+            "Year",
+            "Once"
+          ]
+        },
+        {
+          "key": "next_due",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "paid_last",
+          "type": "date",
+          "label": "Last paid"
+        },
+        {
+          "key": "direct_debit",
+          "type": "yesno",
+          "label": "Pays by itself"
+        },
+        {
+          "key": "account",
+          "type": "text",
+          "label": "Account or reference"
+        },
+        {
+          "key": "per_month",
+          "type": "money",
+          "label": "A month",
+          "formula": "=every == \"Week\" ? amount * 52.0 / 12.0 : every == \"Quarter\" ? amount / 3.0 : every == \"Year\" ? amount / 12.0 : every == \"Once\" ? 0.0 : amount"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "bills",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "bills",
+          "label": "Bills",
+          "icon": "calendar"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "star"
+        },
+        {
+          "screen": "costs",
+          "label": "What it costs",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "bills": {
+        "data": {
+          "all": {
+            "from": "bills",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New bill",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_bill"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Next due",
+                "value": "=row.next_due"
+              },
+              {
+                "label": "Bill",
+                "value": "=row.name"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Every",
+                "value": "=row.every"
+              },
+              {
+                "label": "Pays by itself",
+                "value": "=row.direct_debit"
+              }
+            ],
+            "search": "Find a bill",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "bill",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "bill": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "bills",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "payee",
+              "amount",
+              "every",
+              "next_due",
+              "paid_last",
+              "direct_debit",
+              "account",
+              "per_month",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "bills"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Paid",
+                "icon": "check",
+                "confirm": "Record this bill as paid today?",
+                "do": [
+                  {
+                    "if": {
+                      "when": "=data.item.every == \"Week\"",
+                      "then": [
+                        {
+                          "update": {
+                            "record": "=data.item",
+                            "set": {
+                              "paid_last": "=today()",
+                              "next_due": "=addDays(data.item.next_due, 7)"
+                            }
+                          }
+                        }
+                      ],
+                      "else": [
+                        {
+                          "if": {
+                            "when": "=data.item.every == \"Once\"",
+                            "then": [
+                              {
+                                "update": {
+                                  "record": "=data.item",
+                                  "set": {
+                                    "paid_last": "=today()"
+                                  }
+                                }
+                              }
+                            ],
+                            "else": [
+                              {
+                                "update": {
+                                  "record": "=data.item",
+                                  "set": {
+                                    "paid_last": "=today()",
+                                    "next_due": "=addMonths(data.item.next_due, data.item.every == \"Quarter\" ? 3 : data.item.every == \"Year\" ? 12 : 1)"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "notify": "=\"Paid: the next one is planned.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "bills"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this bill? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "bills"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_bill": {
+        "content": [
+          {
+            "type": "form",
+            "table": "bills",
+            "fields": [
+              "name",
+              "payee",
+              "amount",
+              "every",
+              "next_due",
+              "direct_debit",
+              "account",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "bills",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "bills"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "bills"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "bills",
+            "where": "=next_due >= addDays(today(), -31)",
+            "sort": "next_due"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "next_due",
+            "title": "=row.name",
+            "subtitle": "=formatMoney(row.amount)",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "bill",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "costs": {
+        "data": {
+          "byEvery": {
+            "from": "bills",
+            "groupBy": "every",
+            "sum": "per_month",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Every bill worked out as a monthly cost.",
+            "size": "body"
+          },
+          {
+            "type": "totals",
+            "label": "A month, by how often they're paid",
+            "rows": "=data.byEvery"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "bills": [
+      {
+        "name": "Rent",
+        "amount": 145000,
+        "every": "Month",
+        "next_due": "2026-12-01",
+        "direct_debit": false
+      },
+      {
+        "name": "Electricity and gas",
+        "amount": 12400,
+        "every": "Month",
+        "next_due": "2026-12-08",
+        "direct_debit": true
+      },
+      {
+        "name": "Home insurance",
+        "amount": 28800,
+        "every": "Year",
+        "next_due": "2027-03-15",
+        "direct_debit": true
+      },
+      {
+        "name": "Water",
+        "amount": 9600,
+        "every": "Quarter",
+        "next_due": "2027-01-05",
+        "direct_debit": true
+      }
+    ]
+  }
+}

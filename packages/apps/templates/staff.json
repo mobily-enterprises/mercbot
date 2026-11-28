@@ -1,0 +1,614 @@
+{
+  "key": "staff",
+  "name": "Staff records",
+  "icon": "person",
+  "glyph": "idCard",
+  "color": "#C2185B",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "A staff directory for everyone, with salaries and private details in a table only chosen people can open.",
+  "uses": [
+    "departments"
+  ],
+  "tables": [
+    {
+      "key": "staff",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "job_title",
+          "type": "text"
+        },
+        {
+          "key": "department",
+          "type": "link",
+          "target": "departments"
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "unique": true
+        },
+        {
+          "key": "phone",
+          "type": "phone"
+        },
+        {
+          "key": "start_date",
+          "type": "date"
+        },
+        {
+          "key": "manager",
+          "type": "person"
+        },
+        {
+          "key": "account",
+          "type": "person",
+          "label": "Their account here"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Active",
+            "On leave",
+            "Left"
+          ]
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "key": "staff_private",
+      "label": "Staff private details",
+      "fields": [
+        {
+          "key": "staff",
+          "type": "link",
+          "target": "staff",
+          "required": true,
+          "unique": true,
+          "label": "Person"
+        },
+        {
+          "key": "salary",
+          "type": "money",
+          "min": 0,
+          "label": "Salary a year"
+        },
+        {
+          "key": "contract",
+          "type": "choice",
+          "choices": [
+            "Permanent",
+            "Fixed term",
+            "Part time",
+            "Contractor"
+          ]
+        },
+        {
+          "key": "hours_per_week",
+          "type": "number",
+          "min": 0,
+          "max": 80
+        },
+        {
+          "key": "emergency_contact",
+          "type": "text"
+        },
+        {
+          "key": "emergency_phone",
+          "type": "phone"
+        },
+        {
+          "key": "notes",
+          "type": "longtext",
+          "label": "HR notes"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "directory",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "directory",
+          "label": "Directory",
+          "icon": "person"
+        },
+        {
+          "screen": "private",
+          "label": "Private details",
+          "icon": "close"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "directory": {
+        "data": {
+          "all": {
+            "from": "staff",
+            "where": "=status != \"Left\"",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New person",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_person"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Job",
+                "value": "=row.job_title"
+              },
+              {
+                "label": "Department",
+                "value": "=row.department"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              }
+            ],
+            "search": "Find someone",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "person",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "person": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "staff",
+            "id": "=params.id"
+          },
+          "private": {
+            "from": "staff_private",
+            "where": "=staff == params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "job_title",
+              "department",
+              "email",
+              "phone",
+              "start_date",
+              "manager",
+              "account",
+              "status",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "directory"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "directory"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Private details",
+                "size": "title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add private details",
+                "icon": "add",
+                "showIf": "=size(data.private) == 0",
+                "do": [
+                  {
+                    "create": {
+                      "table": "staff_private",
+                      "values": {
+                        "staff": "=params.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added: open them below.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Only the people chosen in this table's \"Who can see it\" (Data tab) see these.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.private",
+            "columns": [
+              {
+                "label": "Contract",
+                "value": "=row.contract"
+              },
+              {
+                "label": "Hours a week",
+                "value": "=row.hours_per_week"
+              },
+              {
+                "label": "Salary a year",
+                "value": "=row.salary"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "private_details",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this person? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "directory"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_person": {
+        "content": [
+          {
+            "type": "form",
+            "table": "staff",
+            "fields": [
+              "name",
+              "job_title",
+              "department",
+              "email",
+              "phone",
+              "start_date",
+              "manager",
+              "account",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "staff",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Active"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "directory"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "directory"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "private": {
+        "data": {
+          "all": {
+            "from": "staff_private",
+            "sort": "staff"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Salaries and HR notes. Ask an owner or admin to make this table private in Data → Staff private details → Who can see it.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Person",
+                "value": "=row.staff"
+              },
+              {
+                "label": "Contract",
+                "value": "=row.contract"
+              },
+              {
+                "label": "Hours a week",
+                "value": "=row.hours_per_week"
+              },
+              {
+                "label": "Salary a year",
+                "value": "=row.salary"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "private_details",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "private_details": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "staff_private",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "staff",
+              "contract",
+              "salary",
+              "hours_per_week",
+              "emergency_contact",
+              "emergency_phone",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "private"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "private"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byDepartment": {
+            "from": "staff",
+            "where": "=status != \"Left\"",
+            "groupBy": "department"
+          },
+          "byStatus": {
+            "from": "staff",
+            "groupBy": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "People by department",
+                "rows": "=data.byDepartment"
+              },
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "By status",
+                "rows": "=data.byStatus"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "staff": [
+      {
+        "name": "Ana Ruiz",
+        "job_title": "Operations lead",
+        "email": "ana@example.com",
+        "phone": "+44 20 7946 0001",
+        "start_date": "2021-04-12",
+        "status": "Active"
+      },
+      {
+        "name": "Ben Okafor",
+        "job_title": "Account manager",
+        "email": "ben@example.com",
+        "start_date": "2023-09-04",
+        "status": "Active"
+      }
+    ],
+    "staff_private": [
+      {
+        "staff": {
+          "sample": "staff",
+          "name": "Ana Ruiz"
+        },
+        "contract": "Permanent",
+        "salary": 5800000,
+        "hours_per_week": 37.5,
+        "emergency_contact": "Luis Ruiz",
+        "emergency_phone": "+44 7700 900123"
+      }
+    ]
+  }
+}

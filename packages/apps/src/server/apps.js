@@ -2,7 +2,8 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { publishIn } from "@local/notices/server/publishIn";
 import { calculatedUsing, isCalculated } from "../shared/calculated.js";
-import { ICONS, checkApp, viewBody, withCopies } from "../shared/check.js";
+import { checkApp, viewBody, withCopies } from "../shared/check.js";
+import { isAppIcon } from "../shared/appIcons.js";
 import { checkTheme, effectiveTheme } from "../shared/theme/index.js";
 import { checkStyle } from "./appStyle.js";
 import { mapBots, mapViews, toIds, toNames } from "../shared/definitions.js";
@@ -165,7 +166,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
   async function createApp(actor, input = {}, options) {
     const name = String(input.name || "").trim().slice(0, 80);
     if (!name) throw new RegistryError(400, "An app needs a name.", { code: "apps_app_name_missing" });
-    const icon = ICONS.includes(input.icon) ? input.icon : "star";
+    // A picture from the app icons (APP_ICON_NAMES); one it doesn't know draws as "apps".
+    const icon = isAppIcon(input.icon) ? input.icon : "apps";
     const color = COLOR.test(String(input.color || "")) ? input.color : "#1f1f1f";
     const base = ROUTE_NAMES.includes(slugFrom(name)) ? `${slugFrom(name)}-app` : slugFrom(name);
     const made = input.kind === "view"

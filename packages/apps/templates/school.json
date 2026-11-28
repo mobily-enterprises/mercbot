@@ -1,0 +1,462 @@
+{
+  "key": "school",
+  "name": "School and activities",
+  "icon": "calendar",
+  "glyph": "backpack",
+  "color": "#3F4FB8",
+  "audiences": [
+    "family"
+  ],
+  "description": "Homework, trips, forms to sign, payments and clubs for each child, on a calendar and a to-do list.",
+  "tables": [
+    {
+      "key": "school_items",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "child",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Homework",
+            "Event",
+            "Trip",
+            "Form to sign",
+            "Payment",
+            "Club",
+            "Exam",
+            "Holiday"
+          ]
+        },
+        {
+          "key": "due",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "done",
+          "type": "yesno"
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "min": 0,
+          "label": "Amount to pay"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        },
+        {
+          "key": "attachment",
+          "type": "file",
+          "label": "Letter or form"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "todo",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "todo",
+          "label": "To do",
+          "icon": "check"
+        },
+        {
+          "screen": "calendar",
+          "label": "Calendar",
+          "icon": "calendar"
+        },
+        {
+          "screen": "items",
+          "label": "Everything",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "todo": {
+        "data": {
+          "open": {
+            "from": "school_items",
+            "where": "=done != true",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Still to do, soonest first.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_item"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Child",
+                "value": "=row.child"
+              },
+              {
+                "label": "What",
+                "value": "=row.title"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "To pay",
+                "value": "=row.amount"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "item",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Done",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "done": "=true"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "calendar": {
+        "data": {
+          "soon": {
+            "from": "school_items",
+            "where": "=due >= addDays(today(), -31)",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "due",
+            "title": "=row.child + \": \" + row.title",
+            "subtitle": "=row.kind",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "item",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "items": {
+        "data": {
+          "all": {
+            "from": "school_items",
+            "sort": "-due"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New item",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_item"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Child",
+                "value": "=row.child"
+              },
+              {
+                "label": "What",
+                "value": "=row.title"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "Done",
+                "value": "=row.done"
+              }
+            ],
+            "search": "Find something",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "item",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "item": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "school_items",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "child",
+              "kind",
+              "due",
+              "done",
+              "amount",
+              "notes",
+              "attachment"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this item? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_item": {
+        "content": [
+          {
+            "type": "form",
+            "table": "school_items",
+            "fields": [
+              "title",
+              "child",
+              "kind",
+              "due",
+              "amount",
+              "notes",
+              "attachment"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "school_items",
+                      "values": "=form.values",
+                      "preset": {
+                        "done": false
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "todo"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "school_items": [
+      {
+        "title": "Science museum trip",
+        "child": "Maya",
+        "kind": "Trip",
+        "due": "2026-12-04",
+        "amount": 1200,
+        "done": false,
+        "notes": "Packed lunch, no fizzy drinks."
+      },
+      {
+        "title": "Spelling test",
+        "child": "Theo",
+        "kind": "Exam",
+        "due": "2026-11-30",
+        "done": false
+      },
+      {
+        "title": "Sign the swimming consent form",
+        "child": "Theo",
+        "kind": "Form to sign",
+        "due": "2026-11-28",
+        "done": false
+      }
+    ]
+  }
+}

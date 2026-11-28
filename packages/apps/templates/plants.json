@@ -1,0 +1,400 @@
+{
+  "key": "plants",
+  "name": "Plant care",
+  "icon": "check",
+  "glyph": "pottedPlant",
+  "color": "#5A7A16",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Your plants and how often each needs water; today's list shows who's thirsty, and Watered plans the next.",
+  "tables": [
+    {
+      "key": "plants",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "type": "text",
+          "label": "What it is"
+        },
+        {
+          "key": "spot",
+          "type": "text",
+          "label": "Where it lives"
+        },
+        {
+          "key": "light",
+          "type": "choice",
+          "choices": [
+            "Full sun",
+            "Bright, no sun",
+            "Shade"
+          ]
+        },
+        {
+          "key": "water_every_days",
+          "type": "number",
+          "required": true,
+          "min": 1,
+          "max": 90,
+          "label": "Water every (days)"
+        },
+        {
+          "key": "last_watered",
+          "type": "date"
+        },
+        {
+          "key": "next_water",
+          "type": "date",
+          "label": "Water next"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "today",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "today",
+          "label": "Thirsty",
+          "icon": "check"
+        },
+        {
+          "screen": "plants",
+          "label": "All plants",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "today": {
+        "data": {
+          "thirsty": {
+            "from": "plants",
+            "where": "=next_water <= today()",
+            "sort": "next_water"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Plants due for water today, or overdue.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.thirsty",
+            "columns": [
+              {
+                "label": "Plant",
+                "value": "=row.name"
+              },
+              {
+                "label": "Where",
+                "value": "=row.spot"
+              },
+              {
+                "label": "Last watered",
+                "value": "=row.last_watered"
+              },
+              {
+                "label": "Due",
+                "value": "=row.next_water"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "plant",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Watered",
+                "emphasis": "primary",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "last_watered": "=today()",
+                        "next_water": "=addDays(today(), row.water_every_days)"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "plants": {
+        "data": {
+          "all": {
+            "from": "plants",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New plant",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_plant"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Plant",
+                "value": "=row.name"
+              },
+              {
+                "label": "What",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Where",
+                "value": "=row.spot"
+              },
+              {
+                "label": "Every (days)",
+                "value": "=row.water_every_days"
+              },
+              {
+                "label": "Water next",
+                "value": "=row.next_water"
+              }
+            ],
+            "search": "Find a plant",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "plant",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "plant": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "plants",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "kind",
+              "spot",
+              "light",
+              "water_every_days",
+              "last_watered",
+              "next_water",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "plants"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "plants"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this plant? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "plants"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_plant": {
+        "content": [
+          {
+            "type": "form",
+            "table": "plants",
+            "fields": [
+              "name",
+              "kind",
+              "spot",
+              "light",
+              "water_every_days",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "plants",
+                      "values": "=form.values",
+                      "preset": {
+                        "next_water": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "plants"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "plants"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "plants": [
+      {
+        "name": "Monty",
+        "kind": "Monstera",
+        "spot": "Living room",
+        "light": "Bright, no sun",
+        "water_every_days": 7,
+        "last_watered": "2026-11-20",
+        "next_water": "2026-11-27"
+      },
+      {
+        "name": "Basil",
+        "kind": "Basil",
+        "spot": "Kitchen window",
+        "light": "Full sun",
+        "water_every_days": 2,
+        "last_watered": "2026-11-26",
+        "next_water": "2026-11-28"
+      }
+    ]
+  }
+}

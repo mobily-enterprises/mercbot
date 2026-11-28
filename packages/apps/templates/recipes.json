@@ -1,0 +1,430 @@
+{
+  "key": "recipes",
+  "name": "Family recipes",
+  "icon": "star",
+  "glyph": "skillet",
+  "color": "#C24A0C",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "The family's recipes with photos, ingredients, method and ratings, searchable and sorted by course.",
+  "tables": [
+    {
+      "key": "recipes",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "course",
+          "type": "choice",
+          "choices": [
+            "Breakfast",
+            "Starter",
+            "Main",
+            "Side",
+            "Dessert",
+            "Baking",
+            "Drink",
+            "Snack"
+          ]
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "min": 0,
+          "max": 1440,
+          "label": "Time (minutes)"
+        },
+        {
+          "key": "serves",
+          "type": "number",
+          "min": 1,
+          "max": 50
+        },
+        {
+          "key": "ingredients",
+          "type": "longtext"
+        },
+        {
+          "key": "method",
+          "type": "longtext"
+        },
+        {
+          "key": "from_whom",
+          "type": "text",
+          "label": "Whose recipe"
+        },
+        {
+          "key": "source",
+          "type": "url"
+        },
+        {
+          "key": "rating",
+          "type": "number",
+          "min": 1,
+          "max": 5
+        },
+        {
+          "key": "favourite",
+          "type": "yesno"
+        },
+        {
+          "key": "tags",
+          "type": "tags"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "recipes",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "recipes",
+          "label": "Recipes",
+          "icon": "search"
+        },
+        {
+          "screen": "favourites",
+          "label": "Favourites",
+          "icon": "star"
+        },
+        {
+          "screen": "summary",
+          "label": "By course",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "recipes": {
+        "data": {
+          "all": {
+            "from": "recipes",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New recipe",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_recipe"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Recipe",
+                "value": "=row.name"
+              },
+              {
+                "label": "Course",
+                "value": "=row.course"
+              },
+              {
+                "label": "Minutes",
+                "value": "=row.minutes"
+              },
+              {
+                "label": "Serves",
+                "value": "=row.serves"
+              },
+              {
+                "label": "Rating",
+                "value": "=row.rating"
+              },
+              {
+                "label": "Whose",
+                "value": "=row.from_whom"
+              }
+            ],
+            "search": "Find a recipe",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "recipe",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "recipe": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "recipes",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "course",
+              "minutes",
+              "serves",
+              "ingredients",
+              "method",
+              "from_whom",
+              "source",
+              "rating",
+              "favourite",
+              "tags",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "recipes"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "recipes"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this recipe? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "recipes"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_recipe": {
+        "content": [
+          {
+            "type": "form",
+            "table": "recipes",
+            "fields": [
+              "name",
+              "course",
+              "minutes",
+              "serves",
+              "ingredients",
+              "method",
+              "from_whom",
+              "source",
+              "rating",
+              "favourite",
+              "tags",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "recipes",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "recipes"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "recipes"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "favourites": {
+        "data": {
+          "faves": {
+            "from": "recipes",
+            "where": "=favourite == true",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.faves",
+            "columns": [
+              {
+                "label": "Recipe",
+                "value": "=row.name"
+              },
+              {
+                "label": "Course",
+                "value": "=row.course"
+              },
+              {
+                "label": "Minutes",
+                "value": "=row.minutes"
+              },
+              {
+                "label": "Photo",
+                "value": "=row.photo"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "recipe",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byCourse": {
+            "from": "recipes",
+            "groupBy": "course"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "Recipes by course",
+            "rows": "=data.byCourse"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "recipes": [
+      {
+        "name": "Nonna's tomato sauce",
+        "course": "Main",
+        "minutes": 60,
+        "serves": 6,
+        "ingredients": "2 tins of tomatoes\n1 onion\n2 cloves of garlic\nOlive oil, basil, salt",
+        "method": "Soften the onion and garlic in the oil, add the tomatoes and simmer slowly for 45 minutes. Finish with basil.",
+        "from_whom": "Nonna",
+        "rating": 5,
+        "favourite": true,
+        "tags": [
+          "vegetarian"
+        ]
+      },
+      {
+        "name": "Banana bread",
+        "course": "Baking",
+        "minutes": 75,
+        "serves": 8,
+        "ingredients": "3 ripe bananas\n250 g flour\n100 g sugar\n2 eggs\n75 g butter",
+        "method": "Mash, mix, pour into a tin and bake at 180°C for an hour.",
+        "rating": 4,
+        "favourite": false,
+        "tags": [
+          "baking"
+        ]
+      }
+    ]
+  }
+}

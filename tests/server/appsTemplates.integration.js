@@ -208,3 +208,17 @@ test("an app from a template knows when the template has improved, and is brough
   assert.equal(await stateOf("garden-log"), undefined);
   await assert.rejects(capability.updateFromTemplate(ctx, "garden-log"), { code: "apps_template_unknown" });
 });
+
+// Every ready-made app installs with its sample data, one after another in the same home, as a person trying the
+// catalogue would: each draft passes its save check on the tables it made or reused, and no sample record is refused.
+test("every template installs with its sample data, all of them in one home", async (context) => {
+  const { apps: capability, userId, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-all" });
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const { __testables } = await import("../../packages/apps/src/server/templates.js");
+  const problems = [];
+  for (const template of __testables.TEMPLATES) {
+    const done = await capability.installTemplate(ctx, template.key, { sample: true }).catch((error) => ({ errors: [error.message], skipped: 0 }));
+    if (done.errors.length || done.skipped) problems.push(`${template.key}: ${done.skipped} skipped, ${JSON.stringify(done.errors.slice(0, 2))}`);
+  }
+  assert.deepEqual(problems, []);
+});

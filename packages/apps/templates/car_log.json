@@ -1,0 +1,490 @@
+{
+  "key": "car_log",
+  "name": "Car log",
+  "icon": "calendar",
+  "glyph": "directionsCar",
+  "color": "#4A5B68",
+  "audiences": [
+    "business",
+    "family",
+    "personal"
+  ],
+  "description": "Each vehicle's fuel, services, repairs and costs, with its insurance, tax and service due dates.",
+  "tables": [
+    {
+      "key": "vehicles",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "plate",
+          "type": "text",
+          "unique": true,
+          "label": "Number plate"
+        },
+        {
+          "key": "make_model",
+          "type": "text",
+          "label": "Make and model"
+        },
+        {
+          "key": "year",
+          "type": "number",
+          "min": 1900,
+          "max": 2100
+        },
+        {
+          "key": "service_due",
+          "type": "date"
+        },
+        {
+          "key": "insurance_renews",
+          "type": "date"
+        },
+        {
+          "key": "tax_due",
+          "type": "date",
+          "label": "Tax or inspection due"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "vehicle_events",
+      "fields": [
+        {
+          "key": "vehicle",
+          "type": "link",
+          "target": "vehicles",
+          "required": true
+        },
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Fuel",
+            "Charging",
+            "Service",
+            "Repair",
+            "Tyres",
+            "Insurance",
+            "Tax",
+            "Parking",
+            "Other"
+          ]
+        },
+        {
+          "key": "odometer",
+          "type": "number",
+          "min": 0,
+          "label": "Odometer"
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "garage",
+          "type": "text",
+          "label": "Where"
+        },
+        {
+          "key": "receipt",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "vehicles",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "vehicles",
+          "label": "Vehicles",
+          "icon": "star"
+        },
+        {
+          "screen": "costs",
+          "label": "Costs",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "vehicles": {
+        "data": {
+          "all": {
+            "from": "vehicles",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New vehicle",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_vehicle"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Vehicle",
+                "value": "=row.name"
+              },
+              {
+                "label": "Plate",
+                "value": "=row.plate"
+              },
+              {
+                "label": "Service due",
+                "value": "=row.service_due"
+              },
+              {
+                "label": "Insurance renews",
+                "value": "=row.insurance_renews"
+              },
+              {
+                "label": "Tax due",
+                "value": "=row.tax_due"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "vehicle",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "vehicle": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "vehicles",
+            "id": "=params.id"
+          },
+          "spent": {
+            "from": "vehicle_events",
+            "where": "=vehicle == params.id && on >= addDays(today(), -365)",
+            "groupBy": "kind",
+            "sum": "cost",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "plate",
+              "make_model",
+              "year",
+              "service_due",
+              "insurance_renews",
+              "tax_due",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "vehicles"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "vehicles"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Log",
+            "record": "=data.item",
+            "table": "vehicle_events",
+            "link": "vehicle",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Odometer",
+                "value": "=row.odometer"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.cost"
+              },
+              {
+                "label": "Where",
+                "value": "=row.garage"
+              }
+            ],
+            "fields": [
+              "on",
+              "kind",
+              "odometer",
+              "cost",
+              "garage",
+              "receipt",
+              "notes"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "The last year, by kind",
+            "rows": "=data.spent"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this vehicle? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "vehicles"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_vehicle": {
+        "content": [
+          {
+            "type": "form",
+            "table": "vehicles",
+            "fields": [
+              "name",
+              "plate",
+              "make_model",
+              "year",
+              "service_due",
+              "insurance_renews",
+              "tax_due",
+              "photo",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "vehicles",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "vehicles"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "vehicles"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "costs": {
+        "data": {
+          "byMonth": {
+            "from": "vehicle_events",
+            "where": "=on >= addDays(today(), -365)",
+            "groupBy": "on",
+            "by": "month",
+            "sum": "cost"
+          },
+          "byKind": {
+            "from": "vehicle_events",
+            "where": "=on >= addDays(today(), -365)",
+            "groupBy": "kind",
+            "sum": "cost",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Costs each month",
+            "rows": "=data.byMonth",
+            "measure": "total"
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "By kind",
+                "rows": "=data.byKind",
+                "measure": "total"
+              },
+              {
+                "type": "totals",
+                "label": "The last year",
+                "rows": "=data.byKind"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "vehicles": [
+      {
+        "name": "The blue car",
+        "plate": "AB12 CDE",
+        "make_model": "Skoda Octavia Estate",
+        "year": 2019,
+        "service_due": "2027-01-20",
+        "insurance_renews": "2027-03-02",
+        "tax_due": "2026-12-31"
+      }
+    ],
+    "vehicle_events": [
+      {
+        "vehicle": {
+          "sample": "vehicles",
+          "name": "The blue car"
+        },
+        "on": "2026-11-18",
+        "kind": "Fuel",
+        "odometer": 61240,
+        "cost": 6280,
+        "garage": "Station on the ring road"
+      },
+      {
+        "vehicle": {
+          "sample": "vehicles",
+          "name": "The blue car"
+        },
+        "on": "2026-10-04",
+        "kind": "Tyres",
+        "odometer": 60110,
+        "cost": 34000,
+        "garage": "Kwik Tyres",
+        "notes": "Two new front tyres."
+      }
+    ]
+  }
+}

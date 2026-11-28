@@ -1,0 +1,500 @@
+{
+  "key": "pocket_money",
+  "name": "Pocket money",
+  "icon": "star",
+  "glyph": "savings",
+  "color": "#8F6A00",
+  "audiences": [
+    "family"
+  ],
+  "description": "Each child's pocket money: allowance in, spending out, their balance and what they're saving for.",
+  "tables": [
+    {
+      "key": "kids",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "weekly",
+          "type": "money",
+          "min": 0,
+          "label": "Weekly allowance"
+        },
+        {
+          "key": "saving_for",
+          "type": "text"
+        },
+        {
+          "key": "goal",
+          "type": "money",
+          "min": 0,
+          "label": "Goal"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "key": "money_moves",
+      "fields": [
+        {
+          "key": "kid",
+          "type": "link",
+          "target": "kids",
+          "required": true,
+          "label": "Who"
+        },
+        {
+          "key": "on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Allowance",
+            "Earned",
+            "Gift",
+            "Spent"
+          ]
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "note",
+          "type": "text"
+        },
+        {
+          "key": "change",
+          "type": "money",
+          "formula": "=kind == \"Spent\" ? 0.0 - amount : amount"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "kids",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "kids",
+          "label": "Children",
+          "icon": "person"
+        },
+        {
+          "screen": "moves",
+          "label": "All money",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "kids": {
+        "data": {
+          "all": {
+            "from": "kids",
+            "sort": "name"
+          },
+          "balances": {
+            "from": "money_moves",
+            "groupBy": "kid",
+            "sum": "change"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New child",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_kid"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Weekly",
+                "value": "=row.weekly"
+              },
+              {
+                "label": "Saving for",
+                "value": "=row.saving_for"
+              },
+              {
+                "label": "Goal",
+                "value": "=row.goal"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "kid",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Balances",
+            "rows": "=data.balances"
+          }
+        ]
+      },
+      "kid": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "kids",
+            "id": "=params.id"
+          },
+          "balance": {
+            "from": "money_moves",
+            "where": "=kid == params.id",
+            "groupBy": "kid",
+            "sum": "change"
+          }
+        },
+        "content": [
+          {
+            "type": "totals",
+            "label": "Balance",
+            "rows": "=data.balance"
+          },
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "weekly",
+              "saving_for",
+              "goal",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "kids"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "kids"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Pay this week's allowance",
+                "icon": "add",
+                "showIf": "=data.item.weekly > 0.0",
+                "confirm": "Add this week's allowance?",
+                "do": [
+                  {
+                    "create": {
+                      "table": "money_moves",
+                      "values": {
+                        "kid": "=params.id",
+                        "on": "=today()",
+                        "kind": "Allowance",
+                        "amount": "=data.item.weekly",
+                        "note": "Weekly allowance"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Allowance added.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Money in and out",
+            "record": "=data.item",
+            "table": "money_moves",
+            "link": "kid",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Note",
+                "value": "=row.note"
+              }
+            ],
+            "fields": [
+              "on",
+              "kind",
+              "amount",
+              "note"
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this child? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "kids"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_kid": {
+        "content": [
+          {
+            "type": "form",
+            "table": "kids",
+            "fields": [
+              "name",
+              "weekly",
+              "saving_for",
+              "goal",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "kids",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "kids"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "kids"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "moves": {
+        "data": {
+          "all": {
+            "from": "money_moves",
+            "sort": "-on"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.on"
+              },
+              {
+                "label": "Who",
+                "value": "=row.kid"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Note",
+                "value": "=row.note"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "kid",
+                  "params": {
+                    "id": "=row.kid"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "kids": [
+      {
+        "name": "Maya",
+        "weekly": 500,
+        "saving_for": "A skateboard",
+        "goal": 6000
+      },
+      {
+        "name": "Theo",
+        "weekly": 300,
+        "saving_for": "A football kit",
+        "goal": 4500
+      }
+    ],
+    "money_moves": [
+      {
+        "kid": {
+          "sample": "kids",
+          "name": "Maya"
+        },
+        "on": "2026-11-21",
+        "kind": "Allowance",
+        "amount": 500,
+        "note": "Weekly allowance"
+      },
+      {
+        "kid": {
+          "sample": "kids",
+          "name": "Maya"
+        },
+        "on": "2026-11-22",
+        "kind": "Gift",
+        "amount": 2000,
+        "note": "From Grandpa"
+      },
+      {
+        "kid": {
+          "sample": "kids",
+          "name": "Maya"
+        },
+        "on": "2026-11-24",
+        "kind": "Spent",
+        "amount": 350,
+        "note": "Comic"
+      },
+      {
+        "kid": {
+          "sample": "kids",
+          "name": "Theo"
+        },
+        "on": "2026-11-21",
+        "kind": "Allowance",
+        "amount": 300,
+        "note": "Weekly allowance"
+      }
+    ]
+  }
+}

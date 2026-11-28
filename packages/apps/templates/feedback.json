@@ -1,0 +1,384 @@
+{
+  "key": "feedback",
+  "name": "Customer feedback",
+  "icon": "star",
+  "glyph": "reviews",
+  "color": "#8F6A00",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "A public page where customers rate you and say why; you read, follow up and watch the scores.",
+  "tables": [
+    {
+      "key": "feedback",
+      "fields": [
+        {
+          "key": "rating",
+          "type": "number",
+          "required": true,
+          "min": 1,
+          "max": 5,
+          "label": "Your rating (1 to 5)"
+        },
+        {
+          "key": "about",
+          "type": "choice",
+          "choices": [
+            "Service",
+            "Product",
+            "Delivery",
+            "Website",
+            "Other"
+          ],
+          "label": "About"
+        },
+        {
+          "key": "comments",
+          "type": "longtext",
+          "required": true,
+          "label": "Tell us more"
+        },
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Your name (optional)"
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "label": "Your email (optional)"
+        },
+        {
+          "key": "wants_reply",
+          "type": "yesno",
+          "label": "Please get back to me"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "New",
+            "Read",
+            "Followed up"
+          ]
+        },
+        {
+          "key": "received",
+          "type": "date"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "inbox",
+    "public": {
+      "home": "give",
+      "tables": {
+        "feedback": {
+          "can": [
+            "create"
+          ],
+          "write": [
+            "rating",
+            "about",
+            "comments",
+            "name",
+            "email",
+            "wants_reply",
+            "status",
+            "received"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "inbox",
+          "label": "Feedback",
+          "icon": "mail"
+        },
+        {
+          "screen": "scores",
+          "label": "Scores",
+          "icon": "chart"
+        },
+        {
+          "screen": "give",
+          "label": "Public page",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "inbox": {
+        "data": {
+          "all": {
+            "from": "feedback",
+            "sort": "-received"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Received",
+                "value": "=row.received"
+              },
+              {
+                "label": "Rating",
+                "value": "=row.rating"
+              },
+              {
+                "label": "About",
+                "value": "=row.about"
+              },
+              {
+                "label": "Comments",
+                "value": "=row.comments"
+              },
+              {
+                "label": "Wants a reply",
+                "value": "=row.wants_reply"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find feedback",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "item",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Read",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Read"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "item": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "feedback",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "rating",
+              "about",
+              "comments",
+              "name",
+              "email",
+              "wants_reply",
+              "status",
+              "received"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "inbox"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "inbox"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "scores": {
+        "data": {
+          "byRating": {
+            "from": "feedback",
+            "groupBy": "rating"
+          },
+          "byTopic": {
+            "from": "feedback",
+            "groupBy": "about",
+            "avg": "rating"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "How people rate you",
+                "rows": "=data.byRating"
+              },
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "Average rating by topic",
+                "rows": "=data.byTopic",
+                "measure": "total"
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Average rating by topic",
+            "rows": "=data.byTopic"
+          }
+        ]
+      },
+      "give": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "How did we do?",
+            "size": "title"
+          },
+          {
+            "type": "form",
+            "table": "feedback",
+            "fields": [
+              "rating",
+              "about",
+              "comments",
+              "name",
+              "email",
+              "wants_reply"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "feedback",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "New",
+                        "received": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "go": {
+                      "screen": "thanks"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "notify": {
+                  "to": "owners",
+                  "text": "=\"New feedback about \" + record.about + \": \" + record.comments"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "thanks": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Thank you.",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "Every word is read by a person.",
+            "size": "body"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "feedback": [
+      {
+        "rating": 5,
+        "about": "Service",
+        "comments": "Quick, friendly and they remembered my name.",
+        "status": "Read",
+        "received": "2026-11-21"
+      },
+      {
+        "rating": 2,
+        "about": "Delivery",
+        "comments": "Arrived three days late with no word.",
+        "email": "kim@example.com",
+        "wants_reply": true,
+        "status": "New",
+        "received": "2026-11-26"
+      }
+    ]
+  }
+}

@@ -1,0 +1,500 @@
+{
+  "key": "contracts",
+  "name": "Contracts and renewals",
+  "icon": "edit",
+  "glyph": "contract",
+  "color": "#7A4E2D",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Supplier, customer and software contracts: what they're worth, when they end and when to give notice.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "contracts",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "organisation",
+          "type": "link",
+          "target": "organisations",
+          "label": "With"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Supplier",
+            "Customer",
+            "Lease",
+            "Software",
+            "Insurance",
+            "Other"
+          ]
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "starts",
+          "type": "date"
+        },
+        {
+          "key": "ends",
+          "type": "date"
+        },
+        {
+          "key": "renewal",
+          "type": "choice",
+          "choices": [
+            "Renews by itself",
+            "Ends",
+            "Rolling"
+          ]
+        },
+        {
+          "key": "notice_days",
+          "type": "number",
+          "min": 0,
+          "label": "Notice (days)"
+        },
+        {
+          "key": "notice_by",
+          "type": "date",
+          "label": "Give notice by",
+          "formula": "=addDays(ends, 0.0 - notice_days)"
+        },
+        {
+          "key": "value",
+          "type": "money",
+          "min": 0,
+          "label": "Value a year"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Active",
+            "Ending",
+            "Ended"
+          ]
+        },
+        {
+          "key": "document",
+          "type": "file"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "contracts",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "contracts",
+          "label": "Contracts",
+          "icon": "edit"
+        },
+        {
+          "screen": "ending",
+          "label": "Ending soon",
+          "icon": "calendar"
+        },
+        {
+          "screen": "timeline",
+          "label": "Timeline",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "contracts": {
+        "data": {
+          "all": {
+            "from": "contracts",
+            "sort": "ends"
+          },
+          "byKind": {
+            "from": "contracts",
+            "where": "=status == \"Active\"",
+            "groupBy": "kind",
+            "sum": "value",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New contract",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_contract"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Contract",
+                "value": "=row.title"
+              },
+              {
+                "label": "With",
+                "value": "=row.organisation"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Notice by",
+                "value": "=row.notice_by"
+              },
+              {
+                "label": "Value a year",
+                "value": "=row.value"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a contract",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contract",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Active contracts, value a year",
+            "rows": "=data.byKind"
+          }
+        ]
+      },
+      "contract": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "contracts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "organisation",
+              "kind",
+              "owner",
+              "starts",
+              "ends",
+              "renewal",
+              "notice_days",
+              "notice_by",
+              "value",
+              "status",
+              "document",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "contracts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "contracts"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this contract? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "contracts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_contract": {
+        "content": [
+          {
+            "type": "form",
+            "table": "contracts",
+            "fields": [
+              "title",
+              "organisation",
+              "kind",
+              "owner",
+              "starts",
+              "ends",
+              "renewal",
+              "notice_days",
+              "value",
+              "document",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "contracts",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Active"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "contracts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "contracts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ending": {
+        "data": {
+          "soon": {
+            "from": "contracts",
+            "where": "=ends >= today() && ends <= addDays(today(), 120)",
+            "sort": "ends"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Contracts ending in the next four months. Check the notice date before it passes.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.soon",
+            "columns": [
+              {
+                "label": "Contract",
+                "value": "=row.title"
+              },
+              {
+                "label": "With",
+                "value": "=row.organisation"
+              },
+              {
+                "label": "Ends",
+                "value": "=row.ends"
+              },
+              {
+                "label": "Notice by",
+                "value": "=row.notice_by"
+              },
+              {
+                "label": "Renewal",
+                "value": "=row.renewal"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contract",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "timeline": {
+        "data": {
+          "all": {
+            "from": "contracts",
+            "where": "=ends >= addDays(today(), -90)",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "timeline",
+            "rows": "=data.all",
+            "start": "starts",
+            "end": "ends",
+            "groupBy": "kind",
+            "title": "=row.title",
+            "move": false,
+            "onClick": [
+              {
+                "go": {
+                  "screen": "contract",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Brightline Cleaning",
+        "kind": "Company"
+      },
+      {
+        "name": "Nimbus Cloud",
+        "kind": "Company"
+      }
+    ],
+    "contracts": [
+      {
+        "title": "Office cleaning",
+        "organisation": {
+          "sample": "organisations",
+          "name": "Brightline Cleaning"
+        },
+        "kind": "Supplier",
+        "starts": "2026-01-01",
+        "ends": "2026-12-31",
+        "renewal": "Renews by itself",
+        "notice_days": 30,
+        "value": 960000,
+        "status": "Active"
+      },
+      {
+        "title": "Cloud hosting",
+        "organisation": {
+          "sample": "organisations",
+          "name": "Nimbus Cloud"
+        },
+        "kind": "Software",
+        "starts": "2025-04-01",
+        "ends": "2027-03-31",
+        "renewal": "Ends",
+        "notice_days": 60,
+        "value": 1440000,
+        "status": "Active"
+      }
+    ]
+  }
+}

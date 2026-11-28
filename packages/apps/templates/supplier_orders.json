@@ -1,0 +1,635 @@
+{
+  "key": "supplier_orders",
+  "name": "Suppliers and orders",
+  "icon": "check",
+  "glyph": "localShipping",
+  "color": "#7A4E2D",
+  "audiences": [
+    "business"
+  ],
+  "description": "What you've ordered from each supplier, line by line, when it's due and what has arrived.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "supplier_orders",
+      "fields": [
+        {
+          "key": "number",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "label": "Order number"
+        },
+        {
+          "key": "supplier",
+          "type": "link",
+          "target": "organisations",
+          "required": true
+        },
+        {
+          "key": "ordered_on",
+          "type": "date"
+        },
+        {
+          "key": "expected",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Ordered",
+            "Part received",
+            "Received",
+            "Cancelled"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "supplier_order_lines",
+      "fields": [
+        {
+          "key": "supplier_order",
+          "type": "link",
+          "target": "supplier_orders",
+          "required": true,
+          "label": "Order"
+        },
+        {
+          "key": "item",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "unit_cost",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "line_cost",
+          "type": "money",
+          "formula": "=quantity * unit_cost"
+        },
+        {
+          "key": "received",
+          "type": "yesno"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "orders",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "orders",
+          "label": "Orders",
+          "icon": "check"
+        },
+        {
+          "screen": "arriving",
+          "label": "Arriving",
+          "icon": "calendar"
+        },
+        {
+          "screen": "suppliers",
+          "label": "Suppliers",
+          "icon": "person"
+        }
+      ]
+    },
+    "screens": {
+      "orders": {
+        "data": {
+          "all": {
+            "from": "supplier_orders",
+            "sort": "-ordered_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New order",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_order"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Order",
+                "value": "=row.number"
+              },
+              {
+                "label": "Supplier",
+                "value": "=row.supplier"
+              },
+              {
+                "label": "Ordered",
+                "value": "=row.ordered_on"
+              },
+              {
+                "label": "Expected",
+                "value": "=row.expected"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find an order",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "order",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "order": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "supplier_orders",
+            "id": "=params.id"
+          },
+          "total": {
+            "from": "supplier_order_lines",
+            "where": "=supplier_order == params.id",
+            "groupBy": "supplier_order",
+            "sum": "line_cost"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "number",
+              "supplier",
+              "ordered_on",
+              "expected",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Lines",
+            "record": "=data.item",
+            "table": "supplier_order_lines",
+            "link": "supplier_order",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.item"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Unit cost",
+                "value": "=row.unit_cost"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.line_cost"
+              },
+              {
+                "label": "Received",
+                "value": "=row.received"
+              }
+            ],
+            "fields": [
+              "item",
+              "quantity",
+              "unit_cost",
+              "received"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Order total",
+            "rows": "=data.total"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All received",
+                "icon": "check",
+                "showIf": "=data.item.status != \"Received\"",
+                "confirm": "Mark the whole order received?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Received"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked received.\""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this order? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_order": {
+        "content": [
+          {
+            "type": "form",
+            "table": "supplier_orders",
+            "fields": [
+              "number",
+              "supplier",
+              "ordered_on",
+              "expected",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "supplier_orders",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Ordered"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "arriving": {
+        "data": {
+          "soon": {
+            "from": "supplier_orders",
+            "where": "=expected >= addDays(today(), -31) && status != \"Cancelled\"",
+            "sort": "expected"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "expected",
+            "title": "=row.number",
+            "subtitle": "=row.status",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "order",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "suppliers": {
+        "data": {
+          "all": {
+            "from": "organisations",
+            "where": "=\"supplier\" in tags",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Organisations tagged \"supplier\". Tag one in its record to list it here.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Supplier",
+                "value": "=row.name"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              },
+              {
+                "label": "Website",
+                "value": "=row.website"
+              }
+            ],
+            "search": "Find a supplier",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "supplier",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "supplier": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "organisations",
+            "id": "=params.id"
+          },
+          "orders": {
+            "from": "supplier_orders",
+            "where": "=supplier == params.id",
+            "sort": "-ordered_on"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "website",
+              "address",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "suppliers"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Orders",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.orders",
+            "columns": [
+              {
+                "label": "Order",
+                "value": "=row.number"
+              },
+              {
+                "label": "Ordered",
+                "value": "=row.ordered_on"
+              },
+              {
+                "label": "Expected",
+                "value": "=row.expected"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "order",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Bean Brothers Roasters",
+        "kind": "Company",
+        "tags": [
+          "supplier"
+        ],
+        "email": "orders@example.com"
+      }
+    ],
+    "supplier_orders": [
+      {
+        "number": "PO-2207",
+        "supplier": {
+          "sample": "organisations",
+          "name": "Bean Brothers Roasters"
+        },
+        "ordered_on": "2026-11-24",
+        "expected": "2026-12-01",
+        "status": "Ordered"
+      }
+    ],
+    "supplier_order_lines": [
+      {
+        "supplier_order": {
+          "sample": "supplier_orders",
+          "number": "PO-2207"
+        },
+        "item": "House blend, 1 kg",
+        "quantity": 12,
+        "unit_cost": 1850,
+        "received": false
+      },
+      {
+        "supplier_order": {
+          "sample": "supplier_orders",
+          "number": "PO-2207"
+        },
+        "item": "Decaf, 1 kg",
+        "quantity": 3,
+        "unit_cost": 2100,
+        "received": false
+      }
+    ]
+  }
+}

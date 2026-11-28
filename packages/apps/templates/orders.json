@@ -1,0 +1,781 @@
+{
+  "key": "orders",
+  "name": "Customer orders",
+  "icon": "check",
+  "glyph": "shoppingBag",
+  "color": "#8E2C8E",
+  "audiences": [
+    "business"
+  ],
+  "description": "Orders from your customers, line by line from your product list, moved from New to Delivered.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "products",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "sku",
+          "type": "text",
+          "unique": true,
+          "label": "SKU"
+        },
+        {
+          "key": "price",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "unit",
+          "type": "text"
+        },
+        {
+          "key": "category",
+          "type": "text"
+        },
+        {
+          "key": "active",
+          "type": "yesno",
+          "label": "On sale"
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "key": "orders",
+      "fields": [
+        {
+          "key": "number",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "label": "Order number"
+        },
+        {
+          "key": "customer",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "ordered_on",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "New",
+            "Paid",
+            "Packed",
+            "Shipped",
+            "Delivered",
+            "Cancelled"
+          ]
+        },
+        {
+          "key": "ship_to",
+          "type": "longtext"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "order_lines",
+      "fields": [
+        {
+          "key": "order",
+          "type": "link",
+          "target": "orders",
+          "required": true
+        },
+        {
+          "key": "product",
+          "type": "link",
+          "target": "products",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "required": true,
+          "min": 1
+        },
+        {
+          "key": "unit_price",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "amount",
+          "type": "money",
+          "formula": "=quantity * unit_price"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "orders",
+          "label": "Orders",
+          "icon": "check"
+        },
+        {
+          "screen": "products",
+          "label": "Products",
+          "icon": "search"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "open": {
+            "from": "orders",
+            "where": "=status != \"Cancelled\" && ordered_on >= addDays(today(), -60)",
+            "sort": "-ordered_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New order",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_order"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.open",
+            "groupBy": "status",
+            "title": "=row.number",
+            "subtitle": "=formatDate(row.ordered_on, \"d MMM\")",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "order",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "orders": {
+        "data": {
+          "all": {
+            "from": "orders",
+            "sort": "-ordered_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New order",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_order"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Order",
+                "value": "=row.number"
+              },
+              {
+                "label": "Customer",
+                "value": "=row.customer"
+              },
+              {
+                "label": "Ordered",
+                "value": "=row.ordered_on"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find an order",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "order",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "order": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "orders",
+            "id": "=params.id"
+          },
+          "total": {
+            "from": "order_lines",
+            "where": "=order == params.id",
+            "groupBy": "order",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "number",
+              "customer",
+              "ordered_on",
+              "status",
+              "ship_to",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lines",
+            "label": "Items",
+            "record": "=data.item",
+            "table": "order_lines",
+            "link": "order",
+            "columns": [
+              {
+                "label": "Product",
+                "value": "=row.product"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Unit price",
+                "value": "=row.unit_price"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              }
+            ],
+            "fields": [
+              "product",
+              "quantity",
+              "unit_price"
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Order total",
+            "rows": "=data.total"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this order? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_order": {
+        "content": [
+          {
+            "type": "form",
+            "table": "orders",
+            "fields": [
+              "number",
+              "customer",
+              "ordered_on",
+              "ship_to",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "orders",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "New"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "orders"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "products": {
+        "data": {
+          "all": {
+            "from": "products",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New product",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_product"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Product",
+                "value": "=row.name"
+              },
+              {
+                "label": "SKU",
+                "value": "=row.sku"
+              },
+              {
+                "label": "Price",
+                "value": "=row.price"
+              },
+              {
+                "label": "Unit",
+                "value": "=row.unit"
+              },
+              {
+                "label": "Category",
+                "value": "=row.category"
+              },
+              {
+                "label": "On sale",
+                "value": "=row.active"
+              }
+            ],
+            "search": "Find a product",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "product",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "product": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "products",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "sku",
+              "price",
+              "unit",
+              "category",
+              "active",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "products"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "products"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this product? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "products"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_product": {
+        "content": [
+          {
+            "type": "form",
+            "table": "products",
+            "fields": [
+              "name",
+              "sku",
+              "price",
+              "unit",
+              "category",
+              "active",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "products",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "products"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "products"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byMonth": {
+            "from": "orders",
+            "where": "=status != \"Cancelled\"",
+            "groupBy": "ordered_on",
+            "by": "month"
+          },
+          "byProduct": {
+            "from": "order_lines",
+            "groupBy": "product",
+            "sum": "quantity"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "Orders each month",
+                "rows": "=data.byMonth"
+              },
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Units sold by product",
+                "rows": "=data.byProduct",
+                "measure": "total"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "contacts": [
+      {
+        "name": "Jonas Weber",
+        "email": "jonas@example.com"
+      }
+    ],
+    "products": [
+      {
+        "name": "Linen tea towel",
+        "sku": "TT-01",
+        "price": 1200,
+        "unit": "each",
+        "category": "Kitchen",
+        "active": true
+      },
+      {
+        "name": "Beeswax candle",
+        "sku": "CA-03",
+        "price": 1650,
+        "unit": "each",
+        "category": "Home",
+        "active": true
+      }
+    ],
+    "orders": [
+      {
+        "number": "1001",
+        "customer": {
+          "sample": "contacts",
+          "name": "Jonas Weber"
+        },
+        "ordered_on": "2026-11-25",
+        "status": "Paid",
+        "ship_to": "Kastanienallee 5, Berlin"
+      }
+    ],
+    "order_lines": [
+      {
+        "order": {
+          "sample": "orders",
+          "number": "1001"
+        },
+        "product": {
+          "sample": "products",
+          "name": "Linen tea towel"
+        },
+        "quantity": 2,
+        "unit_price": 1200
+      },
+      {
+        "order": {
+          "sample": "orders",
+          "number": "1001"
+        },
+        "product": {
+          "sample": "products",
+          "name": "Beeswax candle"
+        },
+        "quantity": 1,
+        "unit_price": 1650
+      }
+    ]
+  }
+}

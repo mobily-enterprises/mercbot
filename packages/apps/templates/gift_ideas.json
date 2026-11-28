@@ -1,0 +1,440 @@
+{
+  "key": "gift_ideas",
+  "name": "Gift ideas",
+  "icon": "star",
+  "glyph": "redeem",
+  "color": "#C2185B",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Gift ideas for the people in your contacts, from idea to bought, wrapped and given, and what you spent.",
+  "uses": [
+    "contacts"
+  ],
+  "tables": [
+    {
+      "key": "gifts",
+      "fields": [
+        {
+          "key": "idea",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "for_whom",
+          "type": "link",
+          "target": "contacts",
+          "required": true,
+          "label": "For"
+        },
+        {
+          "key": "occasion",
+          "type": "choice",
+          "choices": [
+            "Birthday",
+            "Christmas",
+            "Anniversary",
+            "Wedding",
+            "New baby",
+            "Thank you",
+            "Other"
+          ]
+        },
+        {
+          "key": "when",
+          "type": "date"
+        },
+        {
+          "key": "price",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "link",
+          "type": "url",
+          "label": "Where to buy it"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Idea",
+            "Bought",
+            "Wrapped",
+            "Given"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "gifts",
+          "label": "All gifts",
+          "icon": "search"
+        },
+        {
+          "screen": "spending",
+          "label": "Spending",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "open": {
+            "from": "gifts",
+            "where": "=status != \"Given\" || when >= addDays(today(), -30)",
+            "sort": "when"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New idea",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_gift"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.open",
+            "groupBy": "status",
+            "title": "=row.idea",
+            "subtitle": "=row.occasion",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "gift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gifts": {
+        "data": {
+          "all": {
+            "from": "gifts",
+            "sort": "when"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New gift",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_gift"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Idea",
+                "value": "=row.idea"
+              },
+              {
+                "label": "For",
+                "value": "=row.for_whom"
+              },
+              {
+                "label": "Occasion",
+                "value": "=row.occasion"
+              },
+              {
+                "label": "When",
+                "value": "=row.when"
+              },
+              {
+                "label": "Price",
+                "value": "=row.price"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a gift",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "gift",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gift": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "gifts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "idea",
+              "for_whom",
+              "occasion",
+              "when",
+              "price",
+              "link",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "gifts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "gifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this gift? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "gifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_gift": {
+        "content": [
+          {
+            "type": "form",
+            "table": "gifts",
+            "fields": [
+              "idea",
+              "for_whom",
+              "occasion",
+              "when",
+              "price",
+              "link",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "gifts",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Idea"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "gifts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "spending": {
+        "data": {
+          "byPerson": {
+            "from": "gifts",
+            "where": "=status != \"Idea\" && when >= addDays(today(), -365)",
+            "groupBy": "for_whom",
+            "sum": "price",
+            "grandTotal": true
+          },
+          "byOccasion": {
+            "from": "gifts",
+            "where": "=status != \"Idea\"",
+            "groupBy": "occasion",
+            "sum": "price"
+          }
+        },
+        "content": [
+          {
+            "type": "totals",
+            "label": "Spent in the last year, by person",
+            "rows": "=data.byPerson"
+          },
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "By occasion",
+            "rows": "=data.byOccasion",
+            "measure": "total"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "contacts": [
+      {
+        "name": "Grandma Rose",
+        "birthday": "1948-12-09"
+      },
+      {
+        "name": "Sam Okoro"
+      }
+    ],
+    "gifts": [
+      {
+        "idea": "A framed family photo",
+        "for_whom": {
+          "sample": "contacts",
+          "name": "Grandma Rose"
+        },
+        "occasion": "Birthday",
+        "when": "2026-12-09",
+        "price": 3500,
+        "status": "Bought"
+      },
+      {
+        "idea": "Climbing lessons voucher",
+        "for_whom": {
+          "sample": "contacts",
+          "name": "Sam Okoro"
+        },
+        "occasion": "Christmas",
+        "when": "2026-12-25",
+        "price": 6000,
+        "status": "Idea",
+        "link": "https://example.com/climbing"
+      }
+    ]
+  }
+}

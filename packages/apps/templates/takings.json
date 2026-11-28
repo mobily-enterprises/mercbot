@@ -1,0 +1,380 @@
+{
+  "key": "takings",
+  "name": "Daily takings",
+  "icon": "chart",
+  "glyph": "pointOfSale",
+  "color": "#5A7A16",
+  "audiences": [
+    "business"
+  ],
+  "description": "Cash up at the end of each day: card and cash takings, the float, and the trend week by week.",
+  "tables": [
+    {
+      "key": "takings",
+      "fields": [
+        {
+          "key": "day",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "till",
+          "type": "choice",
+          "choices": [
+            "Main till",
+            "Second till",
+            "Web shop",
+            "Market stall"
+          ]
+        },
+        {
+          "key": "cash",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "card",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "formula": "=cash + card"
+        },
+        {
+          "key": "float_left",
+          "type": "money",
+          "min": 0,
+          "label": "Float left in the till"
+        },
+        {
+          "key": "counted_by",
+          "type": "person"
+        },
+        {
+          "key": "summary",
+          "type": "text",
+          "label": "Note"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "days",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "days",
+          "label": "Days",
+          "icon": "calendar"
+        },
+        {
+          "screen": "new_day",
+          "label": "Cash up",
+          "icon": "add"
+        },
+        {
+          "screen": "trend",
+          "label": "Trend",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "days": {
+        "data": {
+          "all": {
+            "from": "takings",
+            "sort": "-day"
+          },
+          "thisMonth": {
+            "from": "takings",
+            "where": "=day >= startOfMonth(today())",
+            "groupBy": "till",
+            "sum": "total",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New day",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_day"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "This month so far",
+            "rows": "=data.thisMonth"
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.day"
+              },
+              {
+                "label": "Till",
+                "value": "=row.till"
+              },
+              {
+                "label": "Cash",
+                "value": "=row.cash"
+              },
+              {
+                "label": "Card",
+                "value": "=row.card"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
+              },
+              {
+                "label": "Counted by",
+                "value": "=row.counted_by"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "day",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "day": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "takings",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "day",
+              "till",
+              "cash",
+              "card",
+              "total",
+              "float_left",
+              "counted_by",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "days"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "days"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this day? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "days"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_day": {
+        "content": [
+          {
+            "type": "form",
+            "table": "takings",
+            "fields": [
+              "day",
+              "till",
+              "cash",
+              "card",
+              "float_left",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save the day",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "takings",
+                      "values": "=form.values",
+                      "preset": {
+                        "counted_by": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "days"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "days"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "trend": {
+        "data": {
+          "byWeek": {
+            "from": "takings",
+            "where": "=day >= addDays(today(), -182)",
+            "groupBy": "day",
+            "by": "week",
+            "sum": "total"
+          },
+          "byMonth": {
+            "from": "takings",
+            "groupBy": "day",
+            "by": "month",
+            "sum": "total"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "line",
+            "label": "Takings each week",
+            "rows": "=data.byWeek",
+            "measure": "total"
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Takings each month",
+            "rows": "=data.byMonth",
+            "measure": "total"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "takings": [
+      {
+        "day": "2026-11-25",
+        "till": "Main till",
+        "cash": 18450,
+        "card": 61230,
+        "float_left": 10000,
+        "summary": "Busy lunch."
+      },
+      {
+        "day": "2026-11-26",
+        "till": "Main till",
+        "cash": 15200,
+        "card": 54810,
+        "float_left": 10000
+      },
+      {
+        "day": "2026-11-26",
+        "till": "Web shop",
+        "cash": 0,
+        "card": 22900
+      }
+    ]
+  }
+}

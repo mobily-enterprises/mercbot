@@ -1,0 +1,359 @@
+{
+  "key": "family_calendar",
+  "name": "Family calendar",
+  "icon": "calendar",
+  "glyph": "familyRestroom",
+  "color": "#0A6FB8",
+  "audiences": [
+    "family"
+  ],
+  "description": "Everyone's plans on one month and week calendar, on the home's shared events, so other apps see them too.",
+  "uses": [
+    "events"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "month",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "month",
+          "label": "Month",
+          "icon": "calendar"
+        },
+        {
+          "screen": "week",
+          "label": "Week",
+          "icon": "star"
+        },
+        {
+          "screen": "upcoming",
+          "label": "Coming up",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "month": {
+        "data": {
+          "soon": {
+            "from": "events",
+            "where": "=starts >= addDays(today(), -45) && status != \"Cancelled\"",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add something",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_event"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "starts",
+            "end": "ends",
+            "title": "=row.title",
+            "span": "month",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "event",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "week": {
+        "data": {
+          "soon": {
+            "from": "events",
+            "where": "=starts >= addDays(today(), -14) && status != \"Cancelled\"",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "starts",
+            "end": "ends",
+            "title": "=row.title",
+            "subtitle": "=formatDate(row.starts, \"HH:mm\")",
+            "span": "week",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "event",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "upcoming": {
+        "data": {
+          "all": {
+            "from": "events",
+            "where": "=starts >= today()",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New plan",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_event"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "When",
+                "value": "=row.starts"
+              },
+              {
+                "label": "What",
+                "value": "=row.title"
+              },
+              {
+                "label": "Where",
+                "value": "=row.place"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a plan",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "event",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "event": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "events",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "starts",
+              "ends",
+              "place",
+              "organiser",
+              "status",
+              "notes",
+              "poster"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "upcoming"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "upcoming"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this plan? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "upcoming"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_event": {
+        "content": [
+          {
+            "type": "form",
+            "table": "events",
+            "fields": [
+              "title",
+              "starts",
+              "ends",
+              "place",
+              "organiser",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "events",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Confirmed"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "month"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "upcoming"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "events": [
+      {
+        "title": "Theo's football match",
+        "starts": "2026-11-29T09:30:00.000Z",
+        "ends": "2026-11-29T11:00:00.000Z",
+        "status": "Confirmed",
+        "notes": "Bring oranges for half time."
+      },
+      {
+        "title": "Grandma's birthday lunch",
+        "starts": "2026-12-06T12:30:00.000Z",
+        "ends": "2026-12-06T15:00:00.000Z",
+        "status": "Confirmed"
+      },
+      {
+        "title": "School nativity play",
+        "starts": "2026-12-15T14:00:00.000Z",
+        "ends": "2026-12-15T15:30:00.000Z",
+        "status": "Planned"
+      }
+    ]
+  }
+}

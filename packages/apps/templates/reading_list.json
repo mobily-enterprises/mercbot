@@ -1,0 +1,481 @@
+{
+  "key": "reading_list",
+  "name": "Reading list",
+  "icon": "star",
+  "glyph": "autoStories",
+  "color": "#7E3FB2",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Books you want to read, are reading and have read, with ratings, notes and who you lent them to.",
+  "tables": [
+    {
+      "key": "books",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "author",
+          "type": "text"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Want to read",
+            "Reading",
+            "Finished",
+            "Gave up"
+          ]
+        },
+        {
+          "key": "started",
+          "type": "date"
+        },
+        {
+          "key": "finished",
+          "type": "date"
+        },
+        {
+          "key": "rating",
+          "type": "number",
+          "min": 1,
+          "max": 5
+        },
+        {
+          "key": "pages",
+          "type": "number",
+          "min": 1
+        },
+        {
+          "key": "lent_to",
+          "type": "text"
+        },
+        {
+          "key": "tags",
+          "type": "tags"
+        },
+        {
+          "key": "cover",
+          "type": "image"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "shelf",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "shelf",
+          "label": "Shelf",
+          "icon": "star"
+        },
+        {
+          "screen": "books",
+          "label": "All books",
+          "icon": "search"
+        },
+        {
+          "screen": "year",
+          "label": "Your year",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "shelf": {
+        "data": {
+          "all": {
+            "from": "books",
+            "where": "=status != \"Finished\" || finished >= addDays(today(), -90)",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Move a book along as you read it.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add a book",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_book"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.author",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "book",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "books": {
+        "data": {
+          "all": {
+            "from": "books",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New book",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_book"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Title",
+                "value": "=row.title"
+              },
+              {
+                "label": "Author",
+                "value": "=row.author"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Rating",
+                "value": "=row.rating"
+              },
+              {
+                "label": "Finished",
+                "value": "=row.finished"
+              },
+              {
+                "label": "Lent to",
+                "value": "=row.lent_to"
+              }
+            ],
+            "search": "Find a book",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "book",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "book": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "books",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "author",
+              "status",
+              "started",
+              "finished",
+              "rating",
+              "pages",
+              "lent_to",
+              "tags",
+              "cover",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Start reading",
+                "icon": "star",
+                "showIf": "=data.item.status == \"Want to read\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Reading",
+                        "started": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Enjoy it.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Finished it",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Reading\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Finished",
+                        "finished": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Finished. Give it a rating.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this book? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_book": {
+        "content": [
+          {
+            "type": "form",
+            "table": "books",
+            "fields": [
+              "title",
+              "author",
+              "pages",
+              "tags",
+              "cover",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "books",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Want to read"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "shelf"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "books"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "year": {
+        "data": {
+          "byMonth": {
+            "from": "books",
+            "where": "=status == \"Finished\" && finished >= addDays(today(), -365)",
+            "groupBy": "finished",
+            "by": "month"
+          },
+          "pages": {
+            "from": "books",
+            "where": "=status == \"Finished\" && finished >= startOfMonth(addMonths(today(), -11))",
+            "groupBy": "status",
+            "sum": "pages"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Books finished each month",
+            "rows": "=data.byMonth"
+          },
+          {
+            "type": "totals",
+            "label": "Pages read in the last twelve months",
+            "rows": "=data.pages"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "books": [
+      {
+        "title": "The Left Hand of Darkness",
+        "author": "Ursula K. Le Guin",
+        "status": "Reading",
+        "started": "2026-11-15",
+        "pages": 304,
+        "tags": [
+          "fiction"
+        ]
+      },
+      {
+        "title": "Braiding Sweetgrass",
+        "author": "Robin Wall Kimmerer",
+        "status": "Finished",
+        "started": "2026-10-01",
+        "finished": "2026-10-28",
+        "rating": 5,
+        "pages": 408,
+        "tags": [
+          "nature"
+        ]
+      },
+      {
+        "title": "Project Hail Mary",
+        "author": "Andy Weir",
+        "status": "Want to read",
+        "tags": [
+          "fiction"
+        ]
+      }
+    ]
+  }
+}

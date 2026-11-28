@@ -2,7 +2,11 @@
   "key": "bookings",
   "name": "Bookings",
   "icon": "calendar",
+  "glyph": "eventAvailable",
   "color": "#B3261E",
+  "audiences": [
+    "business"
+  ],
   "description": "People sign in with their email, book, and see and change only their own bookings. Make it public from its details.",
   "tables": [
     {

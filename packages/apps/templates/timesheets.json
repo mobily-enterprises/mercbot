@@ -1,0 +1,508 @@
+{
+  "key": "timesheets",
+  "name": "Timesheets",
+  "icon": "calendar",
+  "glyph": "timer",
+  "color": "#4A5B68",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Log hours by client and project; see this week's hours by person and what's billable.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "time_entries",
+      "fields": [
+        {
+          "key": "person",
+          "type": "person"
+        },
+        {
+          "key": "worked_on",
+          "type": "date",
+          "required": true,
+          "label": "Date"
+        },
+        {
+          "key": "client",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "project",
+          "type": "text"
+        },
+        {
+          "key": "task",
+          "type": "text",
+          "required": true,
+          "label": "What you did"
+        },
+        {
+          "key": "hours",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 24
+        },
+        {
+          "key": "billable",
+          "type": "yesno"
+        },
+        {
+          "key": "rate",
+          "type": "money",
+          "min": 0,
+          "label": "Rate an hour"
+        },
+        {
+          "key": "value",
+          "type": "money",
+          "formula": "=hours * rate"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "mine",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "mine",
+          "label": "My time",
+          "icon": "person"
+        },
+        {
+          "screen": "week",
+          "label": "This week",
+          "icon": "chart"
+        },
+        {
+          "screen": "entries",
+          "label": "All entries",
+          "icon": "search"
+        },
+        {
+          "screen": "clients",
+          "label": "By client",
+          "icon": "star"
+        }
+      ]
+    },
+    "screens": {
+      "mine": {
+        "data": {
+          "mine": {
+            "from": "time_entries",
+            "where": "=person == me.id",
+            "sort": "-worked_on",
+            "limit": 50
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Your latest entries.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Log time",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_entry"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.mine",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.worked_on"
+              },
+              {
+                "label": "Client",
+                "value": "=row.client"
+              },
+              {
+                "label": "Project",
+                "value": "=row.project"
+              },
+              {
+                "label": "What",
+                "value": "=row.task"
+              },
+              {
+                "label": "Hours",
+                "value": "=row.hours"
+              },
+              {
+                "label": "Billable",
+                "value": "=row.billable"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "entry",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "week": {
+        "data": {
+          "byPerson": {
+            "from": "time_entries",
+            "where": "=worked_on >= startOfWeek(today())",
+            "groupBy": "person",
+            "sum": "hours",
+            "grandTotal": true
+          },
+          "byWeek": {
+            "from": "time_entries",
+            "where": "=worked_on >= addDays(today(), -84)",
+            "groupBy": "worked_on",
+            "by": "week",
+            "sum": "hours"
+          }
+        },
+        "content": [
+          {
+            "type": "totals",
+            "label": "Hours this week, by person",
+            "rows": "=data.byPerson"
+          },
+          {
+            "type": "chart",
+            "kind": "line",
+            "label": "Hours each week",
+            "rows": "=data.byWeek",
+            "measure": "total"
+          }
+        ]
+      },
+      "entries": {
+        "data": {
+          "all": {
+            "from": "time_entries",
+            "sort": "-worked_on"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New entry",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_entry"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.worked_on"
+              },
+              {
+                "label": "Who",
+                "value": "=row.person"
+              },
+              {
+                "label": "Client",
+                "value": "=row.client"
+              },
+              {
+                "label": "Project",
+                "value": "=row.project"
+              },
+              {
+                "label": "Hours",
+                "value": "=row.hours"
+              },
+              {
+                "label": "Billable",
+                "value": "=row.billable"
+              },
+              {
+                "label": "Value",
+                "value": "=row.value"
+              }
+            ],
+            "search": "Find an entry",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "entry",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "entry": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "time_entries",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "person",
+              "worked_on",
+              "client",
+              "project",
+              "task",
+              "hours",
+              "billable",
+              "rate",
+              "value"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this entry? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_entry": {
+        "content": [
+          {
+            "type": "form",
+            "table": "time_entries",
+            "fields": [
+              "worked_on",
+              "client",
+              "project",
+              "task",
+              "hours",
+              "billable",
+              "rate"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Log it",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "time_entries",
+                      "values": "=form.values",
+                      "preset": {
+                        "person": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "entries"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "clients": {
+        "data": {
+          "byClient": {
+            "from": "time_entries",
+            "where": "=billable == true && worked_on >= startOfMonth(today())",
+            "groupBy": "client",
+            "sum": "value",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Billable work this month, by client.",
+            "size": "body"
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Billable this month",
+            "rows": "=data.byClient",
+            "measure": "total"
+          },
+          {
+            "type": "totals",
+            "label": "By client",
+            "rows": "=data.byClient"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Northwind Traders",
+        "kind": "Company"
+      }
+    ],
+    "time_entries": [
+      {
+        "worked_on": "2026-11-23",
+        "client": {
+          "sample": "organisations",
+          "name": "Northwind Traders"
+        },
+        "project": "Spring catalogue",
+        "task": "Layout of pages 1 to 12",
+        "hours": 5.5,
+        "billable": true,
+        "rate": 7500
+      },
+      {
+        "worked_on": "2026-11-24",
+        "client": {
+          "sample": "organisations",
+          "name": "Northwind Traders"
+        },
+        "project": "Spring catalogue",
+        "task": "Photo retouching",
+        "hours": 3,
+        "billable": true,
+        "rate": 7500
+      },
+      {
+        "worked_on": "2026-11-24",
+        "project": "Admin",
+        "task": "Invoices and email",
+        "hours": 1,
+        "billable": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,437 @@
+{
+  "key": "incidents",
+  "name": "Health and safety incidents",
+  "icon": "close",
+  "glyph": "healthAndSafety",
+  "color": "#B3261E",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Report injuries, near misses and hazards in a minute, then follow each one through to closed.",
+  "tables": [
+    {
+      "key": "incidents",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "What happened"
+        },
+        {
+          "key": "happened",
+          "type": "datetime",
+          "required": true,
+          "label": "When"
+        },
+        {
+          "key": "place",
+          "type": "text",
+          "label": "Where"
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Injury",
+            "Near miss",
+            "Damage",
+            "Hazard",
+            "Other"
+          ]
+        },
+        {
+          "key": "severity",
+          "type": "choice",
+          "choices": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ]
+        },
+        {
+          "key": "reported_by",
+          "type": "person"
+        },
+        {
+          "key": "people_involved",
+          "type": "text"
+        },
+        {
+          "key": "description",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "photo",
+          "type": "image"
+        },
+        {
+          "key": "actions_taken",
+          "type": "longtext"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Reported",
+            "Investigating",
+            "Closed"
+          ]
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "incidents",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "incidents",
+          "label": "Incidents",
+          "icon": "search"
+        },
+        {
+          "screen": "board",
+          "label": "Follow-up",
+          "icon": "star"
+        },
+        {
+          "screen": "new_incident",
+          "label": "Report",
+          "icon": "add"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "incidents": {
+        "data": {
+          "all": {
+            "from": "incidents",
+            "sort": "-happened"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New incident",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_incident"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "When",
+                "value": "=row.happened"
+              },
+              {
+                "label": "What happened",
+                "value": "=row.title"
+              },
+              {
+                "label": "Where",
+                "value": "=row.place"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Severity",
+                "value": "=row.severity",
+                "display": "chip"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find an incident",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "incident",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "incident": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "incidents",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "happened",
+              "place",
+              "kind",
+              "severity",
+              "people_involved",
+              "description",
+              "photo",
+              "actions_taken",
+              "status"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "incidents"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "incidents"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this incident? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "incidents"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_incident": {
+        "content": [
+          {
+            "type": "form",
+            "table": "incidents",
+            "fields": [
+              "title",
+              "happened",
+              "place",
+              "kind",
+              "severity",
+              "people_involved",
+              "description",
+              "photo"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Report",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "incidents",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Reported",
+                        "reported_by": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "incidents"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "incidents"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "notify": {
+                  "to": "owners",
+                  "text": "=\"Incident reported (\" + record.severity + \"): \" + record.title"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "board": {
+        "data": {
+          "all": {
+            "from": "incidents",
+            "where": "=status != \"Closed\" || happened >= addDays(today(), -30)",
+            "sort": "-happened"
+          }
+        },
+        "content": [
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.severity + \" · \" + row.kind",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "incident",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byKind": {
+            "from": "incidents",
+            "groupBy": "kind"
+          },
+          "byStatus": {
+            "from": "incidents",
+            "groupBy": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "Incidents by kind",
+                "rows": "=data.byKind"
+              },
+              {
+                "type": "chart",
+                "kind": "bar",
+                "label": "By status",
+                "rows": "=data.byStatus"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "incidents": [
+      {
+        "title": "Wet floor by the kitchen",
+        "happened": "2026-11-25T12:30:00.000Z",
+        "place": "Second floor kitchen",
+        "kind": "Near miss",
+        "severity": "Medium",
+        "description": "The dishwasher leaks; someone nearly slipped.",
+        "status": "Investigating"
+      },
+      {
+        "title": "Cut finger on a box cutter",
+        "happened": "2026-11-18T15:10:00.000Z",
+        "place": "Stock room",
+        "kind": "Injury",
+        "severity": "Low",
+        "description": "Minor cut, first aid given.",
+        "actions_taken": "Safety cutters ordered.",
+        "status": "Closed"
+      }
+    ]
+  }
+}

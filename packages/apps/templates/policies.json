@@ -1,0 +1,417 @@
+{
+  "key": "policies",
+  "name": "Policies and reviews",
+  "icon": "check",
+  "glyph": "gavel",
+  "color": "#4A5B68",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "The organisation's policies, who owns each one, its current document and when it's next due for review.",
+  "tables": [
+    {
+      "key": "policies",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "area",
+          "type": "choice",
+          "choices": [
+            "People",
+            "Security",
+            "Data",
+            "Finance",
+            "Health and safety",
+            "Environment",
+            "Other"
+          ]
+        },
+        {
+          "key": "owner",
+          "type": "person"
+        },
+        {
+          "key": "version",
+          "type": "text",
+          "pattern": "[0-9]+(\\.[0-9]+)?",
+          "patternMessage": "a version number such as 2 or 2.1"
+        },
+        {
+          "key": "approved_on",
+          "type": "date"
+        },
+        {
+          "key": "review_every_months",
+          "type": "number",
+          "min": 1,
+          "max": 60,
+          "label": "Review every (months)"
+        },
+        {
+          "key": "next_review",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Draft",
+            "Approved",
+            "Under review",
+            "Retired"
+          ]
+        },
+        {
+          "key": "document",
+          "type": "file"
+        },
+        {
+          "key": "summary",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "policies",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "policies",
+          "label": "Policies",
+          "icon": "check"
+        },
+        {
+          "screen": "due",
+          "label": "Reviews due",
+          "icon": "calendar"
+        }
+      ]
+    },
+    "screens": {
+      "policies": {
+        "data": {
+          "all": {
+            "from": "policies",
+            "where": "=status != \"Retired\"",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New policy",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_policy"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Policy",
+                "value": "=row.title"
+              },
+              {
+                "label": "Area",
+                "value": "=row.area"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Version",
+                "value": "=row.version"
+              },
+              {
+                "label": "Next review",
+                "value": "=row.next_review"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a policy",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "policy",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "policy": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "policies",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "area",
+              "owner",
+              "version",
+              "approved_on",
+              "review_every_months",
+              "next_review",
+              "status",
+              "document",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "policies"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Reviewed today",
+                "icon": "check",
+                "confirm": "Record that this policy was reviewed today?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "approved_on": "=today()",
+                        "next_review": "=addMonths(today(), data.item.review_every_months)",
+                        "status": "Approved"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Review recorded.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "policies"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this policy? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "policies"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_policy": {
+        "content": [
+          {
+            "type": "form",
+            "table": "policies",
+            "fields": [
+              "title",
+              "area",
+              "owner",
+              "version",
+              "approved_on",
+              "review_every_months",
+              "next_review",
+              "document",
+              "summary"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "policies",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Approved"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "policies"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "policies"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "due": {
+        "data": {
+          "due": {
+            "from": "policies",
+            "where": "=next_review != \"\" && next_review <= addDays(today(), 60) && status != \"Retired\"",
+            "sort": "next_review"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Policies whose review is due in the next 60 days, or overdue.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.due",
+            "columns": [
+              {
+                "label": "Policy",
+                "value": "=row.title"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Next review",
+                "value": "=row.next_review"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "policy",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "policies": [
+      {
+        "title": "Remote working",
+        "area": "People",
+        "version": "2",
+        "approved_on": "2026-03-01",
+        "review_every_months": 12,
+        "next_review": "2027-03-01",
+        "status": "Approved"
+      },
+      {
+        "title": "Password and access",
+        "area": "Security",
+        "version": "3.1",
+        "approved_on": "2025-12-10",
+        "review_every_months": 12,
+        "next_review": "2026-12-10",
+        "status": "Approved"
+      }
+    ]
+  }
+}

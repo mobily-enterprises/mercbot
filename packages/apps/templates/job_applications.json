@@ -1,0 +1,463 @@
+{
+  "key": "job_applications",
+  "name": "Job applications",
+  "icon": "star",
+  "glyph": "work",
+  "color": "#1C1C1C",
+  "audiences": [
+    "personal"
+  ],
+  "description": "Roles you've applied for, from saved to offer, with your next step and date for each.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "job_applications",
+      "fields": [
+        {
+          "key": "role",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "company",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "link",
+          "type": "url",
+          "label": "Job advert"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Saved",
+            "Applied",
+            "Interview",
+            "Offer",
+            "Rejected",
+            "Withdrawn"
+          ]
+        },
+        {
+          "key": "applied_on",
+          "type": "date"
+        },
+        {
+          "key": "salary",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "contact",
+          "type": "text",
+          "label": "Who you're talking to"
+        },
+        {
+          "key": "next_step",
+          "type": "text"
+        },
+        {
+          "key": "next_date",
+          "type": "date"
+        },
+        {
+          "key": "cv",
+          "type": "file",
+          "label": "CV sent"
+        },
+        {
+          "key": "notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "next",
+          "label": "Next steps",
+          "icon": "calendar"
+        },
+        {
+          "screen": "applications",
+          "label": "All",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "open": {
+            "from": "job_applications",
+            "where": "=(status != \"Rejected\" && status != \"Withdrawn\") || applied_on >= addDays(today(), -30)",
+            "sort": "next_date"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New application",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_application"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.open",
+            "groupBy": "status",
+            "title": "=row.role",
+            "subtitle": "=row.next_step",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "application",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "next": {
+        "data": {
+          "next": {
+            "from": "job_applications",
+            "where": "=next_date >= today()",
+            "sort": "next_date"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.next",
+            "columns": [
+              {
+                "label": "When",
+                "value": "=row.next_date"
+              },
+              {
+                "label": "Next step",
+                "value": "=row.next_step"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Company",
+                "value": "=row.company"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "application",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "applications": {
+        "data": {
+          "all": {
+            "from": "job_applications",
+            "sort": "-applied_on"
+          },
+          "byStatus": {
+            "from": "job_applications",
+            "groupBy": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New application",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_application"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Company",
+                "value": "=row.company"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Applied",
+                "value": "=row.applied_on"
+              },
+              {
+                "label": "Next",
+                "value": "=row.next_date"
+              }
+            ],
+            "search": "Find an application",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "application",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "By status",
+            "rows": "=data.byStatus"
+          }
+        ]
+      },
+      "application": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "job_applications",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "role",
+              "company",
+              "link",
+              "status",
+              "applied_on",
+              "salary",
+              "contact",
+              "next_step",
+              "next_date",
+              "cv",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "applications"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "applications"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this application? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "applications"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_application": {
+        "content": [
+          {
+            "type": "form",
+            "table": "job_applications",
+            "fields": [
+              "role",
+              "company",
+              "link",
+              "salary",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "job_applications",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Saved"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "applications"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "organisations": [
+      {
+        "name": "Fernhill Studio",
+        "kind": "Company"
+      },
+      {
+        "name": "Atlas Logistics",
+        "kind": "Company"
+      }
+    ],
+    "job_applications": [
+      {
+        "role": "Senior designer",
+        "company": {
+          "sample": "organisations",
+          "name": "Fernhill Studio"
+        },
+        "status": "Interview",
+        "applied_on": "2026-11-10",
+        "next_step": "Second interview: portfolio review",
+        "next_date": "2026-12-02"
+      },
+      {
+        "role": "Product manager",
+        "company": {
+          "sample": "organisations",
+          "name": "Atlas Logistics"
+        },
+        "status": "Applied",
+        "applied_on": "2026-11-20",
+        "next_step": "Chase if no answer",
+        "next_date": "2026-12-04"
+      }
+    ]
+  }
+}

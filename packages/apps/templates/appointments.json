@@ -1,0 +1,720 @@
+{
+  "key": "appointments",
+  "name": "Appointments",
+  "icon": "calendar",
+  "glyph": "calendarClock",
+  "color": "#C2185B",
+  "audiences": [
+    "business"
+  ],
+  "description": "Clients book a service on a public page; you see the week, confirm, and they get an email.",
+  "tables": [
+    {
+      "key": "services",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "min": 5,
+          "max": 600
+        },
+        {
+          "key": "price",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "bookable",
+          "type": "yesno",
+          "label": "Shown on the booking page"
+        },
+        {
+          "key": "description",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "appointments",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true,
+          "label": "Your name"
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "type": "phone"
+        },
+        {
+          "key": "service",
+          "type": "link",
+          "target": "services",
+          "required": true
+        },
+        {
+          "key": "starts",
+          "type": "datetime",
+          "required": true,
+          "label": "When"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Requested",
+            "Confirmed",
+            "Done",
+            "Cancelled",
+            "No show"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "longtext",
+          "label": "Anything we should know"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "week",
+    "public": {
+      "home": "book",
+      "tables": {
+        "services": {
+          "can": [
+            "list"
+          ],
+          "rows": "=bookable == true",
+          "read": [
+            "name",
+            "minutes",
+            "price",
+            "description"
+          ]
+        },
+        "appointments": {
+          "can": [
+            "create"
+          ],
+          "write": [
+            "name",
+            "email",
+            "phone",
+            "service",
+            "starts",
+            "notes",
+            "status"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "week",
+          "label": "Week",
+          "icon": "calendar"
+        },
+        {
+          "screen": "upcoming",
+          "label": "Upcoming",
+          "icon": "search"
+        },
+        {
+          "screen": "services",
+          "label": "Services",
+          "icon": "star"
+        },
+        {
+          "screen": "book",
+          "label": "Booking page",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "week": {
+        "data": {
+          "soon": {
+            "from": "appointments",
+            "where": "=starts >= addDays(today(), -14) && status != \"Cancelled\"",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "calendar",
+            "rows": "=data.soon",
+            "date": "starts",
+            "title": "=row.name",
+            "subtitle": "=row.status",
+            "span": "week",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "appointment",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "upcoming": {
+        "data": {
+          "next": {
+            "from": "appointments",
+            "where": "=starts >= today()",
+            "sort": "starts"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.next",
+            "columns": [
+              {
+                "label": "When",
+                "value": "=row.starts"
+              },
+              {
+                "label": "Who",
+                "value": "=row.name"
+              },
+              {
+                "label": "Service",
+                "value": "=row.service"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a client",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "appointment",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Confirm",
+                "emphasis": "subtle",
+                "icon": "check",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Confirmed"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Done.\""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "appointment": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "appointments",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "service",
+              "starts",
+              "status",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "week"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Confirm",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Requested\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Confirmed"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Confirmed.\""
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Cancel it",
+                "icon": "close",
+                "confirm": "Cancel this appointment?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Cancelled"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Cancelled.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "week"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "week"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "services": {
+        "data": {
+          "all": {
+            "from": "services",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New service",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_service"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Service",
+                "value": "=row.name"
+              },
+              {
+                "label": "Minutes",
+                "value": "=row.minutes"
+              },
+              {
+                "label": "Price",
+                "value": "=row.price"
+              },
+              {
+                "label": "Bookable",
+                "value": "=row.bookable"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "service",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "service": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "services",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "minutes",
+              "price",
+              "bookable",
+              "description"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "services"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "services"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this service? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "services"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_service": {
+        "content": [
+          {
+            "type": "form",
+            "table": "services",
+            "fields": [
+              "name",
+              "minutes",
+              "price",
+              "bookable",
+              "description"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "services",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "services"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "services"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "book": {
+        "public": true,
+        "data": {
+          "services": {
+            "from": "services",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Book an appointment",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.services",
+            "columns": [
+              {
+                "label": "Service",
+                "value": "=row.name"
+              },
+              {
+                "label": "Minutes",
+                "value": "=row.minutes"
+              },
+              {
+                "label": "Price",
+                "value": "=row.price"
+              }
+            ]
+          },
+          {
+            "type": "form",
+            "table": "appointments",
+            "fields": [
+              "service",
+              "starts",
+              "name",
+              "email",
+              "phone",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Request it",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "appointments",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Requested"
+                      }
+                    }
+                  },
+                  {
+                    "go": {
+                      "screen": "requested"
+                    }
+                  }
+                ]
+              }
+            ],
+            "onSubmit": [
+              {
+                "email": {
+                  "to": "=record.email",
+                  "subject": "We've got your booking request",
+                  "text": "=\"Thanks, \" + record.name + \". We'll confirm your appointment soon.\""
+                }
+              },
+              {
+                "notify": {
+                  "to": "owners",
+                  "text": "=\"New booking request from \" + record.name"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "requested": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Thanks, your request is in.",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "We'll email you to confirm the time.",
+            "size": "body"
+          },
+          {
+            "type": "button",
+            "label": "Book another",
+            "do": [
+              {
+                "go": {
+                  "screen": "book"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "services": [
+      {
+        "name": "Haircut",
+        "minutes": 45,
+        "price": 3800,
+        "bookable": true,
+        "description": "Wash, cut and style."
+      },
+      {
+        "name": "Colour",
+        "minutes": 120,
+        "price": 9500,
+        "bookable": true
+      },
+      {
+        "name": "Consultation",
+        "minutes": 15,
+        "price": 0,
+        "bookable": false
+      }
+    ],
+    "appointments": [
+      {
+        "name": "Lena Novak",
+        "email": "lena@example.com",
+        "service": {
+          "sample": "services",
+          "name": "Haircut"
+        },
+        "starts": "2026-12-01T10:00:00.000Z",
+        "status": "Confirmed"
+      },
+      {
+        "name": "Sam Patel",
+        "email": "sam@example.com",
+        "service": {
+          "sample": "services",
+          "name": "Colour"
+        },
+        "starts": "2026-12-02T13:30:00.000Z",
+        "status": "Requested"
+      }
+    ]
+  }
+}

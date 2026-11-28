@@ -1,10 +1,15 @@
 import { reactive, ref, watch } from "vue";
-import { FIELD_REFERENCE, ME, celSchema, evaluateFormula, formatMoney, formulaRecord, isFormula, plainValue, refersToRemovedField, showValue } from "@local/apps/shared";
+import { APP_ICONS, FIELD_REFERENCE, ME, celSchema, evaluateFormula, formatMoney, formulaRecord, isFormula, plainValue, refersToRemovedField, showValue } from "@local/apps/shared";
 import { appsApi } from "./appsApi.js";
 
 // The browser side of an app screen (D-35): page values, query results, formulas and buttons.
 // Formulas are evaluated here only to show things; every query and button runs on the server
 // from the stored app, so nothing here can change what an app is allowed to do.
+
+/** The picture an app, a view or a template wears on its tile, drawn white on its colour; an unknown name draws "apps". */
+export const appGlyph = (name) => `svg:${APP_ICONS[name] || APP_ICONS.apps}`;
+
+/** The icons a screen's parts (buttons, inputs, navigation) may name. */
 export const ICON_PATHS = {
   search: "$search",
   edit: "$edit",

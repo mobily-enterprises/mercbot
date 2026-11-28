@@ -1,0 +1,390 @@
+{
+  "key": "watchlist",
+  "name": "Films and shows",
+  "icon": "star",
+  "glyph": "movie",
+  "color": "#B3261E",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "Films and series to watch, where to watch them, who suggested them and what you thought.",
+  "tables": [
+    {
+      "key": "watchlist",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Film",
+            "Series",
+            "Documentary"
+          ]
+        },
+        {
+          "key": "where_to_watch",
+          "type": "text",
+          "label": "Where to watch"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Want to watch",
+            "Watching",
+            "Watched",
+            "Gave up"
+          ]
+        },
+        {
+          "key": "rating",
+          "type": "number",
+          "min": 1,
+          "max": 5
+        },
+        {
+          "key": "suggested_by",
+          "type": "text"
+        },
+        {
+          "key": "year",
+          "type": "number",
+          "min": 1880,
+          "max": 2100
+        },
+        {
+          "key": "tags",
+          "type": "tags"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "titles",
+          "label": "All",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "all": {
+            "from": "watchlist",
+            "where": "=status != \"Gave up\"",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add a title",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_title"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.title",
+            "subtitle": "=row.where_to_watch",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "title",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "titles": {
+        "data": {
+          "all": {
+            "from": "watchlist",
+            "sort": "title"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New title",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_title"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Title",
+                "value": "=row.title"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Where",
+                "value": "=row.where_to_watch"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Rating",
+                "value": "=row.rating"
+              },
+              {
+                "label": "Suggested by",
+                "value": "=row.suggested_by"
+              }
+            ],
+            "search": "Find a title",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "title",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "title": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "watchlist",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "title",
+              "kind",
+              "where_to_watch",
+              "status",
+              "rating",
+              "suggested_by",
+              "year",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "titles"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "titles"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this title? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "titles"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_title": {
+        "content": [
+          {
+            "type": "form",
+            "table": "watchlist",
+            "fields": [
+              "title",
+              "kind",
+              "where_to_watch",
+              "suggested_by",
+              "year",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "watchlist",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Want to watch"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "titles"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "watchlist": [
+      {
+        "title": "Spirited Away",
+        "kind": "Film",
+        "status": "Watched",
+        "rating": 5,
+        "year": 2001,
+        "suggested_by": "Maya"
+      },
+      {
+        "title": "The Bear",
+        "kind": "Series",
+        "where_to_watch": "Streaming",
+        "status": "Watching"
+      },
+      {
+        "title": "My Octopus Teacher",
+        "kind": "Documentary",
+        "status": "Want to watch",
+        "suggested_by": "Luis"
+      }
+    ]
+  }
+}

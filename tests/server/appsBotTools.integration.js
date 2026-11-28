@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import test from "node:test";
 import { appsHome } from "../support/appsHome.mjs";
 import { startBotRecords } from "../support/botRecords.mjs";
@@ -12,6 +13,8 @@ import { cleanupStack } from "../support/cleanupStack.mjs";
 // publishes.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
+
+const TEMPLATE_COUNT = readdirSync(new URL("../../packages/apps/templates/", import.meta.url)).filter((name) => name.endsWith(".json")).length;
 
 test("bots use the home's data; the Builder drafts apps", async (context) => {
   const knex = await connectTestDatabase();
@@ -95,7 +98,7 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   assert.deepEqual((await run(plain.watchList, {})).watches.map((watch) => [watch.name, watch.enabled]), [["Big spend", false]]);
 
   // The Builder installs a template as a draft, with a card for the person.
-  assert.equal((await run(builder.templateList, {})).templates.length, 8, "the six apps, with Contacts and To-dos (D-130)");
+  assert.equal((await run(builder.templateList, {})).templates.length, TEMPLATE_COUNT, "every template, with Contacts and To-dos (D-130)");
   const installed = await run(builder.templateInstall, { key: "hiring" });
   assert.deepEqual([installed.status, installed.slug], ["draft saved", "hiring-pipeline"]);
   assert.equal(after.at(-1).kind, "app_draft");

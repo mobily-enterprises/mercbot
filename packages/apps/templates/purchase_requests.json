@@ -1,0 +1,516 @@
+{
+  "key": "purchase_requests",
+  "name": "Purchase requests",
+  "icon": "check",
+  "glyph": "shoppingCartCheckout",
+  "color": "#8F6A00",
+  "audiences": [
+    "corporate",
+    "business"
+  ],
+  "description": "Ask to buy something, with a quote; it's approved, ordered and received, and big spends stand out.",
+  "uses": [
+    "organisations"
+  ],
+  "tables": [
+    {
+      "key": "purchase_requests",
+      "fields": [
+        {
+          "key": "item",
+          "type": "text",
+          "required": true,
+          "label": "What"
+        },
+        {
+          "key": "supplier",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "quantity",
+          "type": "number",
+          "required": true,
+          "min": 1
+        },
+        {
+          "key": "unit_price",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "formula": "=quantity * unit_price"
+        },
+        {
+          "key": "needed_by",
+          "type": "date"
+        },
+        {
+          "key": "requested_by",
+          "type": "person"
+        },
+        {
+          "key": "reason",
+          "type": "longtext"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Requested",
+            "Approved",
+            "Ordered",
+            "Received",
+            "Declined"
+          ]
+        },
+        {
+          "key": "approver",
+          "type": "person"
+        },
+        {
+          "key": "quote",
+          "type": "file"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "board",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "board",
+          "label": "Board",
+          "icon": "star"
+        },
+        {
+          "screen": "requests",
+          "label": "Requests",
+          "icon": "search"
+        },
+        {
+          "screen": "big",
+          "label": "Over 1,000",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "board": {
+        "data": {
+          "all": {
+            "from": "purchase_requests",
+            "where": "=status != \"Declined\"",
+            "sort": "-total"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Ask to buy",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_request"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "board",
+            "rows": "=data.all",
+            "groupBy": "status",
+            "title": "=row.item",
+            "subtitle": "=formatMoney(row.total)",
+            "onClick": [
+              {
+                "go": {
+                  "screen": "request",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "requests": {
+        "data": {
+          "all": {
+            "from": "purchase_requests",
+            "sort": "-total"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New request",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_request"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "What",
+                "value": "=row.item"
+              },
+              {
+                "label": "Supplier",
+                "value": "=row.supplier"
+              },
+              {
+                "label": "Qty",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
+              },
+              {
+                "label": "Needed by",
+                "value": "=row.needed_by"
+              },
+              {
+                "label": "Asked by",
+                "value": "=row.requested_by"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a request",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "request",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "purchase_requests",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "item",
+              "supplier",
+              "quantity",
+              "unit_price",
+              "total",
+              "needed_by",
+              "requested_by",
+              "approver",
+              "reason",
+              "status",
+              "quote"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Approve",
+                "icon": "check",
+                "showIf": "=data.item.status == \"Requested\"",
+                "confirm": "Approve this purchase?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Approved"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Approved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Decline",
+                "icon": "close",
+                "showIf": "=data.item.status == \"Requested\"",
+                "confirm": "Decline this purchase?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "status": "Declined"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Declined.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this request? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_request": {
+        "content": [
+          {
+            "type": "form",
+            "table": "purchase_requests",
+            "fields": [
+              "item",
+              "supplier",
+              "quantity",
+              "unit_price",
+              "needed_by",
+              "approver",
+              "reason",
+              "quote"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send request",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "purchase_requests",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Requested",
+                        "requested_by": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "board"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "big": {
+        "data": {
+          "big": {
+            "from": "purchase_requests",
+            "where": "=total > 100000.0",
+            "sort": "-total"
+          },
+          "byStatus": {
+            "from": "purchase_requests",
+            "groupBy": "status",
+            "sum": "total",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Requests over 1,000, biggest first.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.big",
+            "columns": [
+              {
+                "label": "What",
+                "value": "=row.item"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
+              },
+              {
+                "label": "Asked by",
+                "value": "=row.requested_by"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "request",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "totals",
+            "label": "Spend by status",
+            "rows": "=data.byStatus"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "purchase_requests": [
+      {
+        "item": "Ergonomic chairs",
+        "quantity": 6,
+        "unit_price": 32900,
+        "needed_by": "2027-01-10",
+        "reason": "The old ones are falling apart.",
+        "status": "Requested"
+      },
+      {
+        "item": "Label printer",
+        "quantity": 1,
+        "unit_price": 14900,
+        "status": "Ordered"
+      }
+    ]
+  }
+}

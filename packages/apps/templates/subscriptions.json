@@ -1,0 +1,460 @@
+{
+  "key": "subscriptions",
+  "name": "Subscriptions",
+  "icon": "calendar",
+  "glyph": "autorenew",
+  "color": "#3F4FB8",
+  "audiences": [
+    "business",
+    "family",
+    "personal"
+  ],
+  "description": "Every subscription and what it really costs a month, with the ones renewing in the next fortnight.",
+  "tables": [
+    {
+      "key": "subscriptions",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "cost",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "every",
+          "type": "choice",
+          "choices": [
+            "Week",
+            "Month",
+            "Year"
+          ]
+        },
+        {
+          "key": "renews",
+          "type": "date"
+        },
+        {
+          "key": "category",
+          "type": "choice",
+          "choices": [
+            "Streaming",
+            "Music",
+            "Software",
+            "News",
+            "Fitness",
+            "Cloud storage",
+            "Phone and internet",
+            "Other"
+          ]
+        },
+        {
+          "key": "active",
+          "type": "yesno"
+        },
+        {
+          "key": "per_month",
+          "type": "money",
+          "label": "A month",
+          "formula": "=every == \"Year\" ? cost / 12.0 : every == \"Week\" ? cost * 52.0 / 12.0 : cost"
+        },
+        {
+          "key": "cancel_at",
+          "type": "url",
+          "label": "Where to cancel"
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "subscriptions",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "subscriptions",
+          "label": "Subscriptions",
+          "icon": "search"
+        },
+        {
+          "screen": "soon",
+          "label": "Renewing soon",
+          "icon": "calendar"
+        },
+        {
+          "screen": "cost",
+          "label": "What they cost",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "subscriptions": {
+        "data": {
+          "all": {
+            "from": "subscriptions",
+            "where": "=active == true",
+            "sort": "renews"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New subscription",
+                "emphasis": "primary",
+                "icon": "add",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_subscription"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.cost"
+              },
+              {
+                "label": "Every",
+                "value": "=row.every"
+              },
+              {
+                "label": "A month",
+                "value": "=row.per_month"
+              },
+              {
+                "label": "Renews",
+                "value": "=row.renews"
+              },
+              {
+                "label": "Category",
+                "value": "=row.category",
+                "display": "chip"
+              }
+            ],
+            "search": "Find a subscription",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "subscription",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "subscription": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "subscriptions",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "cost",
+              "every",
+              "renews",
+              "category",
+              "active",
+              "per_month",
+              "cancel_at",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "icon": "save",
+                "disabled": "=!form.valid || !form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Cancelled it",
+                "icon": "close",
+                "showIf": "=data.item.active == true",
+                "confirm": "Mark this subscription cancelled?",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": {
+                        "active": false
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Marked cancelled.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Remove",
+                "icon": "close",
+                "emphasis": "subtle",
+                "confirm": "Remove this subscription? It can be brought back from the Data tab.",
+                "do": [
+                  {
+                    "markObsolete": {
+                      "record": "=data.item"
+                    }
+                  },
+                  {
+                    "notify": "=\"Removed.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_subscription": {
+        "content": [
+          {
+            "type": "form",
+            "table": "subscriptions",
+            "fields": [
+              "name",
+              "cost",
+              "every",
+              "renews",
+              "category",
+              "cancel_at",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "icon": "add",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "subscriptions",
+                      "values": "=form.values",
+                      "preset": {
+                        "active": true
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added.\""
+                  },
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "subscriptions"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "soon": {
+        "data": {
+          "soon": {
+            "from": "subscriptions",
+            "where": "=active == true && renews >= today() && renews <= addDays(today(), 14)",
+            "sort": "renews"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Renewing in the next two weeks: cancel now if you don't need it.",
+            "size": "body"
+          },
+          {
+            "type": "table",
+            "rows": "=data.soon",
+            "columns": [
+              {
+                "label": "Renews",
+                "value": "=row.renews"
+              },
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Cost",
+                "value": "=row.cost"
+              },
+              {
+                "label": "Where to cancel",
+                "value": "=row.cancel_at"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "subscription",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "cost": {
+        "data": {
+          "byCategory": {
+            "from": "subscriptions",
+            "where": "=active == true",
+            "groupBy": "category",
+            "sum": "per_month",
+            "grandTotal": true
+          }
+        },
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "chart",
+                "kind": "pie",
+                "label": "A month, by category",
+                "rows": "=data.byCategory",
+                "measure": "total"
+              },
+              {
+                "type": "totals",
+                "label": "A month, by category",
+                "rows": "=data.byCategory"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "subscriptions": [
+      {
+        "name": "Film streaming",
+        "cost": 1099,
+        "every": "Month",
+        "renews": "2026-12-03",
+        "category": "Streaming",
+        "active": true
+      },
+      {
+        "name": "Photo storage",
+        "cost": 2999,
+        "every": "Year",
+        "renews": "2027-04-18",
+        "category": "Cloud storage",
+        "active": true
+      },
+      {
+        "name": "Gym",
+        "cost": 3500,
+        "every": "Month",
+        "renews": "2026-12-01",
+        "category": "Fitness",
+        "active": true
+      }
+    ]
+  }
+}
