@@ -65,4 +65,12 @@ test("the Builder knows what apps can do now, and when to use each", async () =>
   for (const phrase of ["rollup", "min", "max", "pattern", "patternMessage", "unique"]) assert.ok(shown(tools.fieldAdd).includes(phrase), `field_add: ${phrase}`);
   assert.match(shown(tools.fieldChecks), /required, min, max, pattern/u);
   assert.match(shown(tools.scriptSave), /goes into the app's draft/u);
+
+  // Pictures, templates and shared lists (D-141): the tools offer them and the skill says when to use each.
+  assert.match(shown(tools.appSetIcon), /make_picture/u);
+  assert.ok(shown(tools.appSetIcon).includes("receiptLong") && shown(tools.appCreate).includes("receiptLong"), "the app icons");
+  assert.match(shown(tools.templateList), /corporate.*business.*family.*personal/su);
+  for (const phrase of ["App icons", "app_set_icon", "list_items", "\"kind\"", "{ \"field\": \"group\", \"label\": \"Aisle\" }"]) {
+    assert.ok(skill.includes(phrase), `skill: ${phrase}`);
+  }
 });
