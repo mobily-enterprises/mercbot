@@ -14,7 +14,12 @@ import { startGateway } from "../../packages/files/src/server/gateway.js";
 import { shellAvailable } from "../../packages/files/src/server/gvisor.js";
 import { __testables, createShell } from "../../packages/files/src/server/shell.js";
 
-const run = promisify(execFile);
+// Each with its input closed: a git that reads its input (a host's wrapper, say) would otherwise wait for it.
+const run = (...args) => {
+  const running = promisify(execFile)(...args);
+  running.child.stdin.end();
+  return running;
+};
 const { LIMITS } = __testables;
 
 // Bots' commands reach public internet addresses through a gateway of their own, the computer's browser's (D-126), in

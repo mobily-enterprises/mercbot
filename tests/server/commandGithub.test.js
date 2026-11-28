@@ -13,7 +13,12 @@ import { startGateway } from "../../packages/files/src/server/gateway.js";
 import { shellAvailable } from "../../packages/files/src/server/gvisor.js";
 import { __testables, createShell } from "../../packages/files/src/server/shell.js";
 
-const run = promisify(execFile);
+// Each with its input closed: a git that reads its input (a host's wrapper, say) would otherwise wait for it.
+const run = (...args) => {
+  const running = promisify(execFile)(...args);
+  running.child.stdin.end();
+  return running;
+};
 const { LIMITS } = __testables;
 
 // A bot's command signed in to GitHub (D-128), in real gVisor: git clones a private repository and pushes a branch with
@@ -23,9 +28,16 @@ const { LIMITS } = __testables;
 // test authority's certificate, which the gateway is told to use for that name (its `standIns`, for tests only), so
 // nothing reaches GitHub. Runs where gVisor and the toolbox are installed, with git and openssl for the stand-in.
 const has = (command) => spawnSync("sh", ["-c", `command -v ${command}`]).status === 0;
+// git http-backend answers even a request it can't serve with a CGI status; a git that refuses it or drops the
+// request's variables (a host's wrapper, say) can't be the stand-in's server.
+const servesHttp = () => {
+  const answer = spawnSync("git", ["http-backend"], { env: { PATH: process.env.PATH, REQUEST_METHOD: "GET" }, input: "", encoding: "utf8" });
+  return answer.stdout.startsWith("Status:") && !answer.stderr.includes("No REQUEST_METHOD");
+};
 const skip = !shellAvailable(process.env)
   ? "gVisor and the toolbox aren't installed (npm run tools:install)"
-  : !has("git") || !has("openssl") ? "the stand-in GitHub needs git and openssl" : false;
+  : !has("git") || !has("openssl") ? "the stand-in GitHub needs git and openssl"
+    : !servesHttp() ? "this machine's git doesn't pass a request to git http-backend, the stand-in GitHub's server" : false;
 
 // A sandbox's gateway socket lives under TMPDIR, as long here as production's (commandInternet.test.js).
 const PRODUCTION_TMPDIR = "/var/lib/mercbot-server-work/tmp";

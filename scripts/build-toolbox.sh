@@ -17,6 +17,9 @@ TOOLS="$ROOT/.tools"
 # shellcheck source=toolbox-run.sh
 . "$ROOT/scripts/toolbox-run.sh"
 BOX="$STORE/toolbox"
+# The install runs the toolbox's own programs, which a file system mounted noexec refuses, so a store
+# there keeps the toolbox in .tools' own store instead.
+if findmnt -no OPTIONS --target "$(dirname "$STORE")" 2>/dev/null | tr ',' '\n' | grep -qx noexec; then BOX="$TOOLS/store/toolbox"; fi
 RUNSC="$TOOLS/bin/runsc"
 
 BASE_RELEASE="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
@@ -99,9 +102,30 @@ fi
 # A download that doesn't match its sum goes, so the store never keeps it for the next build.
 (cd "$BOX/downloads" && grep " \*\?$BASE\$" SHA256SUMS | sed 's/ \*/  /' | sha256sum -c --quiet -) || { rm -f "$BOX/downloads/$BASE"; exit 1; }
 tar -xzf "$BOX/downloads/$BASE" -C "$NEW" --exclude='./dev/*'
-# Package scripts copy files keeping their permissions, which fails on inherited access lists
-# (gVisor can't set them), so the toolbox folder has none.
-if command -v setfacl >/dev/null 2>&1; then setfacl -R -b -k "$NEW"; fi
+# Package scripts copy files keeping their permissions, which fails on access lists the toolbox's files inherit from
+# the host's folders (gVisor can't set them: "cp: preserving permissions … Operation not supported"), so the toolbox
+# folder has none: setfacl where the host has it, else Python.
+no_acls() { # dir
+  if command -v setfacl >/dev/null 2>&1; then setfacl -R -b -k "$1"; return; fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "The toolbox's folder has access lists (ACLs) gVisor can't keep, and this host has neither setfacl nor python3 to remove them." >&2
+    return 1
+  fi
+  python3 - "$1" <<'PY'
+import os, sys
+ACLS = ("system.posix_acl_access", "system.posix_acl_default")
+for top, dirs, files in os.walk(sys.argv[1]):
+    for path in [top] + [os.path.join(top, name) for name in dirs + files]:
+        try:
+            present = os.listxattr(path, follow_symlinks=False)
+        except OSError:
+            continue
+        for name in ACLS:
+            if name in present:
+                os.removexattr(path, name, follow_symlinks=False)
+PY
+}
+no_acls "$NEW"
 
 # The packages, obtained the host's way, into $NEW/debs
 host_toolbox_packages "$APT" "$NEW" "${PACKAGES[@]}"
