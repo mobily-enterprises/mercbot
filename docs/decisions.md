@@ -4748,7 +4748,11 @@ templates, and "a GENERIC table called list that every app can use, with a names
   table links to (Meal planner) or that has none (CRM) can't start fresh (409 `apps_template_fresh_unavailable`); one
   with jobs, which work in the background (Study, Canary), can't share (409 `apps_template_share_unavailable`): two apps
   on the same records would each run them. Every template's fresh copy installs with its sample, naming none of the
-  first app's tables (`appsTemplates.integration.js`).
+  first app's tables (`appsTemplates.integration.js`). An app's details say where it keeps its data (Data tab,
+  `appDataPlace.js`): its own, a fresh copy's ("its tables end in “copy 2”"), or shared, with which apps (named by
+  address when two share a name), and each table's stored name and the other apps that use it (the tables route with
+  `app` lists every app using each of that app's tables). Its tables are registry tables (`app_tables`, records in
+  AnyAPI's store by table id), so a copy's own tables are new registry entries, never new database tables.
 - **Apps follow their template unless forked (the owner, 28 Nov):** an app made from a template and never changed takes
   each new version of it, published, the next time its home's apps are read (`templateFollow.js`, on the apps list the
   sidebar reads as the home opens), so a template that improves improves every app that follows it. A change to its

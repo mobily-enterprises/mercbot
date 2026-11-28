@@ -58,6 +58,12 @@ test("templates install as drafts on reused or new tables", async (context) => {
   // An app's definition comes back by names.
   const draftText = JSON.stringify((await apps.get(fresh.app.slug, { version: "draft" }, options)).definition);
   assert.ok(/"from":"invoices_copy_2"/u.test(draftText) && !/"(from|table|record)":"invoices"/u.test(draftText), "still on its own tables");
+  // An app's own data, as its details show it: each table it uses, with every app that uses it too.
+  const member = home.browser({ member: { userId, workspace: home.workspace } });
+  const copyTwo = await apps.find("crm-copy-2", options);
+  const { body: used } = await member("GET", `/api/w/${home.workspace.slug}/app-data/tables?app=${copyTwo.id}`);
+  const pipeline = used.tables.find((table) => table.key === "crm_contacts");
+  assert.deepEqual(pipeline.usedBy.map((entry) => entry.name).sort(), ["CRM", "CRM copy 2", "CRM copy 3"], "the copies share the first one's tables");
   const tab = await home.browser({ member: { userId, workspace: home.workspace } })("GET", `/api/w/${home.workspace.slug}/apps-templates`);
   assert.deepEqual(tab.body.templates.filter((entry) => entry.inHome).map((entry) => [entry.key, entry.inHome]), [["canary", "canary"], ["crm", "crm"], ["invoices", "invoices"]]);
 

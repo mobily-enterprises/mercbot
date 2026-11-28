@@ -176,7 +176,9 @@ Yes, as a copy. Once you have an app from a template, its card on the Templates 
 - **Share with the first one:** both show the same things.
 - **Start fresh:** it keeps its own things, separate from the first.
 
-You choose once: it can't be changed later. Some apps offer only one of the two: an app whose things are all shared
+You choose once: it can't be changed later. To see where an app keeps its data, open it, then its details and the
+**Data** tab: it says whether the app has its own data or shares it, and with which apps, and lists each of its tables
+with its name (a fresh copy's end in "copy 2") and the other apps that use it. Some apps offer only one of the two: an app whose things are all shared
 with your other apps (such as the CRM's contacts and deals) can only share, and an app that does work on its own in
 the background (such as Study, or Canary's hourly check) can only start fresh, since two apps on the same things would
 each do that work.

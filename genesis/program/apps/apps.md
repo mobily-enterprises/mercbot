@@ -23,6 +23,7 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `migrations/20261114090000_apps_made_by_user.cjs`
 - `src/components/apps/AppsHome.vue`
 - `src/components/apps/AppDetailsPanel.vue`
+- `src/components/apps/appDataPlace.js`
 - `src/components/apps/FieldRemoval.vue`
 - `src/components/apps/MercbotAppsEntry.vue`
 - `src/components/apps/MercbotAppsSection.vue`
@@ -74,6 +75,10 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   picture is the home's file. `AppIconPicker.vue` (16 `APP_COLOURS`, pictures by group with search, Ask the Builder
   to draw one) opens from the app's details and each tile's menu; on a tile with a bot's picture no set picture is
   chosen, so changing only the colour keeps it (`appIconChoices.js` `startingLook`, `lookToSave`).
+- Where an app keeps its data (D-141): its details' Data tab lists the tables it uses (`GET app-data/tables?app=`, each
+  with `usedBy`, every app that uses it) with their stored names, and says in words (`appDataPlace.js` `dataPlace`)
+  whether the app has its own data, a fresh copy's ("its tables end in “copy 2”"), or shares it, and with which apps
+  (`otherApps`, by address when two share a name).
 
 ## Proved by
 

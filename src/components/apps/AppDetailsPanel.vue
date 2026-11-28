@@ -7,6 +7,7 @@ import AppsActivity from "./AppsActivity.vue";
 import { appsApi, errorText } from "./appsApi.js";
 import { actorName, whenText as when } from "./appRuntime.js";
 import AppTile from "./AppTile.vue";
+import { dataPlace, otherApps } from "./appDataPlace.js";
 import { toYaml } from "./yaml.js";
 import extensions from "../mercbot/extensions.js";
 
@@ -28,6 +29,8 @@ const versions = ref([]);
 const moreVersions = ref(false);
 // The tables this app uses, counted (null until they load).
 const tables = ref(null);
+/** The other apps that use one of this app's tables. */
+const alsoUsing = (table) => otherApps(app.value, table);
 const source = ref(null);
 const confirm = ref(null);
 const restoring = ref(false);
@@ -197,9 +200,15 @@ async function restore() {
       <template v-else-if="tab === 'data'">
         <v-skeleton-loader v-if="!tables && !problem" type="list-item-two-line" />
         <div v-else-if="!tables?.length" class="text-medium-emphasis text-body-2">This app doesn't use any tables.</div>
-        <v-list v-else density="compact" class="pa-0">
-          <v-list-item v-for="table in tables" :key="table.id" :title="table.label" :subtitle="`${table.count ?? '—'} records`" :to="paths.page(`/apps/data/${table.key}`)" />
-        </v-list>
+        <template v-else>
+          <p class="text-body-2 mb-2" data-testid="app-data-place">{{ dataPlace(app, tables) }}</p>
+          <v-list density="compact" class="pa-0">
+            <v-list-item v-for="table in tables" :key="table.id" :title="table.label" :to="paths.page(`/apps/data/${table.key}`)" class="app-details__table">
+              <v-list-item-subtitle>{{ table.key }} · {{ table.count ?? "—" }} records</v-list-item-subtitle>
+              <v-list-item-subtitle v-if="alsoUsing(table).length">Also used by {{ alsoUsing(table).join(", ") }}</v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </template>
       </template>
 
       <template v-else-if="tab === 'logic'">
@@ -247,6 +256,11 @@ async function restore() {
 </template>
 
 <style scoped>
+/* A table's name reads as the row's title, never as a browser-blue link. */
+.app-details__table :deep(.v-list-item-title) {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 500;
+}
 .app-details__source {
   white-space: pre-wrap;
   max-height: 60vh;

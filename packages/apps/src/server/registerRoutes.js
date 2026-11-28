@@ -263,9 +263,10 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       .filter((_table, index) => reach[index][0]);
     // The home's people come with them, for person fields' pickers and names.
     if (request.query?.brief === "true") return { tables, people: await homePeople(ctx.options), canManage: ctx.canManage };
+    // With `app`, the tables that app uses, each with every app that uses it too, so its details say what it shares.
     const app = request.query?.app ? String(request.query.app) : null;
-    const used = await apps.tablesUsed({ app }, ctx.options);
-    const listed = app ? tables.filter((table) => used.has(table.id)) : tables;
+    const used = await apps.tablesUsed({}, ctx.options);
+    const listed = app ? tables.filter((table) => (used.get(table.id) || []).some((entry) => entry.id === app)) : tables;
     const counts = await Promise.all(listed.map((table) => (table.obsolete ? null : gate.count(ctx, table.id).catch(() => null))));
     return {
       tables: listed.map((table, index) => ({ ...table, count: counts[index], usedBy: used.get(table.id) || [] })),
