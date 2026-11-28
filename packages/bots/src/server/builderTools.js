@@ -121,8 +121,17 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       return failed(error);
     }
   }
-  async function templateList() {
-    return { templates: apps.templateSummaries() };
+  /**
+   * The ready-made templates, short: by kind of use (audience) and words searched for, each its key, name, purpose, kinds
+   * of use and what it needs switched on (D-141), so 60 of them stay a short answer.
+   */
+  async function templateList({ audience, search } = {}) {
+    const words = String(search || "").toLowerCase().split(/\s+/u).filter(Boolean);
+    const templates = apps.templateSummaries()
+      .filter((entry) => !audience || entry.audiences.includes(audience))
+      .filter((entry) => words.every((word) => `${entry.name} ${entry.description} ${entry.tables.join(" ")}`.toLowerCase().includes(word)))
+      .map(({ key, name, description, audiences, needs }) => ({ key, name, description, audiences, ...(needs ? { needs } : {}) }));
+    return { templates };
   }
   async function templateInstall({ key, sample }) {
     try {
@@ -130,7 +139,9 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       if (!errors.length) {
         after.push({ kind: "app_draft", role: "bot", body: { slug: app.slug, name: app.name, summary: `From the ${app.name} template` } });
       }
-      return { status: errors.length ? "installed; the draft needs fixing" : "draft saved", slug: app.slug, errors };
+      // What the template needs an owner or admin to switch on (Canary: Gmail and AI), for the bot to say.
+      const needs = apps.templateSummaries().find((entry) => entry.key === key)?.needs;
+      return { status: errors.length ? "installed; the draft needs fixing" : "draft saved", slug: app.slug, errors, ...(needs ? { needs } : {}) };
     } catch (error) {
       return failed(error);
     }
@@ -379,8 +390,11 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       Object.freeze({
         id: "template_list",
         description:
-          "List the ready-made app templates (CRM, Stock, Leave requests, Hiring pipeline, Contact form, Bookings) with what each contains.",
-        inputSchema: z.object({}),
+          "Find ready-made app templates (about 60: invoices, quotes, helpdesk, shopping list, chores, budget…) by kind of use and words; prefer installing one when it fits what the person asks for.",
+        inputSchema: z.object({
+          audience: z.enum(["corporate", "business", "family", "personal"]).optional().describe("Corporate, small business, family or personal use"),
+          search: z.string().max(80).optional().describe("Words a template's name, purpose or tables should have")
+        }),
         execute: (input, options) => templateList(input, options)
       })
     ),

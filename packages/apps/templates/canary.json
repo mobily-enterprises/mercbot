@@ -1,0 +1,396 @@
+{
+  "key": "canary",
+  "name": "Canary",
+  "icon": "mail",
+  "glyph": "notificationImportant",
+  "color": "#A15C00",
+  "audiences": [
+    "corporate",
+    "business",
+    "personal"
+  ],
+  "description": "Reads new Gmail every hour, has the home's main bot judge each email, and shows only the urgent ones.",
+  "needs": {
+    "connected": [
+      "gmail"
+    ],
+    "ai": true,
+    "words": "Needs Gmail connected, and Gmail and AI switched on for the app by an owner or admin in its Logic tab."
+  },
+  "tables": [
+    {
+      "key": "emails",
+      "fields": [
+        {
+          "key": "message_id",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "sender",
+          "type": "text"
+        },
+        {
+          "key": "subject",
+          "type": "text"
+        },
+        {
+          "key": "snippet",
+          "type": "longtext"
+        },
+        {
+          "key": "received",
+          "type": "datetime"
+        },
+        {
+          "key": "verdict",
+          "type": "longtext"
+        },
+        {
+          "key": "drawing",
+          "type": "image"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "key": "check_mail",
+      "kind": "job",
+      "summary": "Every hour, keeps each new unread Gmail message of the last day once and has the main bot judge it.",
+      "settings": {
+        "every": "hour",
+        "at": "00:05"
+      },
+      "code": "async function main() {\n  // Unread mail from the last day, from the Gmail accounts this app may use.\n  const found = await connected.run(\"gmail\", \"search_email\", { query: \"is:unread newer_than:1d\" });\n  const emails = (found.mailboxes || []).flatMap((box) => box.emails || []);\n  const known = new Set((await records.list(\"emails\", { limit: 500 })).map((row) => String(row.message_id)));\n  const items = [];\n  for (const email of emails.slice(0, 40)) {\n    const id = String(email.id || \"\");\n    if (!id || known.has(id)) continue;\n    known.add(id);\n    const values = { message_id: id, sender: String(email.from || \"\"), subject: String(email.subject || \"\"), snippet: String(email.snippet || \"\") };\n    if (email.date && !Number.isNaN(Date.parse(email.date))) values.received = new Date(email.date).toISOString();\n    const row = await records.create(\"emails\", values);\n    items.push({ record: { table: \"emails\", id: row.id }, text: \"From: \" + values.sender + \"\\nSubject: \" + values.subject + \"\\n\" + values.snippet });\n  }\n  if (items.length) {\n    await ai.work({ bot: \"default\", task: \"Judge each email for urgency for the person who reads it. Answer exactly URGENT or NOT, then a dash and one short line saying why.\", items, into: \"verdict\" });\n  }\n  return { kept: items.length };\n}",
+      "tests": [
+        {
+          "name": "keeps new mail once",
+          "input": {},
+          "connected": {
+            "gmail.search_email": {
+              "mailboxes": [
+                {
+                  "emails": [
+                    {
+                      "id": "m1",
+                      "from": "Ana <ana@example.com>",
+                      "subject": "Server down",
+                      "snippet": "The shop is offline"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "kept": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "judge_again",
+      "kind": "action",
+      "summary": "Sends up to 50 emails without a verdict to the main bot to judge.",
+      "settings": {},
+      "code": "async function main() {\n  const rows = await records.list(\"emails\", { limit: 200 });\n  const waiting = rows.filter((row) => !row.verdict).slice(0, 50);\n  if (!waiting.length) return { notify: \"Every email already has a verdict.\" };\n  await ai.work({\n    bot: \"default\",\n    task: \"Judge each email for urgency for the person who reads it. Answer exactly URGENT or NOT, then a dash and one short line saying why.\",\n    items: waiting.map((row) => ({ record: { table: \"emails\", id: row.id }, text: \"From: \" + (row.sender || \"\") + \"\\nSubject: \" + (row.subject || \"\") + \"\\n\" + (row.snippet || \"\") })),\n    into: \"verdict\"\n  });\n  return { notify: \"Asked the main bot to judge \" + waiting.length + \" emails.\" };\n}",
+      "tests": [
+        {
+          "name": "nothing waiting",
+          "input": {},
+          "records": {
+            "emails": [
+              {
+                "message_id": "m1",
+                "subject": "A",
+                "verdict": "NOT - newsletter"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "Every email already has a verdict."
+          }
+        }
+      ]
+    },
+    {
+      "key": "draw_it",
+      "kind": "action",
+      "summary": "Draws a canary guarding the email into its drawing field.",
+      "settings": {},
+      "code": "async function main(input) {\n  const row = input && input.id ? await records.get(\"emails\", input.id) : null;\n  if (!row) return { notify: \"That email is no longer there.\" };\n  await ai.picture({\n    prompt: \"A warm flat illustration of a small bright yellow canary standing guard on the corner of a paper envelope, soft cream background, simple shapes, no words or letters. The email's subject: \" + (row.subject || \"\"),\n    into: { table: \"emails\", id: row.id, field: \"drawing\" }\n  });\n  return { notify: \"Drawing a canary for this email.\" };\n}",
+      "tests": [
+        {
+          "name": "draws",
+          "input": {
+            "id": "1"
+          },
+          "records": {
+            "emails": [
+              {
+                "message_id": "m1",
+                "subject": "A"
+              }
+            ]
+          },
+          "ai": {
+            "picture": {}
+          },
+          "expect": {
+            "notify": "Drawing a canary for this email."
+          }
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "urgent",
+    "navigation": {
+      "style": "rail",
+      "items": [
+        {
+          "screen": "urgent",
+          "label": "Urgent",
+          "icon": "mail"
+        },
+        {
+          "screen": "all",
+          "label": "All mail",
+          "icon": "search"
+        }
+      ]
+    },
+    "screens": {
+      "urgent": {
+        "data": {
+          "urgent": {
+            "from": "emails",
+            "where": "=verdict.startsWith(\"URGENT\")",
+            "sort": "-received"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Unread mail from the last day, judged by the home's main bot. Only the urgent ones show here.",
+                "size": "body"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Judge again",
+                "icon": "edit",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "judge_again"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.urgent",
+            "columns": [
+              {
+                "label": "From",
+                "value": "=row.sender"
+              },
+              {
+                "label": "Subject",
+                "value": "=row.subject"
+              },
+              {
+                "label": "Why",
+                "value": "=row.verdict"
+              },
+              {
+                "label": "Received",
+                "value": "=row.received"
+              },
+              {
+                "label": "Drawing",
+                "value": "=row.drawing"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "email",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Draw it",
+                "icon": "star",
+                "emphasis": "subtle",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "draw_it",
+                      "input": {
+                        "id": "=row.id"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "all": {
+        "data": {
+          "all": {
+            "from": "emails",
+            "sort": "-received",
+            "limit": 100
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "From",
+                "value": "=row.sender"
+              },
+              {
+                "label": "Subject",
+                "value": "=row.subject"
+              },
+              {
+                "label": "Verdict",
+                "value": "=row.verdict"
+              },
+              {
+                "label": "Received",
+                "value": "=row.received"
+              }
+            ],
+            "search": "Find an email",
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "email",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "email": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "email": {
+            "record": "emails",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.email.subject",
+                "size": "title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Draw it",
+                "emphasis": "primary",
+                "icon": "star",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "draw_it",
+                      "input": {
+                        "id": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "urgent"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "field",
+                "label": "From",
+                "value": "=data.email.sender"
+              },
+              {
+                "type": "field",
+                "label": "Received",
+                "value": "=data.email.received"
+              },
+              {
+                "type": "field",
+                "label": "Verdict",
+                "value": "=data.email.verdict"
+              },
+              {
+                "type": "field",
+                "label": "Message id",
+                "value": "=data.email.message_id"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "label": "Snippet",
+            "value": "=data.email.snippet"
+          },
+          {
+            "type": "field",
+            "label": "Drawing",
+            "value": "=data.email.drawing"
+          }
+        ]
+      }
+    }
+  }
+}

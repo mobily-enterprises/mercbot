@@ -60,7 +60,7 @@ async function install(template, sample) {
     // The draft opens at once; its frame shows this note (it travels in the history state).
     const notice = errors.length
       ? { text: `${app.name} was added, but its draft needs the Builder: ${errors[0].message}`, color: "error" }
-      : { text: `${app.name} is ready as a draft. Preview it, then publish.${skipped ? ` ${skipped} sample record${skipped === 1 ? "" : "s"} didn't fit your existing tables and were left out.` : ""}` };
+      : { text: `${app.name} is ready as a draft.${template.needs ? ` ${template.needs}` : ""} Preview it, then publish.${skipped ? ` ${skipped} sample record${skipped === 1 ? "" : "s"} didn't fit your existing tables and were left out.` : ""}` };
     router.push({ path: paths.page(`/apps/${app.slug}`), query: { version: "draft" }, state: { notice } });
   } catch (error) {
     emit("notify", errorText(error, "That template couldn't be installed."), "error");

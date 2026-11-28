@@ -99,6 +99,11 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
 
   // The Builder installs a template as a draft, with a card for the person.
   assert.equal((await run(builder.templateList, {})).templates.length, TEMPLATE_COUNT, "every template, with Contacts and To-dos (D-130)");
+  // Found by kind of use and words, each short (D-141).
+  const family = (await run(builder.templateList, { audience: "family", search: "shopping" })).templates;
+  assert.deepEqual(family.map((entry) => entry.key).sort(), ["meal_planner", "shopping_list"]);
+  assert.deepEqual(Object.keys(family[0]).sort(), ["audiences", "description", "key", "name"]);
+  assert.match((await run(builder.templateList, { search: "urgent gmail" })).templates[0].needs, /Gmail/u, "what a template needs");
   const installed = await run(builder.templateInstall, { key: "hiring" });
   assert.deepEqual([installed.status, installed.slug], ["draft saved", "hiring-pipeline"]);
   assert.equal(after.at(-1).kind, "app_draft");

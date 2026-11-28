@@ -243,3 +243,15 @@ test("list apps share one table, each seeing its own kind of list", async (conte
   assert.ok(shopping.includes("Milk") && shopping.includes("Lasagne sheets"), "each app's items are on it");
   assert.deepEqual(await titles("packing_list", "list", "open"), ["Passports", "Sun cream", "Swimming goggles"], "packing keeps its own");
 });
+
+// A template that brings scripts (D-141): Canary's job and two buttons are saved into its draft as the person installing
+// it, their tests passing, so the draft's buttons find them; nothing it needs (Gmail, AI) is switched on by installing.
+test("a template's scripts go into its app's draft, and what it needs stays switched off", async (context) => {
+  const { knex, apps: capability, userId, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-scripts" });
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const { app, errors } = await capability.installTemplate(ctx, "canary", {});
+  assert.deepEqual(errors, []);
+  const saved = await knex("app_scripts").where({ app_id: app.id }).select("key", "kind", "draft", "runs_as_user_id").orderBy("key");
+  assert.deepEqual(saved.map((row) => [row.key, row.kind, row.draft]), [["check_mail", "job", true], ["draw_it", "action", true], ["judge_again", "action", true]]);
+  assert.deepEqual((await capability.apps.find(app.slug, ctx.options)).connectedAccess ?? [], [], "Gmail and AI stay off until an owner or admin allows them");
+});

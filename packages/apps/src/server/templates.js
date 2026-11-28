@@ -13,8 +13,26 @@ const TEMPLATES = readdirSync(folder)
 const templateNamed = (key) => TEMPLATES.find((template) => template.key === key) || null;
 
 /** A template's version: a short hash of what an app gets from it, its screens and the tables they need (D-130). */
+// Scripts join the hash only when a template has some, so every template without them keeps its version.
 const templateVersionOf = (template) =>
-  createHash("sha256").update(JSON.stringify([template.definition, template.tables, template.uses || []])).digest("hex").slice(0, 16);
+  createHash("sha256")
+    .update(JSON.stringify([template.definition, template.tables, template.uses || [], ...(template.scripts ? [template.scripts] : [])]))
+    .digest("hex")
+    .slice(0, 16);
+
+/**
+ * A template's scripts (D-141), each saved into the app's draft as the person installing it, its tests run as any
+ * script's are (D-139): answers their errors, by script. Nothing switches on what they need (connected apps, AI):
+ * that stays the home's owners' and admins' choice (D-136), which the template's `needs` says.
+ */
+async function saveScripts(scripts, actor, slug, template, options) {
+  const errors = [];
+  for (const script of template.scripts || []) {
+    const saved = await scripts.save(actor, slug, script, options);
+    errors.push(...saved.errors.map((error) => ({ ...error, path: `scripts.${script.key}${error.path ? `.${error.path}` : ""}` })));
+  }
+  return errors;
+}
 
 /** The tables a template needs, made or completed with the fields they lack: nothing removed or renamed. */
 async function prepareTables({ registry, catalog }, ctx, template) {
@@ -42,13 +60,16 @@ async function prepareTables({ registry, catalog }, ctx, template) {
  * that don't fit a table the home already had (say, other choices) are skipped and counted.
  * `ctx` is a gate ctx: `{ options, actor, via }`.
  */
-export async function installTemplate({ registry, apps, gate, catalog }, ctx, key, { sample = false } = {}) {
+export async function installTemplate({ registry, apps, gate, catalog, scripts }, ctx, key, { sample = false } = {}) {
   const template = templateNamed(key);
   if (!template) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
   const { options, actor } = ctx;
   await prepareTables({ registry, catalog }, ctx, template);
   const app = await apps.createApp(actor, { name: template.name, icon: template.glyph || template.icon, color: template.color }, options);
-  const { errors = [] } = await apps.saveDraft(actor, app.slug, template.definition, `From the ${template.name} template`, options);
+  // Its scripts first: the draft's save check needs the scripts it calls.
+  const scriptErrors = await saveScripts(scripts, actor, app.slug, template, options);
+  const { errors: draftErrors = [] } = await apps.saveDraft(actor, app.slug, template.definition, `From the ${template.name} template`, options);
+  const errors = [...scriptErrors, ...draftErrors];
   // It remembers its template, so the Builder can tell when the template changes (D-130).
   await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(template) }, options);
   let skipped = 0;
@@ -113,7 +134,7 @@ export async function templateStatus({ apps }, options) {
  * @param {{ actor: object, options: object }} ctx a gate ctx
  * @param {string} slugOrId the app
  */
-export async function updateFromTemplate({ registry, apps, catalog }, ctx, slugOrId) {
+export async function updateFromTemplate({ registry, apps, catalog, scripts }, ctx, slugOrId) {
   const { options, actor } = ctx;
   const before = await apps.get(slugOrId, { version: "draft" }, options);
   const found = templateOfApp(before.app);
@@ -125,7 +146,9 @@ export async function updateFromTemplate({ registry, apps, catalog }, ctx, slugO
   }
   const { template } = found;
   await prepareTables({ registry, catalog }, ctx, template);
-  const { errors = [] } = await apps.saveDraft(actor, before.app.slug, template.definition, `Updated from the ${template.name} template`, options);
+  const scriptErrors = await saveScripts(scripts, actor, before.app.slug, template, options);
+  const { errors: draftErrors = [] } = await apps.saveDraft(actor, before.app.slug, template.definition, `Updated from the ${template.name} template`, options);
+  const errors = [...scriptErrors, ...draftErrors];
   await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(template) }, options);
   return { app: before.app, template: template.key, errors, previous: before.definition };
 }

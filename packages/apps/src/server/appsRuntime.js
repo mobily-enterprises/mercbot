@@ -93,10 +93,10 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const catalog = createTableCatalog({ registry, gate });
-  const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog }, ctx, key, options);
+  const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog, scripts }, ctx, key, options);
   // The home's apps made from templates and whether each is up to date; one brought up to date as a draft (D-130).
   const templateStatusFor = (options) => templateStatus({ apps }, options);
-  const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog }, ctx, slugOrId);
+  const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog, scripts }, ctx, slugOrId);
   const starterApps = createStarterApps({ appSettings: resources.appSettings, installTemplate: installTemplateFor, apps });
   return Object.freeze({
     anyapi,
