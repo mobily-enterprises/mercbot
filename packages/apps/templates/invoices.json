@@ -70,6 +70,17 @@
           "key": "document",
           "type": "file",
           "label": "PDF"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "invoice_lines",
+            "link": "invoice",
+            "measure": "sum",
+            "field": "amount"
+          }
         }
       ]
     },
@@ -100,8 +111,7 @@
         },
         {
           "key": "amount",
-          "type": "money",
-          "formula": "=quantity * unit_price"
+          "type": "money"
         }
       ]
     }
@@ -186,6 +196,10 @@
               {
                 "label": "Overdue",
                 "value": "=row.overdue"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find an invoice",
@@ -477,6 +491,10 @@
               {
                 "label": "Overdue",
                 "value": "=row.overdue"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "onRowClick": [
@@ -548,7 +566,7 @@
   "sample": {
     "organisations": [
       {
-        "name": "Greenleaf Café",
+        "name": "Greenleaf Caf\u00e9",
         "kind": "Company"
       }
     ],
@@ -557,7 +575,7 @@
         "number": "INV-1041",
         "customer": {
           "sample": "organisations",
-          "name": "Greenleaf Café"
+          "name": "Greenleaf Caf\u00e9"
         },
         "issued": "2026-11-02",
         "due": "2026-12-02",
@@ -567,7 +585,7 @@
         "number": "INV-1042",
         "customer": {
           "sample": "organisations",
-          "name": "Greenleaf Café"
+          "name": "Greenleaf Caf\u00e9"
         },
         "issued": "2026-11-24",
         "due": "2026-12-24",
@@ -582,7 +600,8 @@
         },
         "item": "Menu design",
         "quantity": 1,
-        "unit_price": 45000
+        "unit_price": 45000,
+        "amount": 45000
       },
       {
         "invoice": {
@@ -591,7 +610,8 @@
         },
         "item": "Printed menus",
         "quantity": 40,
-        "unit_price": 350
+        "unit_price": 350,
+        "amount": 14000
       },
       {
         "invoice": {
@@ -600,8 +620,55 @@
         },
         "item": "Website updates (hours)",
         "quantity": 3,
-        "unit_price": 6500
+        "unit_price": 6500,
+        "amount": 19500
       }
     ]
-  }
+  },
+  "scripts": [
+    {
+      "key": "invoice_lines_amount",
+      "kind": "rule",
+      "summary": "Keeps each line's amount as its quantity times its price",
+      "settings": {
+        "table": "invoice_lines",
+        "on": [
+          "create",
+          "update"
+        ]
+      },
+      "code": "function main(input) {\n  const line = input.record || {};\n  return { set: { amount: Math.round(Number(line.quantity || 0) * Number(line.unit_price || 0)) } };\n}",
+      "tests": [
+        {
+          "name": "two at 15.00",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 2,
+              "unit_price": 1500
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 3000
+            }
+          }
+        },
+        {
+          "name": "no price yet",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 3
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

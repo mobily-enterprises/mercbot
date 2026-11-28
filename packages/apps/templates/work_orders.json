@@ -85,6 +85,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "work_parts",
+            "link": "work_order",
+            "measure": "sum",
+            "field": "line_cost"
+          }
         }
       ]
     },
@@ -116,8 +127,7 @@
         },
         {
           "key": "line_cost",
-          "type": "money",
-          "formula": "=quantity * cost"
+          "type": "money"
         }
       ]
     }
@@ -215,7 +225,7 @@
             "rows": "=data.all",
             "groupBy": "status",
             "title": "=row.title",
-            "subtitle": "=row.crew + \" · \" + formatDate(row.starts, \"d MMM\")",
+            "subtitle": "=row.crew + \" \u00b7 \" + formatDate(row.starts, \"d MMM\")",
             "onClick": [
               {
                 "go": {
@@ -291,6 +301,10 @@
               {
                 "label": "Price",
                 "value": "=row.price"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find a job",
@@ -548,7 +562,8 @@
         },
         "part": "Thermostatic shower valve",
         "quantity": 1,
-        "cost": 13900
+        "cost": 13900,
+        "line_cost": 13900
       },
       {
         "work_order": {
@@ -557,8 +572,55 @@
         },
         "part": "Wall tiles (box)",
         "quantity": 8,
-        "cost": 2450
+        "cost": 2450,
+        "line_cost": 19600
       }
     ]
-  }
+  },
+  "scripts": [
+    {
+      "key": "work_parts_line_cost",
+      "kind": "rule",
+      "summary": "Keeps each line's line_cost as its quantity times its price",
+      "settings": {
+        "table": "work_parts",
+        "on": [
+          "create",
+          "update"
+        ]
+      },
+      "code": "function main(input) {\n  const line = input.record || {};\n  return { set: { line_cost: Math.round(Number(line.quantity || 0) * Number(line.cost || 0)) } };\n}",
+      "tests": [
+        {
+          "name": "two at 15.00",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 2,
+              "cost": 1500
+            }
+          },
+          "expect": {
+            "set": {
+              "line_cost": 3000
+            }
+          }
+        },
+        {
+          "name": "no price yet",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 3
+            }
+          },
+          "expect": {
+            "set": {
+              "line_cost": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

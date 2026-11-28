@@ -56,6 +56,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "costs",
+          "type": "money",
+          "label": "Costs",
+          "rollup": {
+            "from": "vehicle_events",
+            "link": "vehicle",
+            "measure": "sum",
+            "field": "cost"
+          }
         }
       ]
     },
@@ -186,6 +197,10 @@
               {
                 "label": "Tax due",
                 "value": "=row.tax_due"
+              },
+              {
+                "label": "Costs",
+                "value": "=row.costs"
               }
             ],
             "onRowClick": [

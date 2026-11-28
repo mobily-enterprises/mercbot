@@ -255,3 +255,24 @@ test("a template's scripts go into its app's draft, and what it needs stays swit
   assert.deepEqual(saved.map((row) => [row.key, row.kind, row.draft]), [["check_mail", "job", true], ["draw_it", "action", true], ["judge_again", "action", true]]);
   assert.deepEqual((await capability.apps.find(app.slug, ctx.options)).connectedAccess ?? [], [], "Gmail and AI stay off until an owner or admin allows them");
 });
+
+// Templates bring roll-up totals (D-141): an invoice's total follows its lines, each line's amount kept by the
+// template's rule (quantity times price) once the app is published.
+test("an invoice's total follows its lines, each amount kept by the template's rule", async (context) => {
+  const { apps: capability, userId, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-totals" });
+  const { apps, gate } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const { app, errors } = await capability.installTemplate(ctx, "invoices", {});
+  assert.deepEqual(errors, []);
+  await apps.publish(ctx.actor, app.slug, {}, ctx.options);
+  const invoice = await gate.create(ctx, "invoices", { number: "INV-7", issued: "2026-11-28", due: "2026-12-28" });
+  await gate.create(ctx, "invoice_lines", { invoice: invoice.id, item: "Chairs", quantity: 4, unit_price: 2500 });
+  const desk = await gate.create(ctx, "invoice_lines", { invoice: invoice.id, item: "Desk", quantity: 1, unit_price: 12000 });
+  const totalOf = async () => {
+    const table = (await capability.registry.loadTables(ctx.options)).find((entry) => entry.key === "invoices");
+    return (await gate.get(ctx, "invoices", invoice.id))[table.fields.find((field) => field.key === "total").id];
+  };
+  assert.equal(await totalOf(), 22000, "4 × 25.00 + 1 × 120.00");
+  await gate.update(ctx, "invoice_lines", desk.id, { quantity: 2 });
+  assert.equal(await totalOf(), 34000, "a changed quantity changes its amount and the total");
+});

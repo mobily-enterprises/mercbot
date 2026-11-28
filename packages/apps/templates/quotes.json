@@ -65,6 +65,17 @@
           "key": "document",
           "type": "file",
           "label": "PDF"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "quote_lines",
+            "link": "quote",
+            "measure": "sum",
+            "field": "amount"
+          }
         }
       ]
     },
@@ -95,8 +106,7 @@
         },
         {
           "key": "amount",
-          "type": "money",
-          "formula": "=quantity * unit_price"
+          "type": "money"
         }
       ]
     }
@@ -158,7 +168,7 @@
             "type": "board",
             "rows": "=data.all",
             "groupBy": "status",
-            "title": "=row.number + \" · \" + row.title",
+            "title": "=row.number + \" \u00b7 \" + row.title",
             "onClick": [
               {
                 "go": {
@@ -229,6 +239,10 @@
                 "label": "Status",
                 "value": "=row.status",
                 "display": "chip"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find a quote",
@@ -549,7 +563,8 @@
         },
         "item": "Sign design",
         "quantity": 1,
-        "unit_price": 38000
+        "unit_price": 38000,
+        "amount": 38000
       },
       {
         "quote": {
@@ -558,8 +573,55 @@
         },
         "item": "Brushed steel sign, fitted",
         "quantity": 1,
-        "unit_price": 129000
+        "unit_price": 129000,
+        "amount": 129000
       }
     ]
-  }
+  },
+  "scripts": [
+    {
+      "key": "quote_lines_amount",
+      "kind": "rule",
+      "summary": "Keeps each line's amount as its quantity times its price",
+      "settings": {
+        "table": "quote_lines",
+        "on": [
+          "create",
+          "update"
+        ]
+      },
+      "code": "function main(input) {\n  const line = input.record || {};\n  return { set: { amount: Math.round(Number(line.quantity || 0) * Number(line.unit_price || 0)) } };\n}",
+      "tests": [
+        {
+          "name": "two at 15.00",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 2,
+              "unit_price": 1500
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 3000
+            }
+          }
+        },
+        {
+          "name": "no price yet",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 3
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

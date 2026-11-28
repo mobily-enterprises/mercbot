@@ -39,15 +39,22 @@ async function prepareTables({ registry, catalog }, ctx, template) {
   const { options, actor } = ctx;
   // The shared tables it's built on (D-130), with those they link to, made or completed once.
   for (const shared of template.uses || []) await catalog.ensureTable(ctx, shared);
-  for (const table of template.tables) {
+  // A roll-up adds up another table's records (D-140), so roll-ups are added once every table exists.
+  const missing = async (table) => {
     const existing = (await registry.loadTables(options)).find((entry) => !entry.obsolete && entry.key === table.key);
+    const has = (wanted) => existing?.fields.some((entry) => !entry.obsolete && entry.key === wanted.key);
+    return { existing, lacking: table.fields.filter((wanted) => !has(wanted)) };
+  };
+  for (const table of template.tables) {
+    const { existing, lacking } = await missing(table);
     if (!existing) {
-      await registry.createTable(actor, { key: table.key, fields: table.fields }, options);
+      await registry.createTable(actor, { key: table.key, fields: table.fields.filter((field) => !field.rollup) }, options);
     } else {
-      for (const field of table.fields.filter((wanted) => !existing.fields.some((entry) => !entry.obsolete && entry.key === wanted.key))) {
-        await registry.addField(actor, table.key, field, options);
-      }
+      for (const field of lacking.filter((wanted) => !wanted.rollup)) await registry.addField(actor, table.key, field, options);
     }
+  }
+  for (const table of template.tables.filter((entry) => entry.fields.some((field) => field.rollup))) {
+    for (const field of (await missing(table)).lacking) await registry.addField(actor, table.key, field, options);
   }
 }
 

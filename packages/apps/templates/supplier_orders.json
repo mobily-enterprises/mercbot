@@ -50,6 +50,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "supplier_order_lines",
+            "link": "supplier_order",
+            "measure": "sum",
+            "field": "line_cost"
+          }
         }
       ]
     },
@@ -81,8 +92,7 @@
         },
         {
           "key": "line_cost",
-          "type": "money",
-          "formula": "=quantity * unit_cost"
+          "type": "money"
         },
         {
           "key": "received",
@@ -167,6 +177,10 @@
                 "label": "Status",
                 "value": "=row.status",
                 "display": "chip"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find an order",
@@ -569,6 +583,10 @@
                 "label": "Status",
                 "value": "=row.status",
                 "display": "chip"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "onRowClick": [
@@ -618,7 +636,8 @@
         "item": "House blend, 1 kg",
         "quantity": 12,
         "unit_cost": 1850,
-        "received": false
+        "received": false,
+        "line_cost": 22200
       },
       {
         "supplier_order": {
@@ -628,8 +647,55 @@
         "item": "Decaf, 1 kg",
         "quantity": 3,
         "unit_cost": 2100,
-        "received": false
+        "received": false,
+        "line_cost": 6300
       }
     ]
-  }
+  },
+  "scripts": [
+    {
+      "key": "supplier_order_lines_line_cost",
+      "kind": "rule",
+      "summary": "Keeps each line's line_cost as its quantity times its price",
+      "settings": {
+        "table": "supplier_order_lines",
+        "on": [
+          "create",
+          "update"
+        ]
+      },
+      "code": "function main(input) {\n  const line = input.record || {};\n  return { set: { line_cost: Math.round(Number(line.quantity || 0) * Number(line.unit_cost || 0)) } };\n}",
+      "tests": [
+        {
+          "name": "two at 15.00",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 2,
+              "unit_cost": 1500
+            }
+          },
+          "expect": {
+            "set": {
+              "line_cost": 3000
+            }
+          }
+        },
+        {
+          "name": "no price yet",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 3
+            }
+          },
+          "expect": {
+            "set": {
+              "line_cost": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

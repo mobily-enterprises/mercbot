@@ -55,6 +55,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "booked",
+          "type": "money",
+          "label": "Booked",
+          "rollup": {
+            "from": "trip_items",
+            "link": "trip",
+            "measure": "sum",
+            "field": "cost"
+          }
         }
       ]
     },
@@ -262,6 +273,10 @@
               {
                 "label": "Budget",
                 "value": "=row.budget"
+              },
+              {
+                "label": "Booked",
+                "value": "=row.booked"
               }
             ],
             "search": "Find a trip",

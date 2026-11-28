@@ -66,6 +66,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "costs",
+          "type": "money",
+          "label": "Costs",
+          "rollup": {
+            "from": "pet_care_events",
+            "link": "pet",
+            "measure": "sum",
+            "field": "cost"
+          }
         }
       ]
     },
@@ -194,6 +205,10 @@
               {
                 "label": "Vet",
                 "value": "=row.vet"
+              },
+              {
+                "label": "Costs",
+                "value": "=row.costs"
               }
             ],
             "onRowClick": [

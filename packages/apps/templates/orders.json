@@ -89,6 +89,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "order_lines",
+            "link": "order",
+            "measure": "sum",
+            "field": "amount"
+          }
         }
       ]
     },
@@ -121,8 +132,7 @@
         },
         {
           "key": "amount",
-          "type": "money",
-          "formula": "=quantity * unit_price"
+          "type": "money"
         }
       ]
     }
@@ -253,6 +263,10 @@
                 "label": "Status",
                 "value": "=row.status",
                 "display": "chip"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find an order",
@@ -762,7 +776,8 @@
           "name": "Linen tea towel"
         },
         "quantity": 2,
-        "unit_price": 1200
+        "unit_price": 1200,
+        "amount": 2400
       },
       {
         "order": {
@@ -774,8 +789,55 @@
           "name": "Beeswax candle"
         },
         "quantity": 1,
-        "unit_price": 1650
+        "unit_price": 1650,
+        "amount": 1650
       }
     ]
-  }
+  },
+  "scripts": [
+    {
+      "key": "order_lines_amount",
+      "kind": "rule",
+      "summary": "Keeps each line's amount as its quantity times its price",
+      "settings": {
+        "table": "order_lines",
+        "on": [
+          "create",
+          "update"
+        ]
+      },
+      "code": "function main(input) {\n  const line = input.record || {};\n  return { set: { amount: Math.round(Number(line.quantity || 0) * Number(line.unit_price || 0)) } };\n}",
+      "tests": [
+        {
+          "name": "two at 15.00",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 2,
+              "unit_price": 1500
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 3000
+            }
+          }
+        },
+        {
+          "name": "no price yet",
+          "input": {
+            "action": "create",
+            "record": {
+              "quantity": 3
+            }
+          },
+          "expect": {
+            "set": {
+              "amount": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

@@ -44,6 +44,17 @@
         {
           "key": "notes",
           "type": "longtext"
+        },
+        {
+          "key": "total",
+          "type": "money",
+          "label": "Total",
+          "rollup": {
+            "from": "expense_items",
+            "link": "claim",
+            "measure": "sum",
+            "field": "amount"
+          }
         }
       ]
     },
@@ -164,6 +175,10 @@
                 "label": "Status",
                 "value": "=row.status",
                 "display": "chip"
+              },
+              {
+                "label": "Total",
+                "value": "=row.total"
               }
             ],
             "search": "Find a claim",

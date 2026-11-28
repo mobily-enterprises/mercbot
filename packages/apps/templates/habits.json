@@ -36,6 +36,16 @@
         {
           "key": "started",
           "type": "date"
+        },
+        {
+          "key": "ticks",
+          "type": "number",
+          "label": "Ticks",
+          "rollup": {
+            "from": "habit_checks",
+            "link": "habit",
+            "measure": "count"
+          }
         }
       ]
     },
@@ -112,6 +122,10 @@
               {
                 "label": "Times a week",
                 "value": "=row.per_week"
+              },
+              {
+                "label": "Ticks",
+                "value": "=row.ticks"
               }
             ],
             "onRowClick": [
@@ -225,6 +239,10 @@
               {
                 "label": "Since",
                 "value": "=row.started"
+              },
+              {
+                "label": "Ticks",
+                "value": "=row.ticks"
               }
             ],
             "onRowClick": [
