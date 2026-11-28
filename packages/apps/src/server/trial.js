@@ -117,7 +117,10 @@ export function createTrial({ apps, runtime, scripts }) {
         ? (result.records ?? result.record ?? null)
         : query.record
           ? formulaRecord(table, result.record)
-          : (result.records || []).map((record) => formulaRecord(table, record));
+          // A totals query's groups, as the browser's formulas read them (D-145: a person's own totals).
+          : query.groupBy
+            ? result.totals || []
+            : (result.records || []).map((record) => formulaRecord(table, record));
     }
 
     const formulaErrors = [];

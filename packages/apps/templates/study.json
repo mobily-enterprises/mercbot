@@ -216,28 +216,6 @@
             "measure": "count",
             "where": "=status != \"Writing\""
           }
-        },
-        {
-          "key": "done",
-          "type": "number",
-          "label": "Lessons done",
-          "rollup": {
-            "from": "study_lessons",
-            "link": "course",
-            "measure": "count",
-            "where": "=status == \"Done\""
-          }
-        },
-        {
-          "key": "stars",
-          "type": "number",
-          "label": "Stars",
-          "rollup": {
-            "from": "study_lessons",
-            "link": "course",
-            "measure": "sum",
-            "field": "stars"
-          }
         }
       ]
     },
@@ -275,17 +253,6 @@
             "from": "study_lessons",
             "link": "unit",
             "measure": "count"
-          }
-        },
-        {
-          "key": "done",
-          "type": "number",
-          "label": "Lessons done",
-          "rollup": {
-            "from": "study_lessons",
-            "link": "unit",
-            "measure": "count",
-            "where": "=status == \"Done\""
           }
         }
       ]
@@ -339,7 +306,7 @@
           "choices": [
             "Writing",
             "New",
-            "Done"
+            "Put away"
           ],
           "label": "Status"
         },
@@ -354,11 +321,6 @@
           "label": "As written"
         },
         {
-          "key": "finished",
-          "type": "date",
-          "label": "Finished"
-        },
-        {
           "key": "questions",
           "type": "number",
           "label": "Questions",
@@ -366,28 +328,6 @@
             "from": "study_questions",
             "link": "lesson",
             "measure": "count"
-          }
-        },
-        {
-          "key": "answered",
-          "type": "number",
-          "label": "Answered",
-          "rollup": {
-            "from": "study_questions",
-            "link": "lesson",
-            "measure": "count",
-            "where": "=picked != \"\""
-          }
-        },
-        {
-          "key": "stars",
-          "type": "number",
-          "label": "Stars",
-          "rollup": {
-            "from": "study_questions",
-            "link": "lesson",
-            "measure": "count",
-            "where": "=correct == true"
           }
         }
       ]
@@ -448,6 +388,77 @@
           "key": "why",
           "type": "text",
           "label": "Why"
+        }
+      ]
+    },
+    {
+      "key": "study_progress",
+      "personal": true,
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "study_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "study_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "done",
+          "type": "yesno",
+          "label": "Done"
+        },
+        {
+          "key": "finished",
+          "type": "date",
+          "label": "Finished"
+        },
+        {
+          "key": "answered",
+          "type": "number",
+          "label": "Answered",
+          "rollup": {
+            "from": "study_answers",
+            "link": "progress",
+            "measure": "count"
+          }
+        },
+        {
+          "key": "stars",
+          "type": "number",
+          "label": "Stars",
+          "rollup": {
+            "from": "study_answers",
+            "link": "progress",
+            "measure": "count",
+            "where": "=correct == true"
+          }
+        }
+      ]
+    },
+    {
+      "key": "study_answers",
+      "personal": true,
+      "fields": [
+        {
+          "key": "progress",
+          "type": "link",
+          "target": "study_progress",
+          "required": true,
+          "label": "Progress"
+        },
+        {
+          "key": "question",
+          "type": "link",
+          "target": "study_questions",
+          "required": true,
+          "label": "Question"
         },
         {
           "key": "picked",
@@ -458,7 +469,7 @@
             "C",
             "D"
           ],
-          "label": "Your answer"
+          "label": "Answer"
         },
         {
           "key": "correct",
@@ -698,7 +709,7 @@
           "condition": "=row.status == \"Planning\" && \"status\" in changed"
         }
       },
-      "code": "// A course to plan (its status set to Planning: a new one, or Plan again): the home's main bot plans it from what the\n// person wants to learn, their level, what to change, the course so far and the book's parts, into its plan; a cover\n// is drawn for a course without one.\nconst ROOM = 7900;\nconst TASK = \"Plan a complete, fun course that teaches the person what they want to learn, at their level, step by step from easy to harder. When a book is given, build the course on its parts. Answer only in this format, one item a line, no other text:\\nCOURSE: <one emoji> <a short, catchy course title>\\nUNIT: <one emoji> <unit title> | <one line on what the unit covers>\\nLESSON: <one emoji> <lesson title> | <one line on what they will learn> | <the numbers of the book parts it uses, such as 3, 4; blank without a book>\\nGive 3 to 6 units, each with 2 to 5 lessons, at most 30 lessons in all; every LESSON line belongs to the UNIT line above it. Keep every line short. If the course so far is given, change it only as asked and keep the exact titles of the lessons that stay.\";\n\nconst firstSentence = (text) => String(text || \"\").split(/(?<=[.!?])\\s/)[0].slice(0, 160);\n\nfunction planText(course, book, parts, units, lessons) {\n  const lines = [\"What I want to learn: \" + course.goal];\n  if (course.level) lines.push(\"How much I know already: \" + course.level);\n  if (course.changes) lines.push(\"What to change this time: \" + course.changes);\n  if (lessons.length) {\n    lines.push(\"The course so far (keep the exact titles of the lessons that stay):\");\n    for (const unit of units) {\n      lines.push(\"UNIT: \" + unit.title + \" | \" + (unit.about || \"\"));\n      for (const lesson of lessons.filter((entry) => entry.unit === unit.id)) lines.push(\"LESSON: \" + lesson.title + \" | \" + (lesson.goal || \"\") + \" | \" + (lesson.parts || \"\"));\n    }\n  }\n  let text = lines.join(\"\\n\");\n  if (book && parts.length) {\n    text += \"\\nThe book \\\"\" + book.title + \"\\\"\" + (book.author ? \" by \" + book.author : \"\") + \", part by part:\";\n    const full = parts.map((part) => part.position + \". \" + (part.heading || \"\") + \" - \" + (firstSentence(part.summary) || String(part.text || \"\").slice(0, 120).replace(/\\s+/g, \" \")));\n    const short = parts.map((part) => part.position + \". \" + (part.heading || String(part.text || \"\").slice(0, 60).replace(/\\s+/g, \" \")));\n    const contents = full.join(\"\\n\").length + text.length < ROOM ? full : short;\n    for (const line of contents) {\n      if (text.length + line.length + 1 > ROOM) break;\n      text += \"\\n\" + line;\n    }\n  }\n  return text.slice(0, ROOM);\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || course.status !== \"Planning\") continue;\n    const book = course.book ? await records.get(\"books\", course.book) : null;\n    const parts = book ? await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: book.id }, sort: \"position\", limit: 100 }) : [];\n    const units = await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    const lessons = await records.list(\"study_lessons\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    await records.update(\"study_courses\", id, { plan: \"\", note: \"\" });\n    await ai.work({ bot: \"default\", task: TASK, items: [{ record: { table: \"study_courses\", id }, text: planText(course, book, parts, units, lessons) }], into: \"plan\" });\n    if (!course.cover) {\n      await ai.picture({\n        prompt: \"A bright, cheerful flat illustration for a course cover, bold simple shapes and happy colours, no words or letters. The course is about: \" + String(course.goal).slice(0, 300),\n        into: { table: \"study_courses\", id, field: \"cover\" }\n      });\n    }\n    return { planning: id };\n  }\n  return { planning: null };\n}",
+      "code": "// A course to plan (its status set to Planning: a new one, or Plan again): the home's main bot plans it from what the\n// person wants to learn, their level, what to change, the course so far and the book's parts, into its plan; a cover\n// is drawn for a course without one.\nconst ROOM = 7900;\nconst TASK = \"Plan a complete, fun course that teaches the person what they want to learn, at their level, step by step from easy to harder. When a book is given, build the course on its parts. Answer only in this format, one item a line, no other text:\\nCOURSE: <one emoji> <a short, catchy course title>\\nUNIT: <one emoji> <unit title> | <one line on what the unit covers>\\nLESSON: <one emoji> <lesson title> | <one line on what they will learn> | <the numbers of the book parts it uses, such as 3, 4; blank without a book>\\nGive 3 to 6 units, each with 2 to 5 lessons, at most 30 lessons in all; every LESSON line belongs to the UNIT line above it. Keep every line short. If the course so far is given, change it only as asked and keep the exact titles of the lessons that stay.\";\n\nconst firstSentence = (text) => String(text || \"\").split(/(?<=[.!?])\\s/)[0].slice(0, 160);\n\nfunction planText(course, book, parts, units, lessons) {\n  const lines = [\"What I want to learn: \" + course.goal];\n  if (course.level) lines.push(\"How much I know already: \" + course.level);\n  if (course.changes) lines.push(\"What to change this time: \" + course.changes);\n  if (lessons.length) {\n    lines.push(\"The course so far (keep the exact titles of the lessons that stay):\");\n    for (const unit of units) {\n      lines.push(\"UNIT: \" + unit.title + \" | \" + (unit.about || \"\"));\n      for (const lesson of lessons.filter((entry) => entry.unit === unit.id)) lines.push(\"LESSON: \" + lesson.title + \" | \" + (lesson.goal || \"\") + \" | \" + (lesson.parts || \"\"));\n    }\n  }\n  let text = lines.join(\"\\n\");\n  if (book && parts.length) {\n    text += \"\\nThe book \\\"\" + book.title + \"\\\"\" + (book.author ? \" by \" + book.author : \"\") + \", part by part:\";\n    const full = parts.map((part) => part.position + \". \" + (part.heading || \"\") + \" - \" + (firstSentence(part.summary) || String(part.text || \"\").slice(0, 120).replace(/\\s+/g, \" \")));\n    const short = parts.map((part) => part.position + \". \" + (part.heading || String(part.text || \"\").slice(0, 60).replace(/\\s+/g, \" \")));\n    const contents = full.join(\"\\n\").length + text.length < ROOM ? full : short;\n    for (const line of contents) {\n      if (text.length + line.length + 1 > ROOM) break;\n      text += \"\\n\" + line;\n    }\n  }\n  return text.slice(0, ROOM);\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || course.status !== \"Planning\") continue;\n    const book = course.book ? await records.get(\"books\", course.book) : null;\n    const parts = book ? await records.list(\"book_parts\", { where: \"=book == params.book\", params: { book: book.id }, sort: \"position\", limit: 100 }) : [];\n    const units = await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    const lessons = await records.list(\"study_lessons\", { where: \"=course == params.course && status != \\\"Put away\\\"\", params: { course: id }, sort: \"position\", limit: 100 });\n    await records.update(\"study_courses\", id, { plan: \"\", note: \"\" });\n    await ai.work({ bot: \"default\", task: TASK, items: [{ record: { table: \"study_courses\", id }, text: planText(course, book, parts, units, lessons) }], into: \"plan\" });\n    if (!course.cover) {\n      await ai.picture({\n        prompt: \"A bright, cheerful flat illustration for a course cover, bold simple shapes and happy colours, no words or letters. The course is about: \" + String(course.goal).slice(0, 300),\n        into: { table: \"study_courses\", id, field: \"cover\" }\n      });\n    }\n    return { planning: id };\n  }\n  return { planning: null };\n}",
       "tests": [
         {
           "name": "a new course is planned from the book and gets a cover",
@@ -789,7 +800,7 @@
           "condition": "=\"plan\" in changed && row.plan != \"\""
         }
       },
-      "code": "// The bot's plan made into the course's units and lessons. The forgiving rule for a changed plan: a unit or lesson\n// whose title stays the same (emoji, case and punctuation aside) is kept, with its lessons' text, quiz and progress,\n// moved to its new place; a new one is made (a lesson to be written, so it shows as new); one the plan leaves out is\n// put away (marked obsolete).\nconst keyOf = (title) => String(title || \"\").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, \" \").trim();\n\nfunction parsePlan(text) {\n  const plan = { title: \"\", units: [] };\n  for (const raw of String(text || \"\").split(\"\\n\")) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    const found = /^(COURSE|UNIT|LESSON)\\s*:\\s*(.+)$/i.exec(line);\n    if (!found) continue;\n    const [title = \"\", second = \"\", third = \"\"] = found[2].split(\"|\").map((part) => part.trim());\n    const kind = found[1].toUpperCase();\n    if (kind === \"COURSE\") plan.title = title.slice(0, 200);\n    else if (kind === \"UNIT\" && title) plan.units.push({ title: title.slice(0, 200), about: second.slice(0, 300), lessons: [] });\n    else if (kind === \"LESSON\" && title && plan.units.length) {\n      plan.units[plan.units.length - 1].lessons.push({ title: title.slice(0, 200), goal: second.slice(0, 300), parts: third.replace(/[^0-9,\\s]/g, \"\").replace(/\\s+/g, \" \").trim().slice(0, 60) });\n    }\n  }\n  plan.units = plan.units.filter((unit) => unit.lessons.length).slice(0, 8);\n  return plan;\n}\n\n/** The first record of `left` (a Map of key to records) with this title's key, taken out of it. */\nfunction take(left, title) {\n  const found = left.get(keyOf(title));\n  if (!found || !found.length) return null;\n  return found.shift();\n}\n\nconst byKey = (rows) => {\n  const map = new Map();\n  for (const row of rows) map.set(keyOf(row.title), [...(map.get(keyOf(row.title)) || []), row]);\n  return map;\n};\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  const built = [];\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || !course.plan) continue;\n    const plan = parsePlan(course.plan);\n    if (!plan.units.length) {\n      await records.update(\"study_courses\", id, { status: \"Problem\", note: \"The plan came back in a shape I can't use. Press Plan again.\" });\n      continue;\n    }\n    const units = byKey(await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 }));\n    const lessons = byKey(await records.list(\"study_lessons\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 }));\n    let writing = 0;\n    let kept = 0;\n    let putAway = 0;\n    // Lessons it keeps that are still being written (a plan redone meanwhile, or another run's): the course isn't ready.\n    let stillWriting = 0;\n    for (let place = 0; place < plan.units.length; place += 1) {\n      const spec = plan.units[place];\n      const position = place + 1;\n      let unit = take(units, spec.title);\n      if (!unit) unit = await records.create(\"study_units\", { course: id, title: spec.title, about: spec.about, position });\n      else if (unit.position !== position) await records.update(\"study_units\", unit.id, { position });\n      for (let step = 0; step < spec.lessons.length; step += 1) {\n        const wanted = spec.lessons[step];\n        const at = position * 100 + step + 1;\n        const same = take(lessons, wanted.title);\n        if (!same) {\n          await records.create(\"study_lessons\", { course: id, unit: unit.id, position: at, title: wanted.title, goal: wanted.goal, parts: wanted.parts, status: \"Writing\" });\n          writing += 1;\n          continue;\n        }\n        kept += 1;\n        if (same.status === \"Writing\") stillWriting += 1;\n        if (same.unit !== unit.id || same.position !== at) await records.update(\"study_lessons\", same.id, { unit: unit.id, position: at });\n      }\n    }\n    for (const rows of units.values()) for (const row of rows) await records.markObsolete(\"study_units\", row.id);\n    for (const rows of lessons.values()) {\n      for (const row of rows) {\n        await records.markObsolete(\"study_lessons\", row.id);\n        putAway += 1;\n      }\n    }\n    // How many lessons this round writes, and when it started: the course page's count and rough time left.\n    const toWrite = writing + stillWriting;\n    const round = toWrite ? { to_write: toWrite, ...(writing ? { writing_started: new Date().toISOString() } : {}) } : {};\n    const status = toWrite ? \"Writing\" : \"Ready\";\n    await records.update(\"study_courses\", id, { title: plan.title || course.title || course.goal.slice(0, 80), status, changes: \"\", note: \"\", ...round });\n    built.push({ course: id, units: plan.units.length, writing, kept, putAway, status });\n  }\n  return { built };\n}",
+      "code": "// The bot's plan made into the course's units and lessons. The forgiving rule for a changed plan: a unit or lesson\n// whose title stays the same (emoji, case and punctuation aside) is kept, with its lessons' text, quiz and progress,\n// moved to its new place; a new one is made (a lesson to be written, so it shows as new); one the plan leaves out is\n// put away (marked obsolete).\nconst keyOf = (title) => String(title || \"\").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, \" \").trim();\n\nfunction parsePlan(text) {\n  const plan = { title: \"\", units: [] };\n  for (const raw of String(text || \"\").split(\"\\n\")) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    const found = /^(COURSE|UNIT|LESSON)\\s*:\\s*(.+)$/i.exec(line);\n    if (!found) continue;\n    const [title = \"\", second = \"\", third = \"\"] = found[2].split(\"|\").map((part) => part.trim());\n    const kind = found[1].toUpperCase();\n    if (kind === \"COURSE\") plan.title = title.slice(0, 200);\n    else if (kind === \"UNIT\" && title) plan.units.push({ title: title.slice(0, 200), about: second.slice(0, 300), lessons: [] });\n    else if (kind === \"LESSON\" && title && plan.units.length) {\n      plan.units[plan.units.length - 1].lessons.push({ title: title.slice(0, 200), goal: second.slice(0, 300), parts: third.replace(/[^0-9,\\s]/g, \"\").replace(/\\s+/g, \" \").trim().slice(0, 60) });\n    }\n  }\n  plan.units = plan.units.filter((unit) => unit.lessons.length).slice(0, 8);\n  return plan;\n}\n\n/** The first record of `left` (a Map of key to records) with this title's key, taken out of it. */\nfunction take(left, title) {\n  const found = left.get(keyOf(title));\n  if (!found || !found.length) return null;\n  return found.shift();\n}\n\nconst byKey = (rows) => {\n  const map = new Map();\n  for (const row of rows) map.set(keyOf(row.title), [...(map.get(keyOf(row.title)) || []), row]);\n  return map;\n};\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  const built = [];\n  for (const id of ids) {\n    const course = await records.get(\"study_courses\", id);\n    if (!course || !course.plan) continue;\n    const plan = parsePlan(course.plan);\n    if (!plan.units.length) {\n      await records.update(\"study_courses\", id, { status: \"Problem\", note: \"The plan came back in a shape I can't use. Press Plan again.\" });\n      continue;\n    }\n    const units = byKey(await records.list(\"study_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 }));\n    const lessons = byKey(await records.list(\"study_lessons\", { where: \"=course == params.course && status != \\\"Put away\\\"\", params: { course: id }, sort: \"position\", limit: 100 }));\n    let writing = 0;\n    let kept = 0;\n    let putAway = 0;\n    // Lessons it keeps that are still being written (a plan redone meanwhile, or another run's): the course isn't ready.\n    let stillWriting = 0;\n    for (let place = 0; place < plan.units.length; place += 1) {\n      const spec = plan.units[place];\n      const position = place + 1;\n      let unit = take(units, spec.title);\n      if (!unit) unit = await records.create(\"study_units\", { course: id, title: spec.title, about: spec.about, position });\n      else if (unit.position !== position) await records.update(\"study_units\", unit.id, { position });\n      for (let step = 0; step < spec.lessons.length; step += 1) {\n        const wanted = spec.lessons[step];\n        const at = position * 100 + step + 1;\n        const same = take(lessons, wanted.title);\n        if (!same) {\n          await records.create(\"study_lessons\", { course: id, unit: unit.id, position: at, title: wanted.title, goal: wanted.goal, parts: wanted.parts, status: \"Writing\" });\n          writing += 1;\n          continue;\n        }\n        kept += 1;\n        if (same.status === \"Writing\") stillWriting += 1;\n        if (same.unit !== unit.id || same.position !== at) await records.update(\"study_lessons\", same.id, { unit: unit.id, position: at });\n      }\n    }\n    for (const rows of units.values()) for (const row of rows) await records.markObsolete(\"study_units\", row.id);\n    const leftOut = [...lessons.values()].flat();\n    if (leftOut.length) {\n      // Everyone's progress in a lesson left out goes with it (each person's own: a job reaches them all).\n      const gone = new Set(leftOut.map((row) => row.id));\n      for (const row of await records.list(\"study_progress\", { where: \"=course == params.course\", params: { course: id }, limit: 100 })) {\n        if (gone.has(row.lesson)) await records.markObsolete(\"study_progress\", row.id);\n      }\n    }\n    for (const row of leftOut) {\n      await records.markObsolete(\"study_lessons\", row.id);\n      putAway += 1;\n    }\n    // How many lessons this round writes, and when it started: the course page's count and rough time left.\n    const toWrite = writing + stillWriting;\n    const round = toWrite ? { to_write: toWrite, ...(writing ? { writing_started: new Date().toISOString() } : {}) } : {};\n    const status = toWrite ? \"Writing\" : \"Ready\";\n    await records.update(\"study_courses\", id, { title: plan.title || course.title || course.goal.slice(0, 80), status, changes: \"\", note: \"\", ...round });\n    built.push({ course: id, units: plan.units.length, writing, kept, putAway, status });\n  }\n  return { built };\n}",
       "tests": [
         {
           "name": "a plan becomes units and lessons to write",
@@ -1095,7 +1106,7 @@
           "condition": "=\"material\" in changed && row.material != \"\""
         }
       },
-      "code": "// A lesson the bot has written: its text goes on the lesson and its quiz becomes the lesson's questions (an earlier\n// quiz is put away, so a rewritten lesson starts fresh, as new). A course whose lessons are all written is ready.\nconst PER_RUN = 12;\n\nfunction parseLesson(material) {\n  const lines = String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\");\n  const at = lines.findIndex((line) => /^[\\s*#]*QUIZ\\b/i.test(line));\n  const text = (at < 0 ? lines : lines.slice(0, at)).join(\"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const questions = [];\n  let question = null;\n  for (const raw of at < 0 ? [] : lines.slice(at + 1)) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  const whole = questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter]));\n  return { text, questions: whole.slice(0, 6) };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  // Any lesson written while this job wasn't told (a run that failed), so none waits for ever.\n  for (const lesson of await records.list(\"study_lessons\", { where: \"=status == \\\"Writing\\\" && material != \\\"\\\"\", limit: PER_RUN })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = [];\n  let written = 0;\n  for (const id of ids.slice(0, PER_RUN)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\" || !lesson.material) continue;\n    const { text, questions } = parseLesson(lesson.material);\n    for (const old of await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) {\n      await records.markObsolete(\"study_questions\", old.id);\n    }\n    for (let index = 0; index < questions.length; index += 1) {\n      const entry = questions[index];\n      await records.create(\"study_questions\", {\n        lesson: id,\n        position: index + 1,\n        question: entry.question.slice(0, 1000),\n        choice_a: entry.choices.A.slice(0, 500),\n        choice_b: entry.choices.B.slice(0, 500),\n        choice_c: entry.choices.C.slice(0, 500),\n        choice_d: entry.choices.D.slice(0, 500),\n        answer: entry.answer,\n        why: entry.why.slice(0, 1000)\n      });\n    }\n    await records.update(\"study_lessons\", id, { text: text || lesson.material, status: \"New\", request: \"\", finished: null });\n    if (!courses.includes(lesson.course)) courses.push(lesson.course);\n    written += 1;\n  }\n  const ready = [];\n  for (const course of courses) {\n    const waiting = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"Writing\\\"\", params: { course }, limit: 1 });\n    if (waiting.length) continue;\n    const row = await records.get(\"study_courses\", course);\n    if (row && row.status === \"Writing\") {\n      await records.update(\"study_courses\", course, { status: \"Ready\" });\n      ready.push(course);\n    }\n  }\n  return { written, ready };\n}",
+      "code": "// A lesson the bot has written: its text goes on the lesson and its quiz becomes the lesson's questions (an earlier\n// quiz is put away, so a rewritten lesson starts fresh, as new). A course whose lessons are all written is ready.\nconst PER_RUN = 8;\n\nfunction parseLesson(material) {\n  const lines = String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\");\n  const at = lines.findIndex((line) => /^[\\s*#]*QUIZ\\b/i.test(line));\n  const text = (at < 0 ? lines : lines.slice(0, at)).join(\"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const questions = [];\n  let question = null;\n  for (const raw of at < 0 ? [] : lines.slice(at + 1)) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  const whole = questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter]));\n  return { text, questions: whole.slice(0, 6) };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  // Any lesson written while this job wasn't told (a run that failed), so none waits for ever.\n  for (const lesson of await records.list(\"study_lessons\", { where: \"=status == \\\"Writing\\\" && material != \\\"\\\"\", limit: PER_RUN })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = [];\n  let written = 0;\n  for (const id of ids.slice(0, PER_RUN)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\" || !lesson.material) continue;\n    const { text, questions } = parseLesson(lesson.material);\n    for (const old of await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) {\n      await records.markObsolete(\"study_questions\", old.id);\n    }\n    for (let index = 0; index < questions.length; index += 1) {\n      const entry = questions[index];\n      await records.create(\"study_questions\", {\n        lesson: id,\n        position: index + 1,\n        question: entry.question.slice(0, 1000),\n        choice_a: entry.choices.A.slice(0, 500),\n        choice_b: entry.choices.B.slice(0, 500),\n        choice_c: entry.choices.C.slice(0, 500),\n        choice_d: entry.choices.D.slice(0, 500),\n        answer: entry.answer,\n        why: entry.why.slice(0, 1000)\n      });\n    }\n    // Written again, it starts fresh for everyone: each person's progress in it is put away (kept, not counted).\n    for (const row of await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 100 })) {\n      await records.markObsolete(\"study_progress\", row.id);\n    }\n    await records.update(\"study_lessons\", id, { text: text || lesson.material, status: \"New\", request: \"\" });\n    if (!courses.includes(lesson.course)) courses.push(lesson.course);\n    written += 1;\n  }\n  const ready = [];\n  for (const course of courses) {\n    const waiting = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"Writing\\\"\", params: { course }, limit: 1 });\n    if (waiting.length) continue;\n    const row = await records.get(\"study_courses\", course);\n    if (row && row.status === \"Writing\") {\n      await records.update(\"study_courses\", course, { status: \"Ready\" });\n      ready.push(course);\n    }\n  }\n  return { written, ready };\n}",
       "tests": [
         {
           "name": "a written lesson gets its text and quiz, and its course is ready",
@@ -1182,6 +1193,103 @@
       ]
     },
     {
+      "key": "put_away_lessons",
+      "kind": "job",
+      "summary": "When lessons are put away, puts away everyone's progress in them, then the lessons.",
+      "settings": {
+        "watch": {
+          "table": "study_lessons",
+          "on": "update",
+          "condition": "=row.status == \"Put away\" && \"status\" in changed"
+        }
+      },
+      "code": "// Lessons someone put away: everyone's progress in them is put away with them (each person's own, which only a job\n// reaches for everyone), then the lessons. Kept, never deleted.\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  let progress = 0;\n  for (const id of ids.slice(0, 20)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Put away\") continue;\n    for (const row of await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 100 })) {\n      await records.markObsolete(\"study_progress\", row.id);\n      progress += 1;\n    }\n    await records.markObsolete(\"study_lessons\", id);\n  }\n  return { progress };\n}",
+      "tests": [
+        {
+          "name": "puts away everyone's progress in a lesson put away, then the lesson",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "Put away"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
+              },
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": false
+              },
+              {
+                "course": "1",
+                "lesson": "2",
+                "done": true
+              }
+            ]
+          },
+          "expect": {
+            "progress": 2
+          }
+        },
+        {
+          "name": "a lesson brought back before the job ran stays",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
+              }
+            ]
+          },
+          "expect": {
+            "progress": 0
+          }
+        }
+      ]
+    },
+    {
       "key": "time_left",
       "kind": "function",
       "summary": "Works out roughly how long the lessons still being written will take, from how long the written ones took.",
@@ -1238,19 +1346,188 @@
       ]
     },
     {
-      "key": "next",
+      "key": "answer",
       "kind": "action",
-      "summary": "Opens what comes next: a course's first lesson still to learn, or a lesson's first question not answered yet.",
+      "summary": "Keeps the person's own answer to a question, and whether it's right, in their progress for its lesson.",
       "settings": {},
-      "code": "// Where to go next: a course's first lesson still to learn, or a lesson's first question not answered yet (the lesson\n// itself once every one is).\nasync function main(input) {\n  if (input.course) {\n    const [lesson] = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"New\\\"\", params: { course: String(input.course) }, sort: \"position\", limit: 1 });\n    return lesson ? { go: { screen: \"lesson\", params: { id: lesson.id } } } : { notify: \"You've done every lesson! \ud83c\udfc6\" };\n  }\n  const lesson = String(input.lesson);\n  const [question] = await records.list(\"study_questions\", { where: \"=lesson == params.lesson && picked == \\\"\\\"\", params: { lesson }, sort: \"position\", limit: 1 });\n  return question ? { go: { screen: \"quiz\", params: { lesson, id: question.id } } } : { go: { screen: \"lesson\", params: { id: lesson } } };\n}",
+      "code": "// The person's answer to a question: kept in their own progress for its lesson (made the first time they answer one of\n// its questions), once a question; whether it's right is worked out here. Answers and progress are each person's own.\nasync function main(input) {\n  const question = await records.get(\"study_questions\", String(input.question));\n  if (!question) return { notify: \"That question is no longer there.\" };\n  const pick = String(input.pick || \"\");\n  const [had] = await records.list(\"study_answers\", { where: \"=question == params.question\", params: { question: question.id }, limit: 1 });\n  if (had) return {};\n  let [progress] = await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: question.lesson }, limit: 1 });\n  if (!progress) {\n    const lesson = await records.get(\"study_lessons\", question.lesson);\n    progress = await records.create(\"study_progress\", { course: lesson.course, lesson: question.lesson, done: false });\n  }\n  await records.create(\"study_answers\", { progress: progress.id, question: question.id, picked: pick, correct: pick === question.answer });\n  return {};\n}",
       "tests": [
         {
-          "name": "a course opens its first lesson to learn",
+          "name": "keeps a first answer, right or not, in the person's progress for the lesson",
+          "input": {
+            "question": "1",
+            "pick": "B"
+          },
+          "records": {
+            "study_courses": [
+              {
+                "goal": "Plants"
+              }
+            ],
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New"
+              }
+            ],
+            "study_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "answer": "B"
+              }
+            ]
+          },
+          "expect": {}
+        },
+        {
+          "name": "a question already answered keeps its first answer",
+          "input": {
+            "question": "1",
+            "pick": "A"
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New"
+              }
+            ],
+            "study_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "answer": "B"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": false
+              }
+            ],
+            "study_answers": [
+              {
+                "progress": "1",
+                "question": "1",
+                "picked": "B",
+                "correct": true
+              }
+            ]
+          },
+          "expect": {}
+        },
+        {
+          "name": "a question no longer there says so",
+          "input": {
+            "question": "9",
+            "pick": "A"
+          },
+          "expect": {
+            "notify": "That question is no longer there."
+          }
+        }
+      ]
+    },
+    {
+      "key": "finish",
+      "kind": "action",
+      "summary": "Marks the lesson done for the person and celebrates their score.",
+      "settings": {},
+      "code": "// The person's lesson done, with a celebration of their own score, and back to the lesson.\nasync function main(input) {\n  const lessonId = String(input.lesson);\n  const lesson = await records.get(\"study_lessons\", lessonId);\n  if (!lesson) return { notify: \"That lesson is no longer there.\" };\n  let [progress] = await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: lessonId }, limit: 1 });\n  if (!progress) progress = await records.create(\"study_progress\", { course: lesson.course, lesson: lessonId, done: false });\n  await records.update(\"study_progress\", progress.id, { done: true, finished: String(input.today || \"\") || null });\n  const total = Number(lesson.questions || 0);\n  const right = Number(progress.stars || 0);\n  return {\n    celebrate: total ? \"Lesson done! \" + right + \" of \" + total + \" right \u2b50\" : \"Lesson done! \ud83c\udf1f\",\n    go: { screen: \"lesson\", params: { id: lessonId } }\n  };\n}",
+      "tests": [
+        {
+          "name": "marks the lesson done and celebrates the score",
+          "input": {
+            "lesson": "1",
+            "today": "2026-11-28"
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New",
+                "questions": 4
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": false,
+                "stars": 3
+              }
+            ]
+          },
+          "expect": {
+            "celebrate": "Lesson done! 3 of 4 right \u2b50",
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "1"
+              }
+            }
+          }
+        },
+        {
+          "name": "a lesson without a quiz is done too",
+          "input": {
+            "lesson": "1",
+            "today": "2026-11-28"
+          },
+          "records": {
+            "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "status": "New",
+                "questions": 0
+              }
+            ]
+          },
+          "expect": {
+            "celebrate": "Lesson done! \ud83c\udf1f",
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "1"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "next",
+      "kind": "action",
+      "summary": "Opens what comes next for the person: a course's first lesson they haven't done, or a lesson's first question they haven't answered.",
+      "settings": {},
+      "code": "// Where the person goes next: a course's first lesson they haven't done, or a lesson's first question they haven't\n// answered (the lesson itself once they've answered every one). Their progress and answers are their own.\nasync function main(input) {\n  if (input.course) {\n    const course = String(input.course);\n    const lessons = await records.list(\"study_lessons\", { where: \"=course == params.course && status != \\\"Writing\\\" && status != \\\"Put away\\\"\", params: { course }, sort: \"position\", limit: 100 });\n    const done = new Set((await records.list(\"study_progress\", { where: \"=course == params.course && done == true\", params: { course }, limit: 100 })).map((row) => row.lesson));\n    const lesson = lessons.find((row) => !done.has(row.id));\n    return lesson ? { go: { screen: \"lesson\", params: { id: lesson.id } } } : { notify: \"You've done every lesson! \ud83c\udfc6\" };\n  }\n  const lesson = String(input.lesson);\n  const questions = await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson }, sort: \"position\", limit: 20 });\n  const [progress] = await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson }, limit: 1 });\n  const answered = new Set(progress ? (await records.list(\"study_answers\", { where: \"=progress == params.progress\", params: { progress: progress.id }, limit: 40 })).map((row) => row.question) : []);\n  const question = questions.find((row) => !answered.has(row.id));\n  return question ? { go: { screen: \"quiz\", params: { lesson, id: question.id } } } : { go: { screen: \"lesson\", params: { id: lesson } } };\n}",
+      "tests": [
+        {
+          "name": "a course opens the first lesson the person hasn't done",
           "input": {
             "course": "1"
           },
           "records": {
             "study_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Water",
+                "position": 101,
+                "status": "New"
+              },
               {
                 "course": "1",
                 "unit": "1",
@@ -1261,16 +1538,16 @@
               {
                 "course": "1",
                 "unit": "1",
-                "title": "Water",
-                "position": 101,
-                "status": "Done"
-              },
-              {
-                "course": "1",
-                "unit": "1",
                 "title": "Soil",
                 "position": 103,
-                "status": "New"
+                "status": "Writing"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
               }
             ]
           },
@@ -1278,7 +1555,7 @@
             "go": {
               "screen": "lesson",
               "params": {
-                "id": "1"
+                "id": "2"
               }
             }
           }
@@ -1295,7 +1572,14 @@
                 "unit": "1",
                 "title": "Water",
                 "position": 101,
-                "status": "Done"
+                "status": "New"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
               }
             ]
           },
@@ -1304,7 +1588,7 @@
           }
         },
         {
-          "name": "a lesson opens its first question not answered yet",
+          "name": "a lesson opens its first question the person hasn't answered",
           "input": {
             "lesson": "1"
           },
@@ -1313,13 +1597,27 @@
               {
                 "lesson": "1",
                 "position": 1,
-                "question": "What?",
-                "picked": "A"
+                "question": "What?"
               },
               {
                 "lesson": "1",
                 "position": 2,
                 "question": "Where?"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": false
+              }
+            ],
+            "study_answers": [
+              {
+                "progress": "1",
+                "question": "1",
+                "picked": "A",
+                "correct": true
               }
             ]
           },
@@ -1343,7 +1641,20 @@
               {
                 "lesson": "1",
                 "position": 1,
-                "question": "What?",
+                "question": "What?"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": false
+              }
+            ],
+            "study_answers": [
+              {
+                "progress": "1",
+                "question": "1",
                 "picked": "A"
               }
             ]
@@ -1362,12 +1673,12 @@
     {
       "key": "retake",
       "kind": "action",
-      "summary": "Clears a lesson's quiz answers and opens its first question.",
+      "summary": "Puts away the person's own answers to a lesson's quiz and opens its first question.",
       "settings": {},
-      "code": "// The lesson's quiz again: its answers cleared, from its first question.\nasync function main(input) {\n  const questions = await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: String(input.lesson) }, sort: \"position\", limit: 20 });\n  if (!questions.length) return { notify: \"This lesson has no quiz yet.\" };\n  for (const question of questions) {\n    if (question.picked || question.correct) await records.update(\"study_questions\", question.id, { picked: null, correct: false });\n  }\n  return { go: { screen: \"quiz\", params: { lesson: String(input.lesson), id: questions[0].id } } };\n}",
+      "code": "// The person's quiz of a lesson again: their answers to it put away (kept, not counted), from its first question.\nasync function main(input) {\n  const lesson = String(input.lesson);\n  const questions = await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson }, sort: \"position\", limit: 20 });\n  if (!questions.length) return { notify: \"This lesson has no quiz yet.\" };\n  const [progress] = await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson }, limit: 1 });\n  if (progress) {\n    for (const answer of await records.list(\"study_answers\", { where: \"=progress == params.progress\", params: { progress: progress.id }, limit: 40 })) {\n      await records.markObsolete(\"study_answers\", answer.id);\n    }\n  }\n  return { go: { screen: \"quiz\", params: { lesson, id: questions[0].id } } };\n}",
       "tests": [
         {
-          "name": "clears the answers and opens the first question",
+          "name": "puts away the person's answers and opens the first question",
           "input": {
             "lesson": "1"
           },
@@ -1376,14 +1687,25 @@
               {
                 "lesson": "1",
                 "position": 2,
-                "question": "Where?",
-                "picked": "B",
-                "correct": false
+                "question": "Where?"
               },
               {
                 "lesson": "1",
                 "position": 1,
-                "question": "What?",
+                "question": "What?"
+              }
+            ],
+            "study_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
+              }
+            ],
+            "study_answers": [
+              {
+                "progress": "1",
+                "question": "2",
                 "picked": "A",
                 "correct": true
               }
@@ -1480,12 +1802,12 @@
     {
       "key": "remove_unit",
       "kind": "action",
-      "summary": "Puts a unit away with its lessons.",
+      "summary": "Puts a unit away and marks its lessons to be put away.",
       "settings": {},
-      "code": "// A unit put away with its lessons (marked obsolete, so nothing is lost for good).\nasync function main(input) {\n  const unit = await records.get(\"study_units\", String(input.id));\n  if (!unit) return { notify: \"That unit is no longer there.\" };\n  const lessons = await records.list(\"study_lessons\", { where: \"=unit == params.unit\", params: { unit: unit.id }, limit: 40 });\n  for (const lesson of lessons) await records.markObsolete(\"study_lessons\", lesson.id);\n  await records.markObsolete(\"study_units\", unit.id);\n  return { notify: \"Put away \" + unit.title + \" and its \" + lessons.length + \" lesson\" + (lessons.length === 1 ? \"\" : \"s\") + \".\", go: { screen: \"course\", params: { id: unit.course } } };\n}",
+      "code": "// A unit put away: its lessons are marked to be put away (put_away_lessons puts away everyone's progress with them), and\n// the unit is put away now. Nothing is lost for good.\nasync function main(input) {\n  const unit = await records.get(\"study_units\", String(input.id));\n  if (!unit) return { notify: \"That unit is no longer there.\" };\n  const lessons = await records.list(\"study_lessons\", { where: \"=unit == params.unit && status != \\\"Put away\\\"\", params: { unit: unit.id }, limit: 40 });\n  for (const lesson of lessons) await records.update(\"study_lessons\", lesson.id, { status: \"Put away\" });\n  await records.markObsolete(\"study_units\", unit.id);\n  return { notify: \"Put away \" + unit.title + \" and its \" + lessons.length + \" lesson\" + (lessons.length === 1 ? \"\" : \"s\") + \".\", go: { screen: \"course\", params: { id: unit.course } } };\n}",
       "tests": [
         {
-          "name": "puts the unit away with its lessons",
+          "name": "puts the unit away and marks its lessons to be put away",
           "input": {
             "id": "1"
           },
@@ -1501,12 +1823,14 @@
               {
                 "course": "5",
                 "unit": "1",
-                "title": "Water"
+                "title": "Water",
+                "status": "New"
               },
               {
                 "course": "5",
                 "unit": "1",
-                "title": "Light"
+                "title": "Light",
+                "status": "New"
               }
             ]
           },
@@ -1646,11 +1970,93 @@
         ],
         "formula": "=string(int(done)) + \" of \" + string(int(all))"
       },
-      "badge": {
+      "my_done": {
         "params": [
-          "status"
+          "mine",
+          "lesson"
         ],
-        "formula": "=status == \"Done\" ? \"\u2705 Done\" : status == \"Writing\" ? \"\u270d\ufe0f Being written\" : \"\u2728 New\""
+        "formula": "=mine.exists(p, p.lesson == lesson && p.done == true)"
+      },
+      "my_stars": {
+        "params": [
+          "mine",
+          "lesson"
+        ],
+        "formula": "=mine.exists(p, p.lesson == lesson) ? mine.filter(p, p.lesson == lesson)[0].stars : 0.0"
+      },
+      "lesson_state": {
+        "params": [
+          "status",
+          "mine",
+          "lesson"
+        ],
+        "formula": "=status == \"Writing\" ? \"\u270d\ufe0f Being written\" : my_done(mine, lesson) ? \"\u2705 Done\" : \"\u2728 New\""
+      },
+      "answered_in": {
+        "params": [
+          "mine"
+        ],
+        "formula": "=size(mine) > 0 ? mine[0].answered : 0.0"
+      },
+      "stars_in": {
+        "params": [
+          "mine"
+        ],
+        "formula": "=size(mine) > 0 ? mine[0].stars : 0.0"
+      },
+      "done_in": {
+        "params": [
+          "mine"
+        ],
+        "formula": "=size(mine) > 0 && mine[0].done == true"
+      },
+      "count_in": {
+        "params": [
+          "groups"
+        ],
+        "formula": "=size(groups) > 0 ? groups[0].count : 0.0"
+      },
+      "total_in": {
+        "params": [
+          "groups"
+        ],
+        "formula": "=size(groups) > 0 ? groups[0].total : 0.0"
+      },
+      "group_count": {
+        "params": [
+          "groups",
+          "key"
+        ],
+        "formula": "=groups.exists(g, g.key == key) ? groups.filter(g, g.key == key)[0].count : 0.0"
+      },
+      "group_total": {
+        "params": [
+          "groups",
+          "key"
+        ],
+        "formula": "=groups.exists(g, g.key == key) ? groups.filter(g, g.key == key)[0].total : 0.0"
+      },
+      "next_lessons": {
+        "params": [
+          "lessons",
+          "mine"
+        ],
+        "formula": "=lessons.filter(l, l.status != \"Writing\" && !my_done(mine, l.id))"
+      },
+      "unit_size": {
+        "params": [
+          "lessons",
+          "unit"
+        ],
+        "formula": "=size(lessons.filter(l, l.unit == unit))"
+      },
+      "unit_done": {
+        "params": [
+          "lessons",
+          "mine",
+          "unit"
+        ],
+        "formula": "=size(lessons.filter(l, l.unit == unit && my_done(mine, l.id)))"
       },
       "book_state": {
         "params": [
@@ -1702,6 +2108,16 @@
             "from": "study_courses",
             "sort": "-started",
             "limit": 50
+          },
+          "done": {
+            "from": "study_progress",
+            "where": "=done == true",
+            "groupBy": "course"
+          },
+          "stars": {
+            "from": "study_progress",
+            "groupBy": "course",
+            "sum": "stars"
           },
           "readyBooks": {
             "from": "books",
@@ -1782,12 +2198,12 @@
               },
               {
                 "label": "Lessons done",
-                "value": "=of(row.done, row.lessons)",
+                "value": "=of(group_count(data.done, row.id), row.lessons)",
                 "display": "chip"
               },
               {
                 "label": "Stars",
-                "value": "=\"\u2b50 \" + string(int(row.stars))"
+                "value": "=\"\u2b50 \" + string(int(group_total(data.stars, row.id)))"
               },
               {
                 "label": "Status",
@@ -2169,11 +2585,25 @@
             "where": "=course == params.id",
             "sort": "position"
           },
-          "next": {
+          "lessons": {
             "from": "study_lessons",
-            "where": "=course == params.id && status == \"New\"",
-            "sort": "position",
-            "limit": 1
+            "where": "=course == params.id && status != \"Put away\"",
+            "sort": "position"
+          },
+          "mine": {
+            "from": "study_progress",
+            "where": "=course == params.id"
+          },
+          "done": {
+            "from": "study_progress",
+            "where": "=course == params.id && done == true",
+            "groupBy": "course"
+          },
+          "stars": {
+            "from": "study_progress",
+            "where": "=course == params.id",
+            "groupBy": "course",
+            "sum": "stars"
           }
         },
         "content": [
@@ -2213,12 +2643,12 @@
                       },
                       {
                         "type": "chip",
-                        "value": "=\"\u2b50 \" + string(int(data.course.stars)) + (data.course.stars == 1.0 ? \" star\" : \" stars\")",
+                        "value": "=\"\u2b50 \" + string(int(total_in(data.stars))) + (total_in(data.stars) == 1.0 ? \" star\" : \" stars\")",
                         "tone": "warning"
                       },
                       {
                         "type": "chip",
-                        "value": "=of(data.course.done, data.course.lessons) + \" lessons done\"",
+                        "value": "=of(count_in(data.done), size(data.lessons)) + \" lessons done\"",
                         "tone": "success"
                       }
                     ]
@@ -2273,16 +2703,16 @@
           {
             "type": "progress",
             "label": "Your progress",
-            "value": "=data.course.done",
-            "max": "=data.course.lessons",
-            "showIf": "=data.course.lessons > 0.0",
+            "value": "=count_in(data.done)",
+            "max": "=size(data.lessons)",
+            "showIf": "=size(data.lessons) > 0",
             "class": "big-progress"
           },
           {
             "type": "button",
-            "label": "=\"Continue: \" + data.next[0].title + \" \u25b6\"",
+            "label": "=\"Continue: \" + next_lessons(data.lessons, data.mine)[0].title + \" \u25b6\"",
             "emphasis": "primary",
-            "showIf": "=size(data.next) > 0",
+            "showIf": "=size(next_lessons(data.lessons, data.mine)) > 0",
             "class": "continue",
             "do": [
               {
@@ -2299,7 +2729,7 @@
             "type": "text",
             "value": "\ud83c\udfc6 You finished the whole course! Take any quiz again, or change the course to learn more.",
             "size": "title",
-            "showIf": "=data.course.lessons > 0.0 && data.course.done >= data.course.lessons",
+            "showIf": "=size(data.lessons) > 0 && count_in(data.done) >= size(data.lessons)",
             "class": "trophy"
           },
           {
@@ -2323,7 +2753,7 @@
                       },
                       {
                         "label": "Done",
-                        "value": "=of(row.done, row.lessons)",
+                        "value": "=of(unit_done(data.lessons, data.mine, row.id), unit_size(data.lessons, row.id))",
                         "display": "chip"
                       }
                     ],
@@ -2523,8 +2953,12 @@
           },
           "lessons": {
             "from": "study_lessons",
-            "where": "=unit == params.id",
+            "where": "=unit == params.id && status != \"Put away\"",
             "sort": "position"
+          },
+          "mine": {
+            "from": "study_progress",
+            "sort": "-finished"
           }
         },
         "content": [
@@ -2565,9 +2999,9 @@
           {
             "type": "progress",
             "label": "This unit",
-            "value": "=data.unit.done",
-            "max": "=data.unit.lessons",
-            "showIf": "=data.unit.lessons > 0.0"
+            "value": "=unit_done(data.lessons, data.mine, params.id)",
+            "max": "=size(data.lessons)",
+            "showIf": "=size(data.lessons) > 0"
           },
           {
             "type": "table",
@@ -2584,12 +3018,12 @@
               },
               {
                 "label": "Status",
-                "value": "=badge(row.status)",
+                "value": "=lesson_state(row.status, data.mine, row.id)",
                 "display": "chip"
               },
               {
                 "label": "Stars",
-                "value": "=\"\u2b50 \" + of(row.stars, row.questions)"
+                "value": "=\"\u2b50 \" + of(my_stars(data.mine, row.id), row.questions)"
               }
             ],
             "onRowClick": [
@@ -2781,10 +3215,9 @@
             "where": "=lesson == params.id",
             "sort": "position"
           },
-          "open": {
-            "from": "study_questions",
-            "where": "=lesson == params.id && picked == \"\"",
-            "sort": "position",
+          "mine": {
+            "from": "study_progress",
+            "where": "=lesson == params.id",
             "limit": 1
           }
         },
@@ -2794,12 +3227,12 @@
             "content": [
               {
                 "type": "chip",
-                "value": "=badge(data.lesson.status)",
+                "value": "=lesson_state(data.lesson.status, data.mine, params.id)",
                 "tone": "primary"
               },
               {
                 "type": "chip",
-                "value": "=\"\u2b50 \" + of(data.lesson.stars, data.lesson.questions)",
+                "value": "=\"\u2b50 \" + of(stars_in(data.mine), data.lesson.questions)",
                 "tone": "warning",
                 "showIf": "=data.lesson.questions > 0.0"
               },
@@ -2857,7 +3290,7 @@
                 "type": "button",
                 "label": "Take the quiz \ud83c\udfaf",
                 "emphasis": "primary",
-                "showIf": "=data.lesson.status != \"Writing\" && size(data.open) > 0",
+                "showIf": "=data.lesson.status != \"Writing\" && data.lesson.questions > 0.0 && answered_in(data.mine) < data.lesson.questions",
                 "do": [
                   {
                     "runScript": {
@@ -2873,7 +3306,7 @@
                 "type": "button",
                 "label": "Try the quiz again \ud83d\udd01",
                 "emphasis": "primary",
-                "showIf": "=data.lesson.status != \"Writing\" && size(data.questions) > 0 && size(data.open) == 0",
+                "showIf": "=data.lesson.status != \"Writing\" && data.lesson.questions > 0.0 && answered_in(data.mine) >= data.lesson.questions",
                 "do": [
                   {
                     "runScript": {
@@ -2889,19 +3322,16 @@
                 "type": "button",
                 "label": "I've learnt this \u2705",
                 "emphasis": "primary",
-                "showIf": "=data.lesson.status == \"New\" && size(data.questions) == 0",
+                "showIf": "=data.lesson.status == \"New\" && data.lesson.questions == 0.0 && !done_in(data.mine)",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.lesson",
-                      "set": {
-                        "status": "Done",
-                        "finished": "=today()"
+                    "runScript": {
+                      "script": "finish",
+                      "input": {
+                        "lesson": "=params.id",
+                        "today": "=today()"
                       }
                     }
-                  },
-                  {
-                    "celebrate": "Lesson done! \ud83c\udf1f"
                   }
                 ]
               },
@@ -2925,7 +3355,7 @@
             "content": [
               {
                 "type": "text",
-                "value": "Change its title or what it teaches, or say what should be different, and I'll write it again with a new quiz. It starts fresh as New; every other lesson keeps your progress.",
+                "value": "Change its title or what it teaches, or say what should be different, and I'll write it again with a new quiz. It starts fresh as New for everyone; every other lesson keeps everyone's progress.",
                 "size": "body"
               },
               {
@@ -2975,11 +3405,14 @@
                   {
                     "type": "button",
                     "label": "Put this lesson away",
-                    "confirm": "Put this lesson away? It leaves the course.",
+                    "confirm": "Put this lesson away? It leaves the course, for everyone.",
                     "do": [
                       {
-                        "markObsolete": {
-                          "record": "=data.lesson"
+                        "update": {
+                          "record": "=data.lesson",
+                          "set": {
+                            "status": "Put away"
+                          }
                         }
                       },
                       {
@@ -3016,10 +3449,14 @@
             "record": "study_questions",
             "id": "=params.id"
           },
-          "rest": {
-            "from": "study_questions",
-            "where": "=lesson == params.lesson && picked == \"\"",
-            "sort": "position",
+          "mine": {
+            "from": "study_progress",
+            "where": "=lesson == params.lesson",
+            "limit": 1
+          },
+          "answer": {
+            "from": "study_answers",
+            "where": "=question == params.id",
             "limit": 1
           }
         },
@@ -3048,7 +3485,7 @@
               },
               {
                 "type": "chip",
-                "value": "=\"\u2b50 \" + string(int(data.lesson.stars))",
+                "value": "=\"\u2b50 \" + string(int(stars_in(data.mine)))",
                 "tone": "warning"
               }
             ]
@@ -3056,7 +3493,7 @@
           {
             "type": "progress",
             "label": "=\"Question \" + string(int(data.q.position)) + \" of \" + string(int(data.lesson.questions))",
-            "value": "=data.lesson.answered",
+            "value": "=answered_in(data.mine)",
             "max": "=data.lesson.questions",
             "class": "quiz-progress"
           },
@@ -3070,7 +3507,7 @@
             "type": "grid",
             "columns": 2,
             "class": "choices",
-            "showIf": "=data.q.picked == \"\"",
+            "showIf": "=size(data.answer) == 0",
             "content": [
               {
                 "type": "button",
@@ -3078,11 +3515,11 @@
                 "class": "choice choice-a",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.q",
-                      "set": {
-                        "picked": "A",
-                        "correct": "=data.q.answer == \"A\""
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "A"
                       }
                     }
                   },
@@ -3104,11 +3541,11 @@
                 "class": "choice choice-b",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.q",
-                      "set": {
-                        "picked": "B",
-                        "correct": "=data.q.answer == \"B\""
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "B"
                       }
                     }
                   },
@@ -3130,11 +3567,11 @@
                 "class": "choice choice-c",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.q",
-                      "set": {
-                        "picked": "C",
-                        "correct": "=data.q.answer == \"C\""
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "C"
                       }
                     }
                   },
@@ -3156,11 +3593,11 @@
                 "class": "choice choice-d",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.q",
-                      "set": {
-                        "picked": "D",
-                        "correct": "=data.q.answer == \"D\""
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "D"
                       }
                     }
                   },
@@ -3182,11 +3619,11 @@
             "type": "grid",
             "columns": 1,
             "class": "verdict",
-            "showIf": "=data.q.picked != \"\"",
+            "showIf": "=size(data.answer) > 0",
             "content": [
               {
                 "type": "text",
-                "value": "=data.q.correct ? \"\ud83c\udf89 Right!\" : \"\ud83d\udca1 Not quite.\"",
+                "value": "=data.answer[0].correct == true ? \"\ud83c\udf89 Right!\" : \"\ud83d\udca1 Not quite.\"",
                 "size": "headline",
                 "class": "verdict-title"
               },
@@ -3199,7 +3636,7 @@
                 "type": "button",
                 "label": "Next question \u2192",
                 "emphasis": "primary",
-                "showIf": "=size(data.rest) > 0",
+                "showIf": "=answered_in(data.mine) < data.lesson.questions",
                 "do": [
                   {
                     "runScript": {
@@ -3215,25 +3652,14 @@
                 "type": "button",
                 "label": "Finish the lesson \ud83c\udfc1",
                 "emphasis": "primary",
-                "showIf": "=size(data.rest) == 0",
+                "showIf": "=answered_in(data.mine) >= data.lesson.questions",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.lesson",
-                      "set": {
-                        "status": "Done",
-                        "finished": "=today()"
-                      }
-                    }
-                  },
-                  {
-                    "celebrate": "=\"Lesson done! \" + of(data.lesson.stars, data.lesson.questions) + \" right \u2b50\""
-                  },
-                  {
-                    "go": {
-                      "screen": "lesson",
-                      "params": {
-                        "id": "=params.lesson"
+                    "runScript": {
+                      "script": "finish",
+                      "input": {
+                        "lesson": "=params.lesson",
+                        "today": "=today()"
                       }
                     }
                   }
@@ -3251,15 +3677,20 @@
             "limit": 50
           },
           "weeks": {
-            "from": "study_lessons",
-            "where": "=status == \"Done\"",
+            "from": "study_progress",
+            "where": "=done == true",
             "groupBy": "finished",
             "by": "week"
           },
           "stars": {
-            "from": "study_courses",
-            "groupBy": "title",
+            "from": "study_progress",
+            "groupBy": "course",
             "sum": "stars"
+          },
+          "done": {
+            "from": "study_progress",
+            "where": "=done == true",
+            "groupBy": "course"
           }
         },
         "content": [
@@ -3298,12 +3729,12 @@
               },
               {
                 "label": "Lessons done",
-                "value": "=of(row.done, row.lessons)",
+                "value": "=of(group_count(data.done, row.id), row.lessons)",
                 "display": "chip"
               },
               {
                 "label": "Stars",
-                "value": "=\"\u2b50 \" + string(int(row.stars))"
+                "value": "=\"\u2b50 \" + string(int(group_total(data.stars, row.id)))"
               }
             ],
             "onRowClick": [
@@ -3409,8 +3840,7 @@
         "title": "\ud83d\udca7 Why seeds need water",
         "goal": "What wakes a seed up",
         "parts": "1",
-        "status": "Done",
-        "finished": "2026-11-24",
+        "status": "New",
         "text": "A seed is like a tiny backpack: inside is a baby plant and a packed lunch to get it started.\n\nIt can sleep for months. When water soaks through its coat, the seed swells up, splits open and sends a root down and a shoot up towards the light.\n\nTry it: put a bean on a wet paper towel in a jar. In two or three days you'll see it wake up!"
       },
       {
@@ -3459,9 +3889,7 @@
         "choice_c": "Cold wind",
         "choice_d": "The moon",
         "answer": "A",
-        "why": "Water soaking through the coat tells the seed to start growing.",
-        "picked": "A",
-        "correct": true
+        "why": "Water soaking through the coat tells the seed to start growing."
       },
       {
         "lesson": {
@@ -3475,9 +3903,7 @@
         "choice_c": "A root",
         "choice_d": "A fruit",
         "answer": "C",
-        "why": "The root goes down first to find water.",
-        "picked": "B",
-        "correct": false
+        "why": "The root goes down first to find water."
       },
       {
         "lesson": {

@@ -157,12 +157,10 @@ async function restore() {
             {{ app.forked ? "Forked: it keeps your changes, and takes its template's updates when the Builder merges them." : "Follows its template: it improves whenever the template does." }}
           </div>
           <v-alert v-if="app.templateUpdate" type="info" variant="tonal" density="compact" class="mb-4">
-            Its template has an update.
-            <template #append>
-              <v-btn size="small" variant="text" @click="emit('ask', 'its template has an update: compare it with the changes made here and merge them into a draft (template_update), keeping those changes.')">
-                Ask the Builder to merge it
-              </v-btn>
-            </template>
+            <div>Its template has an update.</div>
+            <v-btn size="small" variant="text" class="mt-1 ml-n2" @click="emit('ask', 'its template has an update: compare it with the changes made here and merge them into a draft (template_update), keeping those changes.')">
+              Ask the Builder to merge it
+            </v-btn>
           </v-alert>
         </template>
 

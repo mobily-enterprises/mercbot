@@ -102,7 +102,8 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 - **The bot it comes with (D-144):** a template may name one of the bot library's templates (`"bot": "learner"`), which
   names it back (`appTemplate`); installing asks the bots for the home's bot on it, made once (`mercbot.app-connected`
   `appBot`), and the app remembers it (`apps.bot_id`, `migrations/20261207140000_apps_bot.cjs`). Study comes with
-  Learner.
+  Learner. Each person's answers and progress are theirs (`study_progress`, `study_answers`, personal tables, D-145); its
+  button scripts never say whose, and its jobs put away everyone's progress in a lesson written again or put away.
 - An installed app remembers its template and version (`apps.template_key`, `template_version`:
   `templateVersionOf`, a hash of its screens and tables, and of its scripts when it has some). `templateStatus` lists the home's apps made from templates
   as up to date, "an update is ready" or "can't tell" (made before apps remembered: matched by name);

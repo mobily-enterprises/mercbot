@@ -33,13 +33,15 @@ test("each template is a valid app on its own tables", () => {
       const extra = template.tables.find((table) => table.key === entry.key);
       return extra ? { ...entry, fields: [...entry.fields, ...extra.fields.filter((field) => !entry.fields.some((known) => known.key === field.key))] } : entry;
     });
-    const own = [...sharedTables, ...template.tables.filter((table) => !shared.has(table.key))];
+    // A personal table (D-145) has its Whose field, the person each record is.
+    const whose = { key: "whose", type: "person", options: { owner: true } };
+    const own = [...sharedTables, ...template.tables.filter((table) => !shared.has(table.key)).map((table) => (table.personal ? { ...table, fields: [...table.fields, whose] } : table))];
     const tables = own.map((table) => ({
       id: `t_${table.key}`,
       key: table.key,
       label: table.key,
       obsolete: false,
-      fields: table.fields.map((field) => ({ id: `f_${table.key}_${field.key}`, key: field.key, label: field.key, type: field.type, options: { required: field.required, choices: field.choices, target: field.target && `t_${field.target}` }, obsolete: false }))
+      fields: table.fields.map((field) => ({ id: `f_${table.key}_${field.key}`, key: field.key, label: field.key, type: field.type, options: { required: field.required, choices: field.choices, target: field.target && `t_${field.target}`, ...(field.options?.owner ? { owner: true } : {}) }, obsolete: false }))
     }));
     // With the scripts it brings (D-141): its buttons and data name them, and its formulas call its functions (D-143).
     const scripts = (template.scripts || []).map((script) => ({ key: script.key, kind: script.kind, params: script.settings?.params || [] }));

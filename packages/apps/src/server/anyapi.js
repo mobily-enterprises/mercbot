@@ -53,7 +53,12 @@ const shapeOf = (tables) => tables.map((table) => `${table.id}:${table.fields.ma
  * the rows it finds (D-130). AnyAPI chooses a field's slot once, when the field is made, and keeps it: a link made
  * before links were indexed keeps its plain slot for good, and is filtered by reading its table's rows.
  */
-export const fieldStorage = (field) => ({ type: STORAGE_TYPES[field.type], nullable: true, ...(field.type === "link" ? { indexed: true } : {}) });
+export const fieldStorage = (field) => ({
+  type: STORAGE_TYPES[field.type],
+  nullable: true,
+  // A personal table's owner (D-145) is in every read's filter.
+  ...(field.type === "link" || field.options?.owner === true ? { indexed: true } : {})
+});
 
 // A calculated field (D-78) has no slot: it is worked out whenever a record is read.
 function resourceSchema(fields) {

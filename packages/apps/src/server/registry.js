@@ -6,7 +6,7 @@ import { isFileField } from "../shared/formulas.js";
 import { STORAGE_TYPES, fieldStorage } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { fillRollup, rollupWhere } from "./rollups.js";
-import { ACCESS_LEVELS } from "../shared/tableAccess.js";
+import { ACCESS_LEVELS, OWNER_KEY, isPersonal } from "../shared/tableAccess.js";
 import { LIMITED_TYPES, PATTERN_TYPES, UNIQUE_TYPES, patternProblem } from "../shared/fieldChecks.js";
 import { cleanValueOf } from "./validate.js";
 import { INDEXED_SLOTS, SLOTS } from "./schema.js";
@@ -39,6 +39,18 @@ export class RegistryError extends AppError {
     super(status, message, options);
     this.name = "RegistryError";
   }
+}
+
+/**
+ * A personal table's owner field (D-145) keeps each record its person's, so it is never removed: without it, everyone
+ * would reach every record.
+ */
+export function keepOwnerField(field, table) {
+  if (field.options?.owner !== true) return;
+  throw new RegistryError(409, `${field.label} says whose each ${table.label} record is, so it stays.`, {
+    code: "apps_personal_owner_kept",
+    params: { field: field.label, table: table.label }
+  });
 }
 
 // Each table's places for values in AnyAPI's shared record table, by the kind of value they hold (schema.js): a field
@@ -341,6 +353,13 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
     if (link?.type !== "link" || link.options?.target !== table.id) {
       fail(`follows a link field of ${child.key} that points to ${table.key} ("link"), and ${child.key} has no such field "${input.link ?? ""}".`);
     }
+    // A stored total is everyone's: it can't add up records that are each person's own onto a table everyone shares (D-145).
+    if (isPersonal(child) && !isPersonal(await lockedTable(table.id, txOptions))) {
+      throw new RegistryError(400, `A roll-up can't add up ${child.label} onto ${table.label}: its records are each person's own, and a stored total is everyone's. Show each person's total with a totals query instead.`, {
+        code: "apps_rollup_personal",
+        params: { from: child.label, to: table.label }
+      });
+    }
     const measured = measure === "count" ? null : live(input.field);
     if (measure === "count" && type !== "number") fail("that counts is a number field.");
     if (measure !== "count") {
@@ -403,6 +422,16 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
           });
         }
         fields.push({ id: newId("f"), tableId: id, key: fieldKey, label: cleanLabel(fieldInput.label, fieldKey), type, options: fieldOptions, position });
+      }
+      // Each person's own (D-145): its owner field, which only the data gate sets.
+      if (input?.personal === true) {
+        if (seen.has(OWNER_KEY)) {
+          throw new RegistryError(400, `"${OWNER_KEY}" is the field a personal table keeps whose each record is: name yours otherwise.`, {
+            code: "apps_personal_owner_key",
+            params: { key: OWNER_KEY }
+          });
+        }
+        fields.push({ id: newId("f"), tableId: id, key: OWNER_KEY, label: "Whose", type: "person", options: { owner: true }, position: fields.length });
       }
       checkFormulas({ id, key }, fields, fields.filter(isCalculated));
       // The title is looked for in the database (link pickers, imports), so it is a stored field.

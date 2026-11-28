@@ -9,7 +9,7 @@ import { fileUrl } from "@/components/mercbot/filesApi.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { linksOf } from "./tableLinks.js";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
-import { accessOf, isCalculated, isPrivate, isRollup } from "@local/apps/shared";
+import { accessOf, isCalculated, isPersonal, isPrivate, isRollup } from "@local/apps/shared";
 import { actorName, showValue, whenText as when } from "./appRuntime.js";
 import { exportTable, importRows, matchColumns, readSheetFile } from "./sheets.js";
 import { useSnackbar } from "./useSnackbar.js";
@@ -225,6 +225,8 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       <ShellUpButton />
       <span class="text-subtitle-1 font-weight-medium">{{ table?.label }}</span>
       <v-chip v-if="isPrivate(tableEntry)" size="x-small" variant="tonal" prepend-icon="$lock" class="ml-2" data-testid="apps-table-private">Private</v-chip>
+      <!-- Each person's own (D-145): everyone here sees only the records that are theirs. -->
+      <v-chip v-if="isPersonal(tableEntry)" size="x-small" variant="tonal" prepend-icon="$person" class="ml-2" data-testid="apps-table-personal">Each person's own</v-chip>
       <v-spacer />
       <v-btn v-if="canManage" variant="text" :disabled="!table" data-testid="apps-table-access" @click="openAccess">Who can see it</v-btn>
       <v-btn variant="text" :disabled="!table" @click="Object.assign(fieldsDialog, { open: true, removing: null })">Fields</v-btn>

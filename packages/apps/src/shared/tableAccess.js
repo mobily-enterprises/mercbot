@@ -34,3 +34,14 @@ export function allows(table, who, mode) {
 /** Who a level lets in, in words: "owners and admins", "owners, admins and 2 people". */
 export const levelWords = (level, people = []) =>
   level === "managers" ? "owners and admins" : level === "people" ? `owners, admins and ${people.length === 1 ? "1 person" : `${people.length} people`}` : "everyone";
+
+// Personal tables (D-145): a table made "each person's own" has one owner field, "whose" (a person), that only the data
+// gate sets: to the person acting when a record is made, and never to anything else after. The gate then reaches only
+// that person's records for them, everywhere.
+export const OWNER_KEY = "whose";
+
+/** A personal table's owner field, or null for a table everyone shares. */
+export const ownerFieldOf = (table) => table?.fields?.find((field) => !field.obsolete && field.options?.owner === true) || null;
+
+/** Whether a table is each person's own. */
+export const isPersonal = (table) => Boolean(ownerFieldOf(table));

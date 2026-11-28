@@ -79,6 +79,8 @@ const BUILDER_RULES = [
     "harm asks first (\"confirm\") and one that depends on the form branches (\"if\"); a record as a PDF is docs.pdf into a file field, and an email draft " +
     "carries files (attach); how far along something is shows as a progress bar (a \"progress\" part), finishing something can " +
     "\"celebrate\" (a step: confetti and its words), and a script reads a record's file as text with docs.text (a book to summarise).",
+  "When something is each person's own rather than the home's (progress, answers, scores, votes, preferences), keep it in a personal table (table_create with personal: true): " +
+    "Mercbot keeps each record its person's and shows everyone only their own, everywhere, so never filter by who is looking yourself.",
   "What goes out by itself: a job's reminders and digests (notify.member, notify.email) and a public form's confirmation (its form's \"onSubmit\") send only " +
     "once a home owner or admin switches them on in the app's Logic tab (\"What it sends by itself\", with a mailbox for email and a daily limit): build them, " +
     "then say what to switch on. Scripts' changes are all or nothing, and every script you save goes into the app's draft, live once the person publishes. " +

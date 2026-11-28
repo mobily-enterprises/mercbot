@@ -98,10 +98,15 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     installTemplate({ registry, apps, gate, catalog, scripts, connected }, ctx, key, options);
   // The home's apps made from templates and whether each is up to date; one brought up to date as a draft (D-130).
   const templateStatusFor = (options) => templateStatus({ apps }, options);
-  const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog, scripts }, ctx, slugOrId);
+  const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog, scripts, connected }, ctx, slugOrId);
   // Apps that follow their template take its new versions (D-141).
-  const templateFollow = createTemplateFollow({ resources, apps, updating: { registry, apps, catalog, scripts } });
-  const starterApps = createStarterApps({ appSettings: resources.appSettings, installTemplate: installTemplateFor, apps });
+  const templateFollow = createTemplateFollow({ resources, apps, updating: { registry, apps, catalog, scripts, connected } });
+  const starterApps = createStarterApps({
+    appSettings: resources.appSettings,
+    installTemplate: installTemplateFor,
+    apps,
+    ensureTable: (ctx, key) => catalog.ensureTable(ctx, key)
+  });
   return Object.freeze({
     anyapi,
     registry,

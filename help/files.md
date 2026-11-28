@@ -27,7 +27,7 @@ Each file you attach is kept in the chat's **Uploads** folder, whoever else is i
 
 | Limit | Details |
 | --- | --- |
-| Each attached file | Up to 25 MB. |
+| Each attached file | Up to 150 MB. |
 | Pictures the bot can look at | Up to 10 MB each. |
 | HEIC photos (common on iPhones) | Can't be opened. Send them as JPEG or PNG. |
 | "This file can't be used." | A copy built on Mercbot may check every picture and video before it's kept or sent; that one can't be attached or uploaded there. |

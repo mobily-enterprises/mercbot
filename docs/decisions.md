@@ -4753,6 +4753,13 @@ templates, and "a GENERIC table called list that every app can use, with a names
   address when two share a name), and each table's stored name and the other apps that use it (the tables route with
   `app` lists every app using each of that app's tables). Its tables are registry tables (`app_tables`, records in
   AnyAPI's store by table id), so a copy's own tables are new registry entries, never new database tables.
+- **List items from the start (the owner, 28 Nov):** a new home gets the shared List items table, empty, with its
+  starter apps, so the Data tab shows it before any list app is installed (`starterApps.js` `STARTER_TABLES`); a home
+  made before gets it with its first list app. To-dos keeps its own table: to-dos have subtasks, lists and assignees.
+- **Uploads up to 150 MB (the owner, 28 Nov):** what a person uploads (a chat's attachment, the file browser, a file or
+  picture on an app's record, such as a book for Study) is up to 150 MB (`UPLOAD_LIMIT`, `uploadedFile.js`), from 25.
+  The other limits stay as they were: a public form's files (10 MB), a picture a bot looks at (10 MB), a file copied to
+  a Drive or fetched from a connected app (25 MB).
 - **Apps follow their template unless forked (the owner, 28 Nov):** an app made from a template and never changed takes
   each new version of it, published, the next time its home's apps are read (`templateFollow.js`, on the apps list the
   sidebar reads as the home opens), so a template that improves improves every app that follows it. A change to its
@@ -4862,3 +4869,46 @@ Proved by `teams.integration.js` (made once, a home's own reused), `appsStudy.in
 every AI job its bot's, the picker, putting a book away, the round's count), `appsLinkChoices.integration.js`,
 `appLive.vitest.js` (an app's screen is kept live), `fieldValues.vitest.js` (typing kept), `appsTemplates.test.js` (a
 template's bot pairs back, and its scripts check with it) and `templateChecks.test.js` (Learner).
+
+## D-145 — Tables that are each person's own (2026-11-28)
+
+The owner, on Study: "the courses are everyone's, but at least the attempts and the progress, that is per user", then:
+"This is a VERY CRUCIAL feature in general… apps have to be able to do this EASILY, make sure the builder doesn't use
+tricks or workarounds". So it is the data gate's, not each app's: a table can be **each person's own**.
+
+- **Chosen when the table is made** (`registry.createTable(…, { personal: true })`, a template table's `"personal": true`):
+  the table gets a field `whose` (a person, labelled Whose, marked `options.owner`, indexed), and that's what makes it
+  personal. It can't be added to a table later (its records would have no owner) nor removed (`apps_personal_owner_kept`):
+  without it everyone would reach every record.
+- **The gate sets whose a record is, never what's sent:** a new record is the acting person's, whatever its input says
+  (`ownerOfNew`); it never changes after (`apps_personal_owner_fixed`; the same value sent back is no change).
+- **Every read reaches only the acting person's records, in the query** (`tableGuard.mineWhere`, ANDed with the filter):
+  lists and search, one record (another's answers 404), totals and grand totals, counts, link pickers, links' labels and
+  link checks (another's record can't be linked to), imports, the Data tab and history. Changing or putting away
+  another's record answers 404. The cost is one indexed condition: it doesn't grow with other people's records.
+- **Who is acting:** the person using a screen, the Data tab or a button's or screen's script; the person a bot works
+  for. Owners and admins see only their own too: it's each person's, not the managers'. **A job works for everyone**
+  (the scripts' runner marks its run `everyone`): it reads every person's records, and names whose each record it adds
+  is (`whose`, a person of the home), or is refused (`apps_personal_owner_missing`). A public app's visitors never reach
+  one (`apps_personal_visitor`; the save check refuses listing it), and a bot's watch can't follow one
+  (`apps_watch_personal`): an app's job can.
+- **Totals:** a roll-up can't add up a personal table onto a shared one (`apps_rollup_personal`): a stored total is
+  everyone's. Each person's totals are a screen's totals queries, which are already theirs; a roll-up from one personal
+  table onto another (answers onto the person's progress) is allowed, since a person can link only to their own.
+- **Activity:** the home's trail shows a personal table's changes with their values only to the person who made them.
+- **What an app author writes:** `"personal": true` on the table, and nothing else: no `me.id` filters, no person field
+  of their own. The Builder's skill, instructions and script guide say so; `data_tables` marks a personal table.
+- **Study uses it:** `study_progress` (a person's progress in a lesson: done, finished, and roll-ups of their answers
+  and stars) and `study_answers` (each answer and whether it was right) are personal; books, courses, units, lessons and
+  questions stay everyone's. A kept lesson keeps each person's progress; a lesson written again, put away or left out of
+  a plan puts everyone's progress in it away (a job, which reaches them all). Its screens read the person's totals with
+  totals queries and their progress with lists, and its button scripts work on the pressing person's records without
+  saying whose. A home that had Study keeps its old shared answers in the records it had (they're not anyone's, so
+  they aren't moved); each person's progress starts there.
+- Alongside: a button's script may return `celebrate` (a step's formulas can't read lists, and the score is the
+  person's), and `app_try` gives formulas a totals query's groups, as the browser does.
+
+Proved by `appsPersonalTables.integration.js` (another person's id sent, another's record read, changed, linked or
+totalled, a script writing someone else's, a job without whose, a visitor, a roll-up onto a shared table, the field's
+removal, Activity, a watch, and a read's cost with 40 other records), `appsStudy.integration.js` (two people on one
+course), `appsTemplates.test.js` and `builderInstructions.test.js`.

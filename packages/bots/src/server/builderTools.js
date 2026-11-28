@@ -568,6 +568,9 @@ ${SCRIPT_GUIDE}`,
         inputSchema: z.object({
           key: z.string().min(1).max(64),
           label: z.string().max(120).optional(),
+          personal: z.boolean().optional().describe(
+            "Each person's own (D-145): every record belongs to whoever adds it and each person sees only theirs. For anything that's each person's: progress, answers, scores, votes, preferences. Chosen once; never filter by me.id instead"
+          ),
           fields: z.array(fieldInput).min(1).max(60)
         }),
         execute: (input, options) => tableCreate(input, options)

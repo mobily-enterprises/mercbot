@@ -68,9 +68,9 @@ test("calculated fields are worked out on every read, and named formulas run eve
   assert.equal(orders.fields.find((field) => field.key === "total").options.formula, `=${id("price")} * ${id("quantity")}`, "stored by ids");
 
   // Its mistakes come back precisely, and nothing is made.
-  const cycle = await run(builder.tableCreate, { key: "loop", fields: [{ key: "a", type: "number", formula: "=b + 1.0" }, { key: "b", type: "number", formula: "=a * 2.0" }] });
+  const cycle = await run(builder.tableCreate, { key: "cycles", fields: [{ key: "a", type: "number", formula: "=b + 1.0" }, { key: "b", type: "number", formula: "=a * 2.0" }] });
   assert.match(cycle.error, /^a: a can't be worked out from itself: a → b → a\.$/u);
-  assert.equal((await registry.loadTables(call)).some((table) => table.key === "loop"), false);
+  assert.equal((await registry.loadTables(call)).some((table) => table.key === "cycles"), false);
   assert.match((await run(builder.fieldAdd, { table: "orders", key: "net", type: "money", formula: "=totl / 1.2" })).error, /orders has no field "totl"\. Did you mean "total"\?/u);
   assert.match((await run(builder.fieldAdd, { table: "orders", key: "net", type: "money", formula: "=total / 1.2", required: true })).error, /can't be required/u);
   assert.match((await run(builder.fieldAdd, { table: "orders", key: "kind", type: "choice", choices: ["A"], formula: '="A"' })).error, /A choice field can't be calculated/u);

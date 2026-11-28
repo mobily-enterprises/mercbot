@@ -60,6 +60,8 @@ function scriptEffects(result, screens) {
   const effects = [];
   if (!result || typeof result !== "object") return effects;
   if (result.notify) effects.push({ notify: String(result.notify).slice(0, 500) });
+  // A celebration a script works out (D-145): its words, from what only the script knows (the person's own score).
+  if (result.celebrate) effects.push({ celebrate: String(result.celebrate).slice(0, 500) });
   if (result.go?.screen && screens?.[result.go.screen]) {
     effects.push({
       go: {

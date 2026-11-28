@@ -12,7 +12,7 @@ import { listedStored } from "../shared/visitorAccess.js";
 import { createAppVisitorAccess } from "./appVisitorAccess.js";
 import { homeIdOf } from "./callOptions.js";
 import { internalOnly } from "./appConnectedAccess.js";
-import { RegistryError, newId } from "./registry.js";
+import { RegistryError, keepOwnerField, newId } from "./registry.js";
 import { asDrafted, createScriptDrafts } from "./scriptDrafts.js";
 
 const COLOR = /^#[0-9a-f]{6}$/iu;
@@ -57,6 +57,8 @@ const toApp = (record) => ({
   forked: Boolean(record.forkedAt),
   // A copy that started fresh, with its own tables: its number (templateCopies.js).
   templateCopy: record.templateCopy ?? null,
+  // The bot it comes with (D-144), whose its AI work is; null for the home's main bot.
+  botId: record.botId ? String(record.botId) : null,
   updatedAt: record.updatedAt
 });
 
@@ -575,6 +577,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
           params: { field: field.label }
         });
       }
+      keepOwnerField(field, table); // a personal table's Whose stays (D-145)
       await appFields.patch(field.id, { obsoleteAt: new Date().toISOString() }, { ...txOptions, returning: "none" });
       if (table.titleFieldId === field.id) {
         // The next title is a stored text field: titles are looked for in the database.

@@ -1,3 +1,4 @@
+import { isPersonal } from "./tableAccess.js";
 import { calculatedFrom, isCalculated, isRollup, isWorkedOut } from "./calculated.js";
 import { BOARD_FIELDS, MOVED_FIELDS, ROW_FORMULAS, isBoard } from "./boards.js";
 import { fieldsIn, isObject } from "./definitions.js";
@@ -395,6 +396,7 @@ export function checkVisitorAccess(definition, tables, { tableNamed, report }) {
     if (!table) report(at, "needs an existing table.");
     else if (!isObject(rule)) report(at, `says what visitors may reach: ${SETTINGS.join(", ")}.`);
     else if (isEarlierRule(rule)) report(at, EARLIER_REFUSAL);
+    else if (isPersonal(table)) report(at, `${table.label} is each person's own: a public app's visitors can't reach it.`);
     else checkRule(definition, tables, table, rule, at, report);
   }
   const listed = (list, name) => Array.isArray(list) && list.includes(name);

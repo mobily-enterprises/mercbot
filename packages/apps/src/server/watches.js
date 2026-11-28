@@ -1,3 +1,4 @@
+import { isPersonal } from "../shared/tableAccess.js";
 import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { passedOn, resolveUserScopeValue } from "@jskit-ai/resource-runtime/server";
 import { celSchema, checkFormula, evaluateFormula, isFormula } from "../shared/formulas.js";
@@ -105,6 +106,13 @@ export function createWatches({ resources, repository, systemContext, registry, 
     const [seat] = await records.directory.seats([String(chatBotId)], options);
     if (!seat) throw new GateError(404, "That bot isn't in a chat you can open.", { code: "apps_watch_chat_not_found" });
     const { table } = await gate.tableFor(input.table, options, { forWrite: true });
+    // A watch tells its bot about every change to a table: a personal table's are each person's own (D-145).
+    if (isPersonal(table)) {
+      throw new GateError(400, `${table.label} is each person's own, so a watch can't follow it: an app's job can.`, {
+        code: "apps_watch_personal",
+        params: { table: table.label }
+      });
+    }
     const on = ON[input.on] ? input.on : "any";
     const name = String(input.name || "").trim().slice(0, 120);
     if (!name) throw new GateError(400, "A watch needs a short name.", { code: "apps_watch_name_missing" });

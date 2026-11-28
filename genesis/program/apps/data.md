@@ -106,7 +106,8 @@ home, with every change audited and nothing ever deleted (D-35).
   `ensureOwnTable` make a one-to-one extension and a template's own table. `catalogMatch` finds a
   shared table by key, label or alias, singular or plural. On `mercbot.apps` as `catalog`.
 - **Starter apps** (`starterApps.js`): the home's list of apps (`GET /apps`, which its sidebar
-  reads as it opens) first installs Contacts and To-dos, empty and published, once per home
+  reads as it opens) first installs Contacts and To-dos, empty and published, and makes the shared List items table
+  (`STARTER_TABLES`, D-141), once per home
   (`app_settings.starter_apps_at`, claimed under a row lock; cleared and retried at the next open
   after a failure). A home with an app of that name keeps its own. One read when they're there.
 - Every write goes through the data gate (`create`, `update`, `markObsolete`, `restore`): values
@@ -178,6 +179,13 @@ home, with every change audited and nothing ever deleted (D-35).
   `unique` (text without case, email, phone, url, number), kept on every save, change and import (400
   `apps_value_out_of_range`, 409 `apps_value_unique_taken` under the same locks as a unique link). `registry.changeChecks`
   changes them (`apps_field_check_invalid`, `apps_field_unique_shared` while two live records share a value).
+- **Each person's own (D-145, `tableGuard.js` `mineWhere`, `reaches`, `ownerOfNew`; `shared/tableAccess.js`
+  `ownerFieldOf`, `isPersonal`):** a table made with `personal: true` has a `whose` field (a person, `options.owner`,
+  indexed) the gate alone sets: a new record is the acting person's whatever was sent, and it never changes. Every read
+  (lists, search, one record, totals, counts, link pickers and labels, link checks, imports, history) is ANDed with
+  `whose == <the acting person>`; a change or put-away of another's answers 404. A job's run (`everyone`) reaches all and
+  names `whose` on what it adds, else 400. Visitors, a bot's watch, a roll-up onto a shared table and removing `whose` are
+  refused; Activity shows a personal table's values only to who made the change. `data_tables` and the Data tab say so.
 - **Private tables (D-138):** `app_tables.access` { read, change, people } (null is everyone), set by owners and admins
   (`registry.chooseAccess`, `PUT /app-data/tables/:key/access`, 403 for others; change never wider than read,
   `apps_table_access_wider_change`; `apps_table_access_people_missing`; audited). `tableGuard.js` reads who a ctx is
@@ -201,6 +209,8 @@ home, with every change audited and nothing ever deleted (D-35).
   `list`, `map`, `for`, …) besides the names formulas read (`apps_key_reserved`).
 
 ## Proved by
+
+- `tests/server/appsPersonalTables.integration.js`
 
 - `tests/server/appsRegistry.integration.js`
 - `tests/server/appsDataGate.integration.js`

@@ -53,11 +53,14 @@ Records are by field name: links are the linked record's id, ` +
 - await docs.text({ record: { table, id }, field }) → { name, text, more }: the words of a record's file (text, Markdown, ` +
   `Word, spreadsheet, presentation or PDF; buttons and jobs, 3 a run), at most 1,000,000 characters, more when there were ` +
   `others; a file of another kind is an error saying so. A test gives it as docs: { text: answer }.
+- A personal table (marked each person's own) needs nothing from you: a button's or screen's script reaches only the ` +
+  `pressing person's records and what it adds is theirs; a job reaches everyone's. A job adding to a personal table sets whose ` +
+  `(a person's id) on each record, or it's refused.
 - console.log(…) ` +
   `lines are kept with the run.
 What main returns, by kind:
 - action (a button): { notify?: "text", go?: { screen, params }, ` +
-  `openDialog?: "key" }
+  `openDialog?: "key", celebrate?: "words with confetti" }
 - source (a screen's data): a list of objects (a table's rows), [{ label, value }] (totals and charts), or ` +
   `one object
 - rule (before a record is saved; input { action: "create" | "update", record, previous, actor: { type, id, name, role } }, ` +
@@ -125,7 +128,7 @@ const describeTables = (tables) =>
     .filter((table) => !table.obsolete)
     .map(
       (table) =>
-        `${table.key}: ${table.fields
+        `${table.key}${table.fields.some((field) => !field.obsolete && field.options?.owner === true) ? " (each person's own: a button's script reaches only the pressing person's records; a job's reaches everyone's and sets whose on each it adds)" : ""}: ${table.fields
           .filter((field) => !field.obsolete)
           .map(
             (field) =>

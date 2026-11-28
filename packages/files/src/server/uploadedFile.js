@@ -6,10 +6,12 @@ import { SNIFF_BYTES, mediaRefusal, sniffMedia } from "@local/account/media-chec
 import { FilesError } from "./fileStore.js";
 
 /** The upload routes' size limit, which the multipart reader stops at (its stream is then `truncated`). */
-export const UPLOAD_LIMIT = 25 * 1024 * 1024;
+export const UPLOAD_LIMIT = 150 * 1024 * 1024;
+const LIMIT_MB = UPLOAD_LIMIT / (1024 * 1024);
 
 /** The refusal of an upload over UPLOAD_LIMIT. */
-export const tooBig = () => new FilesError(413, "That file is too big; the limit is 25 MB.", { code: "files_upload_too_big", params: { limitMb: 25 } });
+export const tooBig = () =>
+  new FilesError(413, `That file is too big; the limit is ${LIMIT_MB} MB.`, { code: "files_upload_too_big", params: { limitMb: LIMIT_MB } });
 
 /** An upload's first bytes, read before anything is written, and all of it, those bytes first, as it comes. */
 async function opened(stream) {

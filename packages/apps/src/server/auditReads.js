@@ -10,7 +10,7 @@ const ACTORS_MAX = 1000;
  * @param {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} dependencies.auditEvents
  * @param {{ nextActor: (afterId: string | null, options: object) => Promise<object | null> }} dependencies.repository
  */
-export function createAuditReads({ auditEvents, repository }) {
+export function createAuditReads({ auditEvents, repository, masked = async (_ctx, entries) => entries }) {
   /** The newest audit entries the filters select, up to `limit`: one page. */
   async function newestAudits(filters, limit, options) {
     return (await auditEvents.query({ filters, sort: ["-id"], page: { size: limit } }, options)).records;
@@ -27,7 +27,7 @@ export function createAuditReads({ auditEvents, repository }) {
       ...(to ? { atBefore: new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString() } : {}),
       ...(before ? { beforeId: String(before) } : {})
     };
-    return (await newestAudits(filters, Math.min(Number(limit) || 50, 200), ctx.options)).map((entry) => ({
+    return masked(ctx, (await newestAudits(filters, Math.min(Number(limit) || 50, 200), ctx.options)).map((entry) => ({
       id: String(entry.id),
       at: entry.at,
       actor: entry.actor,
@@ -36,7 +36,7 @@ export function createAuditReads({ auditEvents, repository }) {
       recordId: entry.recordId,
       action: entry.action,
       changes: entry.changes
-    }));
+    })));
   }
 
   /**

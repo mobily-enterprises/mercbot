@@ -115,6 +115,11 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   const { app, errors } = await home.apps.installTemplate(ctx, "study", {});
   assert.deepEqual(errors, []);
   assert.equal(String((await knex("apps").where({ id: app.id }).first()).bot_id), learner, "the app comes with its Learner bot");
+  // An app made before templates brought bots gets its bot when it's brought up to its template, the home's own Learner.
+  await knex("apps").where({ id: app.id }).update({ bot_id: null });
+  assert.deepEqual((await home.apps.updateFromTemplate(ctx, app.slug)).errors, []);
+  assert.equal(String((await knex("apps").where({ id: app.id }).first()).bot_id), learner, "brought up to its template, it has its bot again");
+  assert.equal((await knex("bots").where({ workspace_id: home.workspaceId, name: "Learner" })).length, 1, "the same Learner, never a second");
   // A watching job's cursor starts at the horizon when it's published: after every change made before it.
   await earlierTransactionsEnded(knex);
   await apps.publish(actor, app.slug, {}, options);
@@ -202,11 +207,16 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   const second = onwards.go.params;
   assert.equal((await record("quiz", "q", second)).question, "Second question on 💧 Water?");
   assert.deepEqual(await press("quiz", "content/3/content/0/do", { params: second }), [], "a wrong answer");
-  assert.deepEqual(await rows("quiz", "rest", second), [], "every question answered");
+  assert.equal((await rows("quiz", "mine", second))[0].answered, 2, "every question answered");
   const finished = await press("quiz", "content/4/content/3/do", { params: second });
   assert.deepEqual(finished, [{ celebrate: "Lesson done! 1 of 2 right ⭐" }, { go: { screen: "lesson", params: { id: water.id } } }]);
-  const progress = await record("course", "course", { id: course.id });
-  assert.deepEqual([progress.done, progress.stars], [1, 1]);
+  // The person's own progress: the course's totals of it, as the course screen reads them.
+  const mineOf = async (id) => {
+    const [done] = (await query("course", "done", { id })).totals;
+    const [stars] = (await query("course", "stars", { id })).totals;
+    return [done?.count ?? 0, stars?.total ?? 0];
+  };
+  assert.deepEqual(await mineOf(course.id), [1, 1]);
   // The Builder trying the course screen (app_try) reads its progress bars as a percentage, a hidden one marked so.
   assert.deepEqual((await apps.saveDraft(actor, app.slug, (await apps.get(app.slug, {}, options)).definition, "Try it", options)).errors, []);
   const tried = await home.apps.trial.tryScreen(ctx, { slug: app.slug, screen: "course", params: { id: course.id } });
@@ -224,17 +234,20 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   const replanPrompt = prompts.findLast((entry) => entry.system.includes("Plan a complete, fun course"));
   assert.match(replanPrompt.item, /What to change this time: Teach soil instead of light\\nThe course so far \(keep the exact titles of the lessons that stay\):\\nUNIT: 🌰 Seeds \| How seeds start\\nLESSON: 💧 Water \| Why seeds need water \| 1/u);
   const changed = await rows("unit", "lessons", { id: units[0].id });
-  assert.deepEqual(changed.map((lesson) => [lesson.id === water.id, lesson.title, lesson.status, lesson.stars]), [[true, "💧 Water", "Done", 1], [false, "🪱 Soil", "New", 0]]);
+  assert.deepEqual(changed.map((lesson) => [lesson.id === water.id, lesson.title, lesson.status]), [[true, "💧 Water", "New"], [false, "🪱 Soil", "New"]]);
+  const [kept] = await rows("lesson", "mine", { id: water.id });
+  assert.deepEqual([kept.done, kept.stars], [true, 1], "the kept lesson keeps the person's progress");
   const after = await record("course", "course", { id: course.id });
-  assert.deepEqual([after.status, after.lessons, after.done, after.stars, after.changes], ["Ready", 3, 1, 1, null]);
+  assert.deepEqual([after.status, after.lessons, after.changes, ...(await mineOf(course.id))], ["Ready", 3, null, 1, 1]);
 
   // ---- A lesson rewritten starts fresh as New, with a new quiz; the others keep theirs ----
   await press("lesson", "content/6/content/1/buttons/0/do", { params: { id: water.id }, values: { title: "💧 Water", goal: "Why seeds drink", request: "Shorter, please" } });
   await work();
   const rewritten = await record("lesson", "lesson", { id: water.id });
-  assert.deepEqual([rewritten.status, rewritten.goal, rewritten.stars, rewritten.answered, rewritten.questions, rewritten.request], ["New", "Why seeds drink", 0, 0, 2, null]);
+  assert.deepEqual([rewritten.status, rewritten.goal, rewritten.questions, rewritten.request], ["New", "Why seeds drink", 2, null]);
+  assert.deepEqual(await rows("lesson", "mine", { id: water.id }), [], "the person's progress in it is put away");
   assert.match(prompts.at(-1).item, /Change this time: Shorter, please/u);
-  assert.deepEqual([(await record("course", "course", { id: course.id })).done], [0]);
+  assert.deepEqual(await mineOf(course.id), [0, 0]);
   // ---- The book is put away from its page: it leaves the shelf at once, and its contents go with it ----
   await press("book", "content/5/content/3/do", { params: { id: book.id } });
   assert.deepEqual(await rows("books", "books"), [], "off the shelf at once");
@@ -246,7 +259,7 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   const workers = await knex("app_jobs").where({ app_id: app.id }).distinct("bot_id");
   assert.deepEqual(workers.map((job) => String(job.bot_id)), [learner], "every bit of its AI work is its own bot's, never the main bot's");
   const tables = (await registry.loadTables(options)).map((table) => table.key).sort();
-  assert.deepEqual(tables, ["book_parts", "books", "study_courses", "study_lessons", "study_questions", "study_units"]);
+  assert.deepEqual(tables, ["book_parts", "books", "study_answers", "study_courses", "study_lessons", "study_progress", "study_questions", "study_units"]);
 });
 
 // A course is ready only once every lesson of it is written (D-144): the bot writes them one at a time, and each one in
@@ -281,4 +294,67 @@ test("Study: a course stays writing until its last lesson is in", async (context
   assert.equal(await statusOf(), "Writing", "one of two lessons written");
   await answer(lessons[1]);
   assert.equal(await statusOf(), "Ready");
+});
+
+// Each person's own progress (D-145): two people on one course each see only their own answers, stars, lessons done,
+// what's next and retakes, though the course, its lessons and questions are everyone's; a lesson written again starts
+// fresh for both.
+test("Study: two people on one course each see only their own answers and progress", async (context) => {
+  const knex = await connectTestDatabase();
+  const cleanup = cleanupStack(context);
+  cleanup.after(() => knex.destroy());
+  const home = await appsHome(cleanup, { slug: "apps-study-two", knex });
+  const { userId, workspaceId, options } = home;
+  const { gate, apps, runtime, scripts, watches } = home.apps;
+  const sam = String((await knex("users").orderBy("id").offset(1).first()).id);
+  await knex("workspace_memberships").insert([
+    { workspace_id: workspaceId, user_id: userId, role_sid: "member", status: "active" },
+    { workspace_id: workspaceId, user_id: sam, role_sid: "member", status: "active" }
+  ]);
+  const pat = home.ctx({ type: "person", id: userId, name: "Pat" });
+  const samCtx = { options: home.memberOptions(sam, home.workspace), actor: { type: "person", id: sam, name: "Sam" }, via: { kind: "data" } };
+  const { app, errors } = await home.apps.installTemplate(pat, "study", { sample: true });
+  assert.deepEqual(errors, []);
+  await earlierTransactionsEnded(knex);
+  await apps.publish(pat.actor, app.slug, {}, options);
+  const as = (who) => ({
+    press: async (screen, at, params) => (await runtime.action(who, { slug: app.slug, screen, path: at, params, values: {} })).effects,
+    rows: async (screen, name, params) => (await runtime.query(who, { slug: app.slug, screen, query: name, params })).records,
+    groups: async (screen, name, params) => (await runtime.query(who, { slug: app.slug, screen, query: name, params })).totals
+  });
+  const [P, S] = [as(pat), as(samCtx)];
+  const [course] = await P.rows("learn", "courses");
+  const lessons = await P.rows("course", "lessons", { id: course.id });
+  const water = lessons[0];
+  const [first, second] = await P.rows("lesson", "questions", { id: water.id });
+
+  // Pat answers both (one right, one wrong) and finishes the lesson; Sam answers the first wrong.
+  const choose = (who, question, letter) => who.press("quiz", `content/3/content/${"ABCD".indexOf(letter)}/do`, { lesson: water.id, id: question.id });
+  assert.deepEqual(await choose(P, first, first.answer), [{ celebrate: "Right! 🎉" }]);
+  await choose(P, second, second.answer === "A" ? "B" : "A");
+  assert.deepEqual(await P.press("quiz", "content/4/content/3/do", { lesson: water.id, id: second.id }),
+    [{ celebrate: "Lesson done! 1 of 2 right ⭐" }, { go: { screen: "lesson", params: { id: water.id } } }]);
+  await choose(S, first, first.answer === "A" ? "B" : "A");
+
+  const answerTo = async (who, question) => (await who.rows("quiz", "answer", { lesson: water.id, id: question.id })).map((row) => row.correct);
+  assert.deepEqual([await answerTo(P, first), await answerTo(S, first), await answerTo(S, second)], [[true], [false], []], "each sees only their own answers");
+  const progressOf = async (who) => (await who.rows("lesson", "mine", { id: water.id })).map((row) => [row.done, row.answered, row.stars]);
+  assert.deepEqual([await progressOf(P), await progressOf(S)], [[[true, 2, 1]], [[false, 1, 0]]]);
+  const doneOf = async (who) => (await who.groups("course", "done", { id: course.id })).map((group) => group.count);
+  assert.deepEqual([await doneOf(P), await doneOf(S)], [[1], []], "lessons done are each person's");
+  const next = async (who) => (await who.press("course", "content/6/do", { id: course.id }))[0].go.params.id;
+  assert.deepEqual([await next(P), await next(S)], [lessons[1].id, water.id], "Continue is each person's next lesson");
+
+  // Pat takes the quiz again: only Pat's answers go.
+  await P.press("lesson", "content/5/content/1/do", { id: water.id });
+  assert.deepEqual([await answerTo(P, first), await answerTo(S, first)], [[], [false]]);
+
+  // The lesson is written again: it starts fresh for both.
+  const tables = await home.apps.registry.loadTables(options);
+  const field = (key) => tables.find((table) => table.key === "study_lessons").fields.find((entry) => entry.key === key).id;
+  await gate.update(pat, "study_lessons", water.id, { [field("status")]: "Writing", [field("material")]: "" });
+  await gate.update({ ...pat, actor: { type: "bot", id: "1", name: "Learner" } }, "study_lessons", water.id, { material: "Again.\nQUIZ\nQ: Why?\nA: a\nB: b\nC: c\nD: d\nANSWER: A\nWHY: So." });
+  await earlierTransactionsEnded(knex);
+  await scripts.runDue({ matchChanges: watches.matchChanges });
+  assert.deepEqual([await progressOf(P), await progressOf(S)], [[], []]);
 });

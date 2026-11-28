@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { isPersonal } from "../../packages/apps/src/shared/tableAccess.js";
 import { readdirSync } from "node:fs";
 import test from "node:test";
 import { appsHome } from "../support/appsHome.mjs";
@@ -42,6 +43,12 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   const builder = buildAppTools({ apps, directory, call, botId, conversationId: null, userId: null, isBuilder: true, after, attempted, via: null, postLead: async () => {}, attempt: async () => ({ status: "waiting_for_approval" }) });
   assert.ok(!Object.keys(builder).some((name) => /publish|delete/iu.test(name)), "no tool publishes or deletes");
   assert.equal((await run(builder.tableCreate, { key: "suppliers", fields: [{ key: "name", type: "text", required: true }, { key: "status", type: "choice", choices: ["Active", "Paused"] }, { key: "spend", type: "money" }] })).status, "created");
+  // A table that's each person's own (D-145): the tool's input keeps the setting, and the table is made personal.
+  const asked = builder.tableCreate.inputSchema.parse({ key: "my_scores", personal: true, fields: [{ key: "score", type: "number" }] });
+  assert.equal(asked.personal, true, "the Builder can ask for a personal table");
+  assert.equal((await run(builder.tableCreate, asked)).status, "created");
+  const scores = (await registry.loadTables(call)).find((table) => table.key === "my_scores");
+  assert.ok(isPersonal(scores), "made each person's own");
 
   // Records by field name, audited as the bot from chat.
   const added = await run(plain.dataCreate, { table: "suppliers", values: { name: "Acme", status: "Active", spend: 125000 } });

@@ -10,7 +10,7 @@ import { createStarterApps } from "../../packages/apps/src/server/starterApps.js
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
-test("a home's first open adds Contacts and To-dos, live and empty, once, however many pages ask", async (context) => {
+test("a home's first open adds Contacts and To-dos, live and empty, and the shared List items, once, however many pages ask", async (context) => {
   const home = await appsHome(context, { slug: "apps-starter" });
   const { knex, apps: capability, handles, options, userId, workspace } = home;
   const call = home.browser({ member: { userId, workspace } });
@@ -20,13 +20,15 @@ test("a home's first open adds Contacts and To-dos, live and empty, once, howeve
   assert.deepEqual(names(opened.body), ["Contacts", "To-dos"]);
   for (const app of opened.body.apps) assert.equal((await capability.apps.get(app.slug, {}, options)).definition !== null, true, `${app.name} is live`);
   const tables = (await capability.registry.loadTables(options)).filter((table) => !table.obsolete).map((table) => table.key).sort();
-  assert.deepEqual(tables, ["contacts", "departments", "organisations", "todo_lists", "todos"]);
-  assert.equal((await capability.gate.read({ options, actor: { type: "person", id: userId } }, "contacts")).total, 0, "empty");
+  // List items (D-141), the shared table every simple list uses, is there from the start, empty, so the Data tab shows it.
+  assert.deepEqual(tables, ["contacts", "departments", "list_items", "organisations", "todo_lists", "todos"]);
+  for (const key of ["contacts", "list_items"]) assert.equal((await capability.gate.read({ options, actor: { type: "person", id: userId } }, key)).total, 0, `${key} empty`);
 
   // Twice, and two pages at once: nothing more, and one read when they're there.
   await Promise.all([call("GET", `/api/w/${workspace.slug}/apps`), call("GET", `/api/w/${workspace.slug}/apps`)]);
   assert.deepEqual(names((await call("GET", `/api/w/${workspace.slug}/apps`)).body), ["Contacts", "To-dos"]);
-  const starter = createStarterApps({ appSettings: handles.appSettings, installTemplate: capability.installTemplate, apps: capability.apps });
+  const starter = createStarterApps({
+    ensureTable: async () => {}, appSettings: handles.appSettings, installTemplate: capability.installTemplate, apps: capability.apps });
   assert.equal(await queriesDuring(knex, () => starter.ensure(options)), 1);
 
 });
@@ -36,6 +38,7 @@ test("adding them failing never stops the home opening, and they're added at its
   const { apps: capability, handles, options } = home;
   let broken = true;
   const starter = createStarterApps({
+    ensureTable: async () => {},
     appSettings: handles.appSettings,
     installTemplate: async (ctx, key) => {
       if (broken) throw new Error("The catalog is down.");
@@ -55,7 +58,8 @@ test("a home with an app of a starter's name keeps its own and gets only the oth
   const { apps: capability, handles, options, ctx: ctxOf, userId } = home;
   const person = ctxOf({ type: "person", id: String(userId), name: "Pat" }).actor;
   await capability.apps.createApp(person, { name: "Contacts" }, options);
-  const starter = createStarterApps({ appSettings: handles.appSettings, installTemplate: capability.installTemplate, apps: capability.apps });
+  const starter = createStarterApps({
+    ensureTable: async () => {}, appSettings: handles.appSettings, installTemplate: capability.installTemplate, apps: capability.apps });
   await starter.ensure(options);
   assert.deepEqual((await capability.apps.list({}, options)).apps.map((app) => app.name).sort(), ["Contacts", "To-dos"]);
 });
@@ -69,6 +73,7 @@ test("a home deleted while its starter apps are being added goes, and they stop:
   // the two deadlocked and PostgreSQL broke the delete off.
   let held = null;
   const starter = createStarterApps({
+    ensureTable: async () => {},
     appSettings: handles.appSettings,
     installTemplate: async (ctx, key) => {
       const made = await capability.installTemplate(ctx, key);

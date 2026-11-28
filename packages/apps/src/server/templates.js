@@ -56,7 +56,9 @@ async function prepareTables({ registry, catalog }, ctx, template) {
   for (const table of template.tables) {
     const { existing, lacking } = await missing(table);
     if (!existing) {
-      await registry.createTable(actor, { key: table.key, fields: table.fields.filter((field) => !field.rollup) }, options);
+      // A table that's each person's own says so (D-145): it's made personal, with its Whose field.
+      const made = { key: table.key, fields: table.fields.filter((field) => !field.rollup), ...(table.personal ? { personal: true } : {}) };
+      await registry.createTable(actor, made, options);
     } else {
       for (const field of lacking.filter((wanted) => !wanted.rollup)) await registry.addField(actor, table.key, field, options);
     }
@@ -181,7 +183,7 @@ export async function templateStatus({ apps }, options) {
  * @param {{ actor: object, options: object }} ctx a gate ctx
  * @param {string} slugOrId the app
  */
-export async function updateFromTemplate({ registry, apps, catalog, scripts }, ctx, slugOrId) {
+export async function updateFromTemplate({ registry, apps, catalog, scripts, connected }, ctx, slugOrId) {
   const { options, actor } = ctx;
   const before = await apps.get(slugOrId, { version: "draft" }, options);
   const found = templateOfApp(before.app);
@@ -200,7 +202,9 @@ export async function updateFromTemplate({ registry, apps, catalog, scripts }, c
     fromTemplate: true
   });
   const errors = [...scriptErrors, ...draftErrors];
-  await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(found.template) }, options);
+  // The bot it comes with (D-144), for an app made before its template brought one: the home's, made if it has none.
+  const bot = found.template.bot && !before.app.botId && connected ? await connected().appBot(found.template.bot, options) : null;
+  await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(found.template), botId: bot?.id }, options);
   return { app: before.app, template: template.key, errors, previous: before.definition };
 }
 

@@ -318,7 +318,7 @@ widened, the person's own doing):
 - `GET …/files/content?path=[&download=1]` sends the file (read whole;
   the router doesn't pass streams through). Only
   PDFs, pictures and plain text are shown inline; everything else downloads.
-- `POST …/files/upload` (multipart, field `file`, up to 25 MB, through
+- `POST …/files/upload` (multipart, field `file`, up to 150 MB, `UPLOAD_LIMIT`, through
   JSKIT's `runtime.uploads`) keeps a file the person attached in `Uploads` in the chat's folder, whoever else is in
   the chat, people alone included (D-114; with only a bot, the bot's; with neither, the home's), or the folder named by `?folder=` (a taken name gets a number) and answers `{path, name, size, type}`.
   A copy that checks pictures and videos (D-90) checks one before anything is written, read whole up to the limit:

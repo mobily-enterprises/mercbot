@@ -10,6 +10,7 @@ import {
   dataOnly,
   fieldByNames,
   isCalculated,
+  isPersonal,
   isRollup,
   planToIds,
   refersToRemovedField,
@@ -167,6 +168,8 @@ export function buildAppTools({
       tables: tables.map((table) => ({
         table: table.key,
         label: table.label,
+        // Each person's own (D-145): what a bot reaches there is the person it works for's records alone.
+        ...(isPersonal(table) ? { personal: "each person's own: you see and change only the records of the person you work for, and what you add is theirs" } : {}),
         linksTo: keys(links.filter((link) => link.from === table.key && link.to !== table.key).map((link) => link.to)),
         linkedFrom: keys(links.filter((link) => link.to === table.key && link.from !== table.key && !link.unique).map((link) => link.from)),
         extendedBy: keys(links.filter((link) => link.to === table.key && link.unique).map((link) => link.from)),

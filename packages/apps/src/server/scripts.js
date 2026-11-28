@@ -424,7 +424,8 @@ export function createScripts({
       via: { kind: "script", appId: row.appId, scriptId: row.id, script: row.key, trigger: via },
       ...(reach?.visitor ? { visitor: reach.visitor, access: reach.access } : {}),
       ...(reach?.practice ? { practice: reach.practice } : {}),
-      ...(row.kind === "job" ? { person: row.runsAsUserId ?? null } : {}) // private tables as its person (D-138)
+      // Private tables as its person (D-138); personal tables, everyone's records, each new one naming whose (D-145).
+      ...(row.kind === "job" ? { person: row.runsAsUserId ?? null, everyone: true } : {})
     };
     const started = Date.now();
     const start = () => pool.run({

@@ -14,12 +14,12 @@ import { createAuditReads } from "./auditReads.js";
 import { createRecordFiles } from "./recordFiles.js";
 import { createRelatedRecords } from "./relatedRecords.js";
 import { createTableGuard } from "./tableGuard.js";
+import { isPersonal } from "../shared/tableAccess.js";
 import {
   checkFields,
   fence,
   isFenced,
   labelled,
-  linkedRows,
   ownsRecord,
   planFields,
   project,
@@ -104,8 +104,8 @@ export function createDataGate({
   // The home a ctx acts in: its call options'.
   const homeOf = (ctx) => homeIdOf(ctx.options);
   const { membersByName, checkPeople, checkUnique, uniqueTakenIn, labelPeople } = createRecordChecks({ people, homeOf });
-  const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
-  const guard = createTableGuard({ tableFor, roleOf: people.roleOf });
+  const guard = createTableGuard({ tableFor, roleOf: people.roleOf, loadTables: (options) => registry.loadTables(options) });
+  const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository, masked: guard.maskActivity });
   const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
   const relatedRecords = createRelatedRecords({ tableAs: guard.tableAs, canRead: guard.canRead, read });
 
@@ -173,7 +173,7 @@ export function createDataGate({
       const target = tables.find((entry) => entry.id === field.options?.target);
       const ids = [...new Set(records.map((record) => record[field.id]).filter(Boolean))];
       const shown = target && labelled(ctx, target) && (await guard.canRead(ctx, target));
-      const found = shown && ids.length ? await rowsById(api, target, ids, { where: linkedRows(ctx, target) }) : new Map();
+      const found = shown && ids.length ? await rowsById(api, target, ids, { where: await guard.reach(ctx, target) }) : new Map();
       for (const record of records) {
         const id = record[field.id];
         if (!id) continue;
@@ -212,6 +212,7 @@ export function createDataGate({
       where = rowsWhere(access, where);
       includeObsolete = false;
     }
+    where = bothWhere(where, await guard.mineWhere(ctx, table));
     const sortParams = sorted.map((entry) => `${entry.desc ? "-" : ""}${entry.field}`);
     const result = await api.resources[table.id].query(
       { queryParams: { ...(sortParams.length ? { sort: sortParams } : {}), page: { size, number } } },
@@ -230,8 +231,9 @@ export function createDataGate({
     const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     const access = fence(ctx, table, "get");
     const api = await apiFor(ctx, tables, table);
-    const row = access
-      ? ((await rowsById(api, table, [id], { where: rowsWhere(access, null), includeObsolete: false })).get(String(id)) ?? null)
+    const where = access ? rowsWhere(access, null) : await guard.mineWhere(ctx, table); // a visitor's rows, a person's own
+    const row = where
+      ? ((await rowsById(api, table, [id], { where, includeObsolete: access ? false : includeObsolete })).get(String(id)) ?? null)
       : await api.resources[table.id].get({ id: String(id) }, { includeObsolete }).catch((error) => {
         if (error?.subtype === "not_found" || /not found/iu.test(String(error?.message))) return null;
         throw error;
@@ -251,7 +253,7 @@ export function createDataGate({
     const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
     const access = fence(ctx, table);
     const api = await apiFor(ctx, tables, table);
-    const rows = [...(await rowsById(api, table, ids, { where: linkedRows(ctx, table) })).values()];
+    const rows = [...(await rowsById(api, table, ids, { where: await guard.reach(ctx, table) })).values()];
     if (access) {
       const titled = { ...access, read: new Set(access.read.has(table.titleFieldId) ? [table.titleFieldId] : []) };
       return new Map(rows.map((row) => project(titled, toRecord(table, row))).map((record) => [record.id, record]));
@@ -269,7 +271,8 @@ export function createDataGate({
     for (const field of table.fields.filter((entry) => entry.type === "link" && values[entry.id])) {
       const target = tables.find((entry) => entry.id === field.options?.target);
       const id = String(values[field.id]);
-      if (target && !known.get(target.id)?.has(id) && (await rowsById(api, target, [id], { where: linkedRows(ctx, target) })).has(id)) {
+      const reached = async () => (await rowsById(api, target, [id], { where: await guard.reach(ctx, target) })).has(id);
+      if (target && !known.get(target.id)?.has(id) && (await reached())) {
         known.set(target.id, (known.get(target.id) || new Set()).add(id));
       }
       if (!target || !known.get(target.id)?.has(id)) {
@@ -337,8 +340,9 @@ export function createDataGate({
    * as for checkLinks.
    */
   async function checkNew(ctx, api, tables, table, input, rules, known) {
-    const values = cleanRecord(table, await rules(cleanRecord(table, input, { creating: true })), { creating: true });
-    await checkLinks(api, tables, table, values, known);
+    const mine = await guard.owned(ctx, table, input); // a personal table's: the acting person's (D-145)
+    const values = cleanRecord(table, await rules(cleanRecord(table, mine, { creating: true })), { creating: true });
+    await checkLinks(api, tables, table, values, known, ctx);
     await checkPeople(ctx, table, values);
     return values;
   }
@@ -382,12 +386,13 @@ export function createDataGate({
       const transaction = txOptions.trx;
       // AnyAPI's get() has no not-found answer: it throws for a missing record, which reads as null here.
       const before = await api.resources[table.id].get({ id: String(id), transaction }, { includeObsolete: true }).catch(() => null);
-      if (!before || (access && (before[OBSOLETE] || !ownsRecord(access, ctx, before)))) {
+      if (!before || !(access ? !before[OBSOLETE] && ownsRecord(access, ctx, before) : await guard.reaches(ctx, table, before))) {
         throw new GateError(404, "That record doesn't exist.", { code: "apps_record_not_found" });
       }
+      values = guard.keepOwner(table, values, before); // whose it is never changes (D-145)
       if (action === "update") {
         const ruled = await beforeSave(ctx, table, "update", values, before, cleanRecord);
-        if (ruled !== values) await checkLinks(api, tables, table, (values = ruled));
+        if (ruled !== values) await checkLinks(api, tables, table, (values = ruled), new Map(), ctx);
         // Someone set now is in the home; a person kept as they were (a member who has left) stays.
         await checkPeople(ctx, table, values, before);
       }
@@ -417,7 +422,7 @@ export function createDataGate({
     const { table, tables } = await guard.tableAs(ctx, tableIdOrKey, { forWrite: true });
     const access = fence(ctx, table, "update");
     const values = cleanRecord(table, access ? visitorInput(access, table, ctx, input) : input);
-    await checkLinks(await apiFor(ctx, tables, table), tables, table, values, new Map(), access ? ctx : null);
+    await checkLinks(await apiFor(ctx, tables, table), tables, table, values, new Map(), ctx);
     return change(ctx, table.id, id, values, "update", txOptions);
   }
 
@@ -430,6 +435,7 @@ export function createDataGate({
   async function history(ctx, tableIdOrKey, id) {
     refuse(ctx);
     const { table } = await guard.tableAs(ctx, tableIdOrKey);
+    if (isPersonal(table)) await get(ctx, table.id, id); // someone else's record answers 404
     return newestAudits({ tableId: table.id, recordId: String(id) }, 200, ctx.options);
   }
 
@@ -444,7 +450,7 @@ export function createDataGate({
    */
   async function totals(ctx, tableIdOrKey, { where = null, groupBy, by = null, measure = "count", field = null } = {}) {
     const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
-    where = fencedWhere(ctx, table, where, [groupBy, measure === "count" ? null : field]);
+    where = bothWhere(fencedWhere(ctx, table, where, [groupBy, measure === "count" ? null : field]), await guard.mineWhere(ctx, table));
     const api = await apiFor(ctx, tables, table);
     const grouping = table.fields.find((entry) => entry.id === groupBy);
     if (isCalculated(grouping)) {
@@ -472,7 +478,7 @@ export function createDataGate({
   /** One figure across a table's matching records, whatever the groups: how many, and the sum or average. */
   async function grandTotal(ctx, tableIdOrKey, { where = null, measure = "count", field = null } = {}) {
     const { table, tables } = await guard.tableAs(ctx, tableIdOrKey);
-    where = fencedWhere(ctx, table, where, [measure === "count" ? null : field]);
+    where = bothWhere(fencedWhere(ctx, table, where, [measure === "count" ? null : field]), await guard.mineWhere(ctx, table));
     const api = await apiFor(ctx, tables, table);
     if (measure !== "count" && isCalculated(table.fields.find((entry) => entry.id === field))) {
       const [all = { count: 0 }] = await calculatedMeasure(api, table, where, measure, field, null);
@@ -532,7 +538,7 @@ export function createDataGate({
     refuse(ctx);
     const { table } = await guard.tableAs(ctx, tableIdOrKey);
     const api = await anyapi.instanceFor(homeOf(ctx));
-    const result = await api.resources[table.id].aggregate({ measures: { count: { count: "*" } } }, {});
+    const result = await api.resources[table.id].aggregate({ measures: { count: { count: "*" } } }, { where: await guard.mineWhere(ctx, table) });
     return Number(result.data?.[0]?.count ?? 0);
   }
 
@@ -550,7 +556,7 @@ export function createDataGate({
         variables: { texts: "dyn" },
         values: { texts: texts.slice(start, start + PAGE_MAX) }
       };
-      const where = bothWhere(titled, linkedRows(ctx, table));
+      const where = bothWhere(titled, await guard.reach(ctx, table));
       for (let number = 1; ; number += 1) {
         const page = { queryParams: { page: { size: PAGE_MAX, number } } };
         const { data } = await api.resources[table.id].query(page, { where, includeObsolete: true });
@@ -585,7 +591,7 @@ export function createDataGate({
         if (title) byTitle.set(title, [...(byTitle.get(title) || []), id]);
       }
       const untitled = texts.filter((text) => !byTitle.has(text.toLowerCase()));
-      for (const id of (await rowsById(api, target, untitled, { where: linkedRows(ctx, target) })).keys()) ids.add(id);
+      for (const id of (await rowsById(api, target, untitled, { where: await guard.reach(ctx, target) })).keys()) ids.add(id);
     }
     return { titles, known };
   }

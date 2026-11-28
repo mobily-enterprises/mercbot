@@ -159,7 +159,7 @@ Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs 
 
 ### A file won't attach
 
-Each attachment can be up to 25 MB. Pictures in the HEIC format, used by some iPhones, aren't accepted; send them as JPEG or PNG.
+Each attachment can be up to 150 MB. Pictures in the HEIC format, used by some iPhones, aren't accepted; send them as JPEG or PNG.
 
 A copy built on Mercbot may check every picture and video before it's kept or sent. If it says "This file can't be used.", that file can't be attached or uploaded there; if it says it can't be checked right now, try again in a few minutes.
 

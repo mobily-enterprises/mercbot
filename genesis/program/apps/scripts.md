@@ -81,6 +81,8 @@ everything they read or write goes through the data gate, audited as the script.
   jobs' scripts get `people.me()` (null for a visitor); the role comes from the request's membership, else the home's
   (`roleOf`, a required collaborator).
 - **Values (D-140):** scripts read tags as a list, a file or picture as `{ name, size, type }` and a link as its id.
+- **Personal tables (D-145):** a button's, screen's or rule's run reaches only its person's records of a personal table;
+  a job's run is marked `everyone` and names `whose` on what it adds. A button's script may return `celebrate`.
 - **An app's own bot (D-144):** `ai.work` and `ai.picture` with the bot "default" (or none) go to the app's bot
   (`apps.bot_id`, a template's, D-144) while it's in the home, else the home's main bot; a bot named is that bot.
 - **Documents (D-140, `scriptDocs.js`):** `docs.pdf({ template, record, into, name })` for buttons and jobs, 3 a run:

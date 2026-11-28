@@ -30,7 +30,7 @@ Every home starts with two apps on them, **Contacts** and **To-dos**, empty, rea
 
 ### List items: one table for every simple list
 
-Shopping lists, packing lists, wish lists and the like keep their items in the shared **List items** table, so a home doesn't grow a new table for each list. Each item says which **kind of list** it's on, such as "shopping" or "packing", and every app shows only its own kind: apps of the same kind share the list, so an item Meal planner adds is on the Shopping list too. An item can also say which named list it's on (a **List**, such as "Weekly shop"), and has general fields each app names its own way: quantity and unit, a group (an aisle, a category, who it's for), an amount, a due date, a person, a link, notes and a position. An app that needs more adds its own field to the table (Meal planner's meal), or a table of its own beside it.
+Shopping lists, packing lists, wish lists and the like keep their items in the shared **List items** table, so a home doesn't grow a new table for each list. Each item says which **kind of list** it's on, such as "shopping" or "packing", and every app shows only its own kind: apps of the same kind share the list, so an item Meal planner adds is on the Shopping list too. An item can also say which named list it's on (a **List**, such as "Weekly shop"), and has general fields each app names its own way: quantity and unit, a group (an aisle, a category, who it's for), an amount, a due date, a person, a link, notes and a position. An app that needs more adds its own field to the table (Meal planner's meal), or a table of its own beside it. Every new home has List items from the start, empty; a home made before that gets it with its first list app.
 
 You can also reach an app's tables from inside the app: open its details and choose the **Data** tab there.
 
@@ -69,7 +69,7 @@ A link can be **one to one**: each record of the other table has at most one rec
 
 ### Files and pictures
 
-To add a file or picture to a record, open the record and choose a file in its field: it's uploaded when you press **Save**. If a file can't go on (one over 25 MB, or a file that isn't a PNG, JPEG, GIF or WebP picture in a picture field), the record is still saved and the field says why: choose another file and press **Save** again. On an app's form for a record, it's uploaded as soon as you choose it, and the field says why if it can't be. **Remove** takes it away. A bot puts one of its files on a record when you ask it to.
+To add a file or picture to a record, open the record and choose a file in its field: it's uploaded when you press **Save**. If a file can't go on (one over 150 MB, or a file that isn't a PNG, JPEG, GIF or WebP picture in a picture field), the record is still saved and the field says why: choose another file and press **Save** again. On an app's form for a record, it's uploaded as soon as you choose it, and the field says why if it can't be. **Remove** takes it away. A bot puts one of its files on a record when you ask it to.
 
 A record's files live in your home's **Database files** folder, at a fixed place for each table, record and field. Anyone in the home can open and copy them, but nobody can move, rename or delete them there: they belong to their records. Replacing or removing a record's file deletes the old one; marking the record obsolete keeps it.
 
@@ -126,7 +126,7 @@ Changes you make here are the same as changes made through an app's screens. The
 
 ### Who can change a table
 
-Unless a home's owner or admin has made a table private (see [Who can see a table](#who-can-see-a-table)), everyone in the home can read and change its records, add to them, import into them and mark them obsolete, and so can every bot working for them. Every change is kept, with who made it, in the record's history.
+Unless a home's owner or admin has made a table private (see [Who can see a table](#who-can-see-a-table)), or it's each person's own (see [Tables that are each person's own](#tables-that-are-each-person-s-own)), everyone in the home can read and change its records, add to them, import into them and mark them obsolete, and so can every bot working for them. Every change is kept, with who made it, in the record's history.
 
 ## Related records
 
@@ -191,6 +191,18 @@ Apps refer to each field by a permanent identity, not by its name, so fields can
 When you confirm, Mercbot does everything in one step: the field's data is kept, the field disappears from every app that used it, each of those apps gets a new version, and one entry goes in the activity trail. Past changes to the field still show in the activity trail, marked "(removed)". Scripts are never changed automatically; if one used the field, ask the Builder to update it.
 
 A removed field can't be brought back as it was. If you need it again, ask the Builder for a new field.
+
+## Tables that are each person's own
+
+Some things belong to each person rather than to the whole home: their answers in a quiz, their progress in a course, their scores, their votes, their own checklist. A table can be made **each person's own** when it's made (ask the Builder for it, or a template brings one). Its records then belong to the person who added them:
+
+- Everyone sees only their own records, everywhere: in an app's screens, its totals and charts, the lists you pick from in a form, search, the **Data** tab and its export. One screen shows each person their own progress.
+- A record is always the person's who added it: Mercbot fills in its **Whose** field itself, and it never changes.
+- Nobody else can open, change or mark obsolete your records, and that includes the home's owners and admins.
+- A bot working for you sees only yours. An app's own jobs work for everyone, so they can see everyone's records, for example to tidy them up.
+- A public app's visitors can't reach such a table, and the **Activity** trail shows what was in someone's records only to that person.
+
+The Data tab marks such a table **Each person's own**. It can't be changed into a shared table, or back, later.
 
 ## Who can see a table
 

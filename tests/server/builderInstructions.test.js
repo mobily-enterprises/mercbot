@@ -97,3 +97,15 @@ test("the Builder knows a link field's choices from a list, and that an app's AI
   const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
   assert.ok(SCRIPT_GUIDE.includes("\"default\" is the app's own bot when it came with one, else the home's main one"), "script guide: default bot");
 });
+
+// Each person's own (D-145): the Builder makes a table personal for anything that's each person's, and never filters by
+// who is looking itself. Its skill, its instructions and the script guide say so.
+test("the Builder makes each person's own data a personal table, never a filter by who is looking", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const skill = await readFile(new URL("../../packages/bots/skills/building-apps.md", import.meta.url), "utf8");
+  for (const phrase of ['"personal": true', "never filter by me.id yourself", "progress, answers, scores, votes, preferences"]) assert.ok(skill.includes(phrase), `skill: ${phrase}`);
+  const builder = instructionsFor({ id: "1", name: "Bea", isBuilder: true });
+  assert.ok(builder.includes("each person's own") && builder.includes("personal table"), "rules: personal tables");
+  const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
+  assert.ok(SCRIPT_GUIDE.includes("A job adding to a personal table sets whose"), "script guide: personal tables");
+});
