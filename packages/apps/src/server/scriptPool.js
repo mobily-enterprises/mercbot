@@ -53,8 +53,11 @@ export function createScriptPool({ warm = 2, size = 4 } = {}) {
     }
   }
 
-  /** Runs `code` with `input`; the script's host calls are answered by `call(group, name, args)`. */
-  async function run({ code, input, cpuMs, memory, host, call, wallMs }) {
+  /**
+   * Runs `code` with `input`; the script's host calls are answered by `call(group, name, args)`. The wall clock stops
+   * while a call of an `untimed` group is answered (a program on the computer, which keeps its own limit, D-146).
+   */
+  async function run({ code, input, cpuMs, memory, host, call, wallMs, untimed = [] }) {
     const nested = Boolean(inScript.getStore());
     const worker = await take(nested);
     return new Promise((resolve, reject) => {
@@ -67,10 +70,21 @@ export function createScriptPool({ warm = 2, size = 4 } = {}) {
         worker.off("exit", onFailure);
         give(worker, nested, healthy);
       };
-      const timer = setTimeout(() => {
+      let left = wallMs;
+      let since = Date.now();
+      const outOfTime = () => {
         end(false);
         reject(Object.assign(new ScriptError(`it ran longer than ${Math.round(wallMs / 1000)} seconds`), { logs: [], calls: 0 }));
-      }, wallMs);
+      };
+      let timer = setTimeout(outOfTime, left);
+      const pause = () => {
+        clearTimeout(timer);
+        left -= Date.now() - since;
+      };
+      const resume = () => {
+        since = Date.now();
+        timer = setTimeout(outOfTime, Math.max(left, 0));
+      };
       const onFailure = (error) => {
         if (over) return;
         end(false);
@@ -78,11 +92,15 @@ export function createScriptPool({ warm = 2, size = 4 } = {}) {
       };
       const onMessage = async (message) => {
         if (message.call !== undefined) {
+          const paused = untimed.includes(message.group);
+          if (paused) pause();
           try {
             const value = await inScript.run(true, () => call(message.group, message.name, message.args));
             if (!over) worker.postMessage({ answer: message.call, value: value === undefined ? null : value });
           } catch (error) {
             if (!over) worker.postMessage({ answer: message.call, error: String(error?.message || error) });
+          } finally {
+            if (paused && !over) resume();
           }
           return;
         }

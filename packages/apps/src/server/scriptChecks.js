@@ -23,8 +23,10 @@ const EVERY = ["15min", "hour", "day", "week", "month"];
 export const ON = { create: ["create"], update: ["update"], any: ["create", "update"] };
 const READS = { list: true, get: true, totals: true };
 const WRITES = { create: true, update: true, markObsolete: true };
-// The host groups a test answers by operation, from its own `ai`, `notify` and `docs`.
-const ANSWERED = new Set(["ai", "notify", "docs"]);
+// The host groups a test answers by operation, from its own `ai`, `notify`, `docs` and `computer`.
+const ANSWERED = new Set(["ai", "notify", "docs", "computer"]);
+// Host calls whose time a run's wall clock doesn't count: a program on the computer keeps its own limit (D-146).
+export const UNTIMED = Object.freeze(["computer"]);
 
 const typeOf = (value) => (typeof value === "number" ? "double" : typeof value === "boolean" ? "bool" : "string");
 
@@ -50,8 +52,8 @@ export function whereFor(table, where, params) {
 }
 
 /**
- * The host functions each kind of script may call: connected apps (D-136) for buttons, screens' data and jobs, and bots
- * and pictures for buttons and jobs only (a screen's would spend on every view).
+ * The host functions each kind of script may call: connected apps (D-136) for buttons, screens' data and jobs, and bots,
+ * pictures, documents and programs (D-146) for buttons and jobs only (a screen's would spend on every view).
  */
 export const hostFor = (kind) =>
   kind === "rule"
@@ -63,7 +65,8 @@ export const hostFor = (kind) =>
           web: { fetch: true },
           connected: { actions: true, run: true },
           people: { me: true },
-          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true, text: true } }),
+          // Programs on the bot's computer (D-146) too: a screen's would run one on every view.
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true, text: true }, computer: { run: true } }),
           // Sending without a button press (D-137): a job's, when the app's owners and admins switched it on.
           ...(kind === "job" ? { notify: { member: true, email: true } } : {})
         };
@@ -247,8 +250,8 @@ export function createScriptChecks({ pool, ready }) {
 
   /**
    * Runs every test; each gets its own fake records. `web` answers web.fetch by URL, `connected` answers
-   * connected.run by "app.action" (connected.actions by "actions"), `ai` answers ai.bots, ai.work and ai.picture, and
-   * `docs` answers docs.pdf.
+   * connected.run by "app.action" (connected.actions by "actions"), `ai` answers ai.bots, ai.work and ai.picture, `docs`
+   * answers docs.pdf and docs.text, and `computer` answers computer.run.
    */
   async function runTests(input, tables) {
     const results = [];

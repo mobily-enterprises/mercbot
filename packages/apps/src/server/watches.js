@@ -248,12 +248,14 @@ export function createWatches({ resources, repository, systemContext, registry, 
    * @param {{ table: object, events: object[], condition: string | null, skip: (event: object) => boolean }} input
    * @param {object} options the home's call options
    */
-  async function matchEvents({ table, events, condition, skip }, options) {
+  async function matchEvents({ table, events, condition, skip, everyone = false }, options) {
     const keyOf = new Map(table.fields.map((field) => [field.id, field.key]));
     const wanted = events.filter((event) => !skip(event));
+    // An app's job reads everyone's records of a personal table, as its run does (D-145); a bot's watch never has one.
+    const reader = { options: { context: options.context }, actor: { type: "system", name: "Watch" }, ...(everyone ? { everyone: true } : {}) };
     const records = wanted.length
       ? await gate
-        .getMany({ options: { context: options.context }, actor: { type: "system", name: "Watch" } }, table.id, wanted.map((event) => event.recordId))
+        .getMany(reader, table.id, wanted.map((event) => event.recordId))
         .catch(() => new Map())
       : new Map();
     const matches = [];
@@ -283,9 +285,10 @@ export function createWatches({ resources, repository, systemContext, registry, 
    * Shared with scripts that watch a table.
    * @param {object} options the home's call options, in the claim's transaction
    * @param {{ table: object, on: string, cursor: string, horizon: string,
-   *   condition: string | null, skip: (event: object) => boolean, keep: number }} input
+   *   condition: string | null, skip: (event: object) => boolean, keep: number, everyone?: boolean }} input `everyone`:
+   *   an app's job, which reads every person's records of a personal table (D-145)
    */
-  async function matchChanges(options, { table, on, cursor, horizon, condition, skip, keep }) {
+  async function matchChanges(options, { table, on, cursor, horizon, condition, skip, keep, everyone = false }) {
     const kept = [];
     let count = 0;
     for (let after = 0; ; ) {
@@ -294,7 +297,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
         options
       );
       if (!events.length) return { matches: kept, count };
-      const matches = await matchEvents({ table, events, condition, skip }, options);
+      const matches = await matchEvents({ table, events, condition, skip, everyone }, options);
       count += matches.length;
       kept.push(...matches.slice(0, Math.max(0, keep - kept.length)));
       after = events.at(-1).id;

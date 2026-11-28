@@ -118,3 +118,18 @@ test("a script's saved tests sort a list as a live run does, a sort given as a l
   ] }, tables);
   assert.deepEqual(results, [{ name: "text", passed: true }, { name: "list", passed: true }]);
 });
+
+// A program on the computer (D-146) keeps its own time limit: while a script waits for one, its wall clock stands still,
+// and it runs on once the answer comes; any other call's wait counts.
+test("a script's wall clock stops while the computer runs its program", async (context) => {
+  const pool = createScriptPool({ warm: 1, size: 1 });
+  context.after(() => pool.close());
+  const slow = () => new Promise((resolve) => setTimeout(() => resolve({ exitCode: 0 }), 600));
+  const run = (group) => pool.run({
+    code: `async function main() { const answer = await ${group}.run(); return answer.exitCode; }`,
+    input: null, cpuMs: 300, memory: 16 * 1024 * 1024, wallMs: 300, untimed: ["computer"],
+    host: { [group]: { run: true } }, call: slow
+  });
+  assert.equal((await run("computer")).value, 0);
+  await assert.rejects(run("web"), /longer than 0 seconds/u);
+});

@@ -61,6 +61,12 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   function useRecordFiles(impl) {
     recordFiles = impl;
   }
+  // Programs on the bots' computers for scripts (D-146): the files feature plugs them in at start too (useComputer).
+  let programs = null;
+  /** The files feature's programs: `{ available(), run(request) }` (its shell's runProgram). */
+  function useComputer(impl) {
+    programs = impl;
+  }
   /** How a record's upload is read: the files feature's size limit and picture check, or null before it plugs in. */
   const recordUploads = () => (recordFiles ? { receive: recordFiles.receive, limit: recordFiles.limit } : null);
   // "Today" in the home's own time zone for everything a call does with its data and screens (D-140).
@@ -85,7 +91,9 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);
   // Someone's role in the home is also a script's `people.me()`'s and a rule's actor's (D-140).
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf: people.roleOf });
+  scripts = createScripts({
+    resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf: people.roleOf, computer: () => programs
+  });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
   // The home's connected mailboxes an app's email may go from (D-137), for its owners and admins to choose.
   const connectedMailboxes = (options) => connected().mailboxes(options);
@@ -131,6 +139,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     homePeople,
     homeZone,
     useRecordFiles,
+    useComputer,
     recordUploads
   });
 }

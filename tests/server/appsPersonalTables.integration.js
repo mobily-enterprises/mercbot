@@ -103,6 +103,31 @@ test("a button's script works on the pressing person's records; a job on everyon
   assert.equal(nightlyRow?.[whose]?.id, benId, "the job's record is the person it named");
 });
 
+// A job may watch a personal table (D-145, D-146): each person's change sets it off, and it works on their record.
+test("a job watching a personal table runs on each person's changes to it", async (context) => {
+  const { registry, gate, apps, scripts, repository, resources, systemContext, ann, ben, home } = await twoPeople(context, "apps-personal-watch");
+  const { knex } = home;
+  await registry.createTable(ann.actor, { key: "requests", personal: true, fields: [{ key: "status", type: "text" }] }, home.options);
+  await apps.createApp(ann.actor, { name: "Requests" }, home.options);
+  const code = `async function main(input) {
+    for (const change of input.changes) await records.update("requests", change.record.id, { status: "Done" });
+    return input.changes.length;
+  }`;
+  const settings = { watch: { table: "requests", on: "update", condition: '=row.status == "Asked"' } };
+  const saved = await scripts.save(ann.actor, "requests", { key: "answer", kind: "job", summary: "Answers a request", code, settings, tests: [{ name: "none", input: { changes: [] }, expect: 0 }] }, home.options);
+  assert.deepEqual(saved.errors, []);
+  await earlierTransactionsEnded(knex);
+  await apps.publish(ann.actor, "requests", {}, home.options);
+  const asked = await gate.create(ben, "requests", { status: "New" });
+  await gate.update(ben, "requests", asked.id, { status: "Asked" });
+  const { createWatches } = await import("../../packages/apps/src/server/watches.js");
+  const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records: { directory: { seats: async () => [] } } });
+  await earlierTransactionsEnded(knex);
+  await scripts.runDue({ matchChanges: watches.matchChanges });
+  const status = fieldOf(await registry.loadTables(home.options), "requests", "status");
+  assert.equal((await gate.get(ben, "requests", asked.id))[status], "Done", "the job heard Ben's change and answered his record");
+});
+
 test("visitors never reach a personal table, and no stored roll-up adds one up onto a shared table", async (context) => {
   const { registry, gate, ann, home } = await twoPeople(context, "apps-personal-fences");
   await registry.createTable(ann.actor, { key: "votes", personal: true, fields: [{ key: "choice", type: "text" }] }, home.options);

@@ -430,3 +430,19 @@ test("a button celebrates with words or a formula, on a public screen too", () =
     "screens.list.content[1].onRowClick[3].celebrate: must be string, but this formula gives double."
   ]);
 });
+
+// An app's own files for its programs (D-146): text by a file name, read-only on the computer, and never on a public app.
+test("an app's computer files are named files of text, and a public app has no computer", () => {
+  const computer = { files: { "tests/check.py": "assert True\n", "lib.js": "module.exports = 1;\n" }, internet: false };
+  assert.deepEqual(checkApp({ ...app(), computer }, tables), []);
+  assert.deepEqual(checkApp({ ...app(), computer: { files: { "../up.py": "x", ".hidden": "x", "ok.py": 3 }, internet: "yes", disk: 1 } }, tables), [
+    { path: "computer.disk", message: "isn't a setting of the computer: files and internet are." },
+    { path: "computer.internet", message: "is true or false: whether its programs may reach the internet." },
+    { path: "computer.files.../up.py", message: 'is named with letters, digits, _ . - and up to 3 folders, like "tests/check.py".' },
+    { path: "computer.files..hidden", message: 'is named with letters, digits, _ . - and up to 3 folders, like "tests/check.py".' },
+    { path: "computer.files.ok.py", message: "is the file's text." }
+  ]);
+  const visible = { ...app(), public: { home: "list", tables: { users: { can: ["list"], read: ["name"] } } }, screens: { ...app().screens, list: { ...app().screens.list, public: true } } };
+  const withComputer = checkApp({ ...visible, computer }, tables).filter((error) => error.path === "computer");
+  assert.deepEqual(withComputer, [{ path: "computer", message: "an app whose scripts run programs on its bot's computer stays inside the home: a public app can't have one." }]);
+});

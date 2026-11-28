@@ -108,6 +108,8 @@ const AppsFeature = defineFeature({
         catalog: apps.catalog,
         // The files feature plugs in here at start: it writes records' files to the home's Database files (D-130).
         useRecordFiles: apps.useRecordFiles,
+        // And its programs on the bots' computers, which scripts run with computer.run (D-146).
+        useComputer: apps.useComputer,
         // How an upload of a record's file is read ({ receive, limit }, or null before the files feature plugs in).
         recordUploads: apps.recordUploads,
         // app_jobs: queued by apps (queueTask), claimed by the bots' app job runner in its system context.

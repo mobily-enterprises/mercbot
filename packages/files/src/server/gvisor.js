@@ -33,7 +33,7 @@ const runscPath = (env) => env.MERCBOT_RUNSC || path.join(toolsDir(env), "bin", 
  * at a point it lacks ("cannot create sandbox"). A sandbox given a folder at a new point adds it here.
  */
 export const TOOLBOX_MOUNT_POINTS = Object.freeze([
-  "/files/chat", "/files/bot", "/files/shared", "/files/db", "/runs", "/gateway", "/out", "/io", "/profile",
+  "/files/chat", "/files/bot", "/files/shared", "/files/db", "/runs", "/gateway", "/out", "/io", "/profile", "/work",
   "/opt/apps", "/opt/coding", "/opt/piper", "/opt/stagehand-extension"
 ]);
 

@@ -5,8 +5,9 @@ import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 import { isCalculated } from "../shared/calculated.js";
 import { isFileField } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
-import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
+import { LIMITS, PAGE, UNTIMED, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
+import { createScriptComputer } from "./scriptComputer.js";
 import { asDrafted } from "./scriptDrafts.js";
 import { createScriptDocs } from "./scriptDocs.js";
 import { createAppSending } from "./appSending.js";
@@ -96,6 +97,8 @@ async function wholeRun(gate, ctx, start) {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {import("./types.js").ScriptPool} [dependencies.pool]
  * @param {import("./types.js").WebAccess} [dependencies.web] The addresses scripts may call (tests pass their own).
+ * @param {() => ({ available: () => boolean, run: Function } | null)} [dependencies.computer] the files feature's programs
+ *   for `computer.run` (D-146), read at call time; none: refused as on a server without a sandbox
  */
 export function createScripts({
   resources,
@@ -109,13 +112,15 @@ export function createScripts({
   homeBots,
   roleOf,
   pool = createScriptPool(),
-  web = createWebAccess({ resources, env })
+  web = createWebAccess({ resources, env }),
+  computer = () => null
 }) {
   const { apps: appRows, appScripts, appScriptRuns, appScriptRounds, auditEvents } = resources;
   const connectedApps = createScriptConnected({ resources, systemContext, connected });
   const { whoActed, personOfRun } = createScriptPeople({ roleOf });
   const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
   const documents = createScriptDocs({ gate });
+  const programs = createScriptComputer({ resources, gate, homeBots, computer });
   const sending = createAppSending({ resources, connected });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
@@ -349,11 +354,13 @@ export function createScripts({
     const connectedCall = connectedApps.forRun(ctx, limits, row);
     const aiCall = aiWork.forRun(ctx, row);
     const docsCall = documents.forRun(ctx);
+    const computerCall = programs.forRun(ctx, row);
     const tableFor = async (key) => (await gate.tableFor(String(key), ctx.options)).table;
     return async (group, name, args) => {
       if (group === "connected") return connectedCall(name, args);
       if (group === "ai") return aiCall(name, args);
       if (group === "docs") return docsCall(name, args);
+      if (group === "computer") return computerCall(name, args);
       if (group === "notify") return sending.fromRun(ctx, row.appId, name, args[0]);
       if (group === "people") return personOfRun(ctx, row);
       if (group === "web") {
@@ -434,6 +441,7 @@ export function createScripts({
       cpuMs: limits.cpuMs,
       memory: limits.memory,
       wallMs: limits.wallMs,
+      untimed: UNTIMED,
       host: hostFor(row.kind),
       call: realHost(ctx, limits, row)
     });
@@ -636,7 +644,9 @@ export function createScripts({
         horizon,
         condition: watch.condition,
         skip: (event) => event.via?.scriptId === row.id,
-        keep: 100
+        keep: 100,
+        // A job works for everyone (D-145): each person's change to a personal table sets it off.
+        everyone: true
       });
       return count ? { row, input: { changes: matches, more: count - matches.length } } : { row: null };
     });

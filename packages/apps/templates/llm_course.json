@@ -1,0 +1,3789 @@
+{
+  "key": "llm_course",
+  "name": "Make your own LLM",
+  "icon": "star",
+  "glyph": "psychology",
+  "color": "#0F766E",
+  "audiences": [
+    "family",
+    "personal"
+  ],
+  "description": "A complete course that takes you from your first line of Python or JavaScript, through counting, chance and the maths, to a tiny language model of your own: give it a book, train it, and have (somewhat of) a conversation with it. Every lesson's code is checked on a real computer.",
+  "tables": [
+    {
+      "key": "llm_learners",
+      "personal": true,
+      "fields": [
+        {
+          "key": "language",
+          "type": "choice",
+          "choices": [
+            "Python",
+            "JavaScript"
+          ],
+          "required": true
+        },
+        {
+          "key": "book",
+          "type": "file"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "No model yet",
+            "Training",
+            "Ready",
+            "Problem"
+          ]
+        },
+        {
+          "key": "note",
+          "type": "longtext"
+        },
+        {
+          "key": "model",
+          "type": "file"
+        },
+        {
+          "key": "model_language",
+          "type": "choice",
+          "choices": [
+            "Python",
+            "JavaScript"
+          ]
+        },
+        {
+          "key": "trained",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "key": "llm_work",
+      "personal": true,
+      "fields": [
+        {
+          "key": "lesson",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "language",
+          "type": "choice",
+          "choices": [
+            "Python",
+            "JavaScript"
+          ],
+          "required": true
+        },
+        {
+          "key": "code",
+          "type": "longtext"
+        },
+        {
+          "key": "passed",
+          "type": "yesno"
+        },
+        {
+          "key": "passed_code",
+          "type": "longtext"
+        },
+        {
+          "key": "result",
+          "type": "longtext"
+        },
+        {
+          "key": "tries",
+          "type": "number"
+        },
+        {
+          "key": "checked",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "key": "llm_messages",
+      "personal": true,
+      "fields": [
+        {
+          "key": "who",
+          "type": "choice",
+          "choices": [
+            "You",
+            "Model"
+          ]
+        },
+        {
+          "key": "text",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "at",
+          "type": "datetime"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "key": "start",
+      "kind": "action",
+      "summary": "Starts the person's course in the language they pick, or switches it to the other.",
+      "code": "// The person picks Python or JavaScript: their own learner record (each person's own) keeps it, made the first time.\nasync function main(input) {\n  const language = input && input.language === \"JavaScript\" ? \"JavaScript\" : \"Python\";\n  const [me] = await records.list(\"llm_learners\", { limit: 1 });\n  if (me) await records.update(\"llm_learners\", me.id, { language });\n  else await records.create(\"llm_learners\", { language, status: \"No model yet\" });\n  return { notify: language === \"Python\" ? \"🐍 Python it is! Lesson 1 is waiting.\" : \"🟨 JavaScript it is! Lesson 1 is waiting.\" };\n}",
+      "tests": [
+        {
+          "name": "a first pick makes the person's learner record",
+          "input": {
+            "language": "JavaScript"
+          },
+          "expect": {
+            "notify": "🟨 JavaScript it is! Lesson 1 is waiting."
+          }
+        },
+        {
+          "name": "a second pick switches the language",
+          "input": {
+            "language": "Python"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "JavaScript",
+                "status": "No model yet"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "🐍 Python it is! Lesson 1 is waiting."
+          }
+        }
+      ]
+    },
+    {
+      "key": "lessons",
+      "kind": "source",
+      "summary": "Lists the course's lessons with how far the person is in each, in their language.",
+      "code": "// The course's lessons, each with the person's own state in it, in the language they're learning.\nconst LESSONS = [{\"key\":\"l01\",\"title\":\"👋 Lists and loops\",\"unit\":\"🧱 Code basics\"},{\"key\":\"l02\",\"title\":\"🔡 Text, and counting with a dictionary\",\"unit\":\"🧱 Code basics\"},{\"key\":\"l03\",\"title\":\"📊 Averages and spread\",\"unit\":\"🎲 Counting and chance\"},{\"key\":\"l04\",\"title\":\"🎯 From counts to probabilities\",\"unit\":\"🎲 Counting and chance\"},{\"key\":\"l05\",\"title\":\"🎲 Rolling the dice: sampling\",\"unit\":\"🎲 Counting and chance\"},{\"key\":\"l06\",\"title\":\"➡️ Vectors and the dot product\",\"unit\":\"📐 The maths\"},{\"key\":\"l07\",\"title\":\"🧮 Matrices\",\"unit\":\"📐 The maths\"},{\"key\":\"l08\",\"title\":\"🌡️ Softmax: scores into probabilities\",\"unit\":\"📐 The maths\"},{\"key\":\"l09\",\"title\":\"📉 Loss and a step downhill\",\"unit\":\"📐 The maths\"},{\"key\":\"l10\",\"title\":\"🔤 Text into tokens\",\"unit\":\"🔤 A model of text\"},{\"key\":\"l11\",\"title\":\"👯 A bigram model\",\"unit\":\"🔤 A model of text\"},{\"key\":\"l12\",\"title\":\"✍️ Writing text by sampling\",\"unit\":\"🔤 A model of text\"},{\"key\":\"l13\",\"title\":\"🧠 A tiny neural model\",\"unit\":\"🧠 Learning and attention\"},{\"key\":\"l14\",\"title\":\"👀 Attention, with a tiny context\",\"unit\":\"🧠 Learning and attention\"}];\n\nasync function main() {\n  const [me] = await records.list(\"llm_learners\", { limit: 1 });\n  const language = me ? me.language : \"Python\";\n  const work = await records.list(\"llm_work\", { where: \"=language == params.language\", params: { language }, limit: 100 });\n  return LESSONS.map((lesson, index) => {\n    const mine = work.find((row) => row.lesson === lesson.key);\n    const done = Boolean(mine && mine.passed);\n    return { key: lesson.key, number: index + 1, title: lesson.title, unit: lesson.unit, state: done ? \"✅ Passed\" : mine ? \"✏️ Started\" : \"✨ New\", done };\n  });\n}",
+      "tests": [
+        {
+          "name": "each lesson says whether the person passed or started it",
+          "input": null,
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python"
+              }
+            ],
+            "llm_work": [
+              {
+                "lesson": "l01",
+                "language": "Python",
+                "passed": true
+              },
+              {
+                "lesson": "l02",
+                "language": "Python",
+                "passed": false
+              },
+              {
+                "lesson": "l03",
+                "language": "JavaScript",
+                "passed": true
+              }
+            ]
+          },
+          "expect": [
+            {
+              "key": "l01",
+              "number": 1,
+              "title": "👋 Lists and loops",
+              "unit": "🧱 Code basics",
+              "state": "✅ Passed",
+              "done": true
+            },
+            {
+              "key": "l02",
+              "number": 2,
+              "title": "🔡 Text, and counting with a dictionary",
+              "unit": "🧱 Code basics",
+              "state": "✏️ Started",
+              "done": false
+            },
+            {
+              "key": "l03",
+              "number": 3,
+              "title": "📊 Averages and spread",
+              "unit": "🎲 Counting and chance",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l04",
+              "number": 4,
+              "title": "🎯 From counts to probabilities",
+              "unit": "🎲 Counting and chance",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l05",
+              "number": 5,
+              "title": "🎲 Rolling the dice: sampling",
+              "unit": "🎲 Counting and chance",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l06",
+              "number": 6,
+              "title": "➡️ Vectors and the dot product",
+              "unit": "📐 The maths",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l07",
+              "number": 7,
+              "title": "🧮 Matrices",
+              "unit": "📐 The maths",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l08",
+              "number": 8,
+              "title": "🌡️ Softmax: scores into probabilities",
+              "unit": "📐 The maths",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l09",
+              "number": 9,
+              "title": "📉 Loss and a step downhill",
+              "unit": "📐 The maths",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l10",
+              "number": 10,
+              "title": "🔤 Text into tokens",
+              "unit": "🔤 A model of text",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l11",
+              "number": 11,
+              "title": "👯 A bigram model",
+              "unit": "🔤 A model of text",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l12",
+              "number": 12,
+              "title": "✍️ Writing text by sampling",
+              "unit": "🔤 A model of text",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l13",
+              "number": 13,
+              "title": "🧠 A tiny neural model",
+              "unit": "🧠 Learning and attention",
+              "state": "✨ New",
+              "done": false
+            },
+            {
+              "key": "l14",
+              "number": 14,
+              "title": "👀 Attention, with a tiny context",
+              "unit": "🧠 Learning and attention",
+              "state": "✨ New",
+              "done": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "open",
+      "kind": "action",
+      "summary": "Opens a lesson (or the next one the person hasn't passed) with their own code for it, starting from the lesson's starting code.",
+      "code": "// A lesson's page shows the person's own work on it (each person's own, one per lesson and language), made the first\n// time from the lesson's starting code. \"next\" is the first lesson they haven't passed, or their model once all are.\nconst STARTERS = {\"l01\":{\"Python\":\"def total(numbers):\\n    result = 0\\n    # go through the numbers and add each one to result\\n    return result\\n\\n\\ndef count(items, wanted):\\n    found = 0\\n    # go through the items and add 1 to found for each one equal to wanted\\n    return found\",\"JavaScript\":\"function total(numbers) {\\n  let result = 0;\\n  // go through the numbers and add each one to result\\n  return result;\\n}\\n\\nfunction count(items, wanted) {\\n  let found = 0;\\n  // go through the items and add 1 to found for each one equal to wanted\\n  return found;\\n}\"},\"l02\":{\"Python\":\"def tally(text):\\n    counts = {}\\n    # for each character, add 1 to its count (starting from 0)\\n    return counts\",\"JavaScript\":\"function tally(text) {\\n  const counts = {};\\n  // for each character, add 1 to its count (starting from 0)\\n  return counts;\\n}\"},\"l03\":{\"Python\":\"def mean(xs):\\n    return 0\\n\\n\\ndef variance(xs):\\n    middle = mean(xs)\\n    return 0\",\"JavaScript\":\"function mean(xs) {\\n  return 0;\\n}\\n\\nfunction variance(xs) {\\n  const middle = mean(xs);\\n  return 0;\\n}\"},\"l04\":{\"Python\":\"def normalize(counts):\\n    return counts\",\"JavaScript\":\"function normalize(counts) {\\n  return counts;\\n}\"},\"l05\":{\"Python\":\"def sample(probs, r):\\n    running = 0.0\\n    # add each probability to running; once r < running, return its position\\n    return 0\",\"JavaScript\":\"function sample(probs, r) {\\n  let running = 0;\\n  // add each probability to running; once r < running, return its position\\n  return 0;\\n}\"},\"l06\":{\"Python\":\"def dot(a, b):\\n    return 0\\n\\n\\ndef add(a, b):\\n    return a\\n\\n\\ndef scale(a, k):\\n    return a\",\"JavaScript\":\"function dot(a, b) {\\n  return 0;\\n}\\n\\nfunction add(a, b) {\\n  return a;\\n}\\n\\nfunction scale(a, k) {\\n  return a;\\n}\"},\"l07\":{\"Python\":\"def matvec(m, v):\\n    return []\\n\\n\\ndef transpose(m):\\n    return m\",\"JavaScript\":\"function matvec(m, v) {\\n  return [];\\n}\\n\\nfunction transpose(m) {\\n  return m;\\n}\"},\"l08\":{\"Python\":\"import math\\n\\n\\ndef softmax(xs):\\n    return xs\",\"JavaScript\":\"function softmax(xs) {\\n  return xs;\\n}\"},\"l09\":{\"Python\":\"import math\\n\\n\\ndef loss(probs, target):\\n    return 0\\n\\n\\ndef step(weights, grads, rate):\\n    return weights\",\"JavaScript\":\"function loss(probs, target) {\\n  return 0;\\n}\\n\\nfunction step(weights, grads, rate) {\\n  return weights;\\n}\"},\"l10\":{\"Python\":\"def vocabulary(text):\\n    return []\\n\\n\\ndef encode(text, vocab):\\n    return []\\n\\n\\ndef decode(ids, vocab):\\n    return \\\"\\\"\",\"JavaScript\":\"function vocabulary(text) {\\n  return [];\\n}\\n\\nfunction encode(text, vocab) {\\n  return [];\\n}\\n\\nfunction decode(ids, vocab) {\\n  return \\\"\\\";\\n}\"},\"l11\":{\"Python\":\"def bigrams(ids, size):\\n    counts = [[0] * size for _ in range(size)]\\n    return counts\\n\\n\\ndef following(counts, a):\\n    return counts[a]\",\"JavaScript\":\"function bigrams(ids, size) {\\n  const counts = Array.from({ length: size }, () => new Array(size).fill(0));\\n  return counts;\\n}\\n\\nfunction following(counts, a) {\\n  return counts[a];\\n}\"},\"l12\":{\"Python\":\"def generate(counts, start, rs):\\n    ids = [start]\\n    return ids\",\"JavaScript\":\"function generate(counts, start, rs) {\\n  const ids = [start];\\n  return ids;\\n}\"},\"l13\":{\"Python\":\"def predict(weights, a):\\n    return weights[a]\\n\\n\\ndef learn(weights, a, b, rate):\\n    return weights\",\"JavaScript\":\"function predict(weights, a) {\\n  return weights[a];\\n}\\n\\nfunction learn(weights, a, b, rate) {\\n  return weights;\\n}\"},\"l14\":{\"Python\":\"import math\\n\\n\\ndef attention(query, keys, values):\\n    return query\\n\\n\\ndef windows(ids, k):\\n    return []\",\"JavaScript\":\"function attention(query, keys, values) {\\n  return query;\\n}\\n\\nfunction windows(ids, k) {\\n  return [];\\n}\"}};\nconst ORDER = Object.keys(STARTERS);\n\nasync function main(input) {\n  const [me] = await records.list(\"llm_learners\", { limit: 1 });\n  if (!me) return { notify: \"Pick Python or JavaScript first, on the course page.\" };\n  const language = me.language;\n  let lesson = String((input && input.lesson) || \"\");\n  if (lesson === \"next\") {\n    const done = new Set((await records.list(\"llm_work\", { where: \"=passed == true && language == params.language\", params: { language }, limit: 100 })).map((row) => row.lesson));\n    lesson = ORDER.find((key) => !done.has(key)) || \"\";\n    if (!lesson) return { go: { screen: \"model\", params: { id: me.id } } };\n  }\n  if (!STARTERS[lesson]) return { notify: \"There's no such lesson.\" };\n  const [work] = await records.list(\"llm_work\", { where: \"=lesson == params.lesson && language == params.language\", params: { lesson, language }, limit: 1 });\n  const id = work ? work.id : (await records.create(\"llm_work\", { lesson, language, code: STARTERS[lesson][language], passed: false, tries: 0 })).id;\n  return { go: { screen: lesson, params: { work: id } } };\n}",
+      "tests": [
+        {
+          "name": "a first visit makes the person's work from the starting code",
+          "input": {
+            "lesson": "l02"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "l02",
+              "params": {
+                "work": "1001"
+              }
+            }
+          }
+        },
+        {
+          "name": "a later visit opens the same work",
+          "input": {
+            "lesson": "l02"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python"
+              }
+            ],
+            "llm_work": [
+              {
+                "lesson": "l02",
+                "language": "Python",
+                "code": "x",
+                "passed": false
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "l02",
+              "params": {
+                "work": "1"
+              }
+            }
+          }
+        },
+        {
+          "name": "next is the first lesson not passed",
+          "input": {
+            "lesson": "next"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "JavaScript"
+              }
+            ],
+            "llm_work": [
+              {
+                "lesson": "l01",
+                "language": "JavaScript",
+                "passed": true
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "l02",
+              "params": {
+                "work": "1001"
+              }
+            }
+          }
+        },
+        {
+          "name": "without a language it asks for one",
+          "input": {
+            "lesson": "l01"
+          },
+          "expect": {
+            "notify": "Pick Python or JavaScript first, on the course page."
+          }
+        }
+      ]
+    },
+    {
+      "key": "check",
+      "kind": "action",
+      "summary": "Runs the person's code with the lesson's checks on the computer, keeps what happened, and celebrates a pass.",
+      "code": "// \"Check my answer\": the person's code runs on the computer with the lesson's checks (the app's files: course/), after\n// their code of the lessons they've passed (lib/), so a lesson can use what came before. Their code, the output, and\n// whether it passed stay on their own work for the lesson; the code that last passed builds their model.\nconst RUN = {\n  Python: { file: \"answer.py\", lib: \".py\", check: \"python3 course/check.py \", train: \"python3 course/model.py train 60\", chat: \"python3 course/model.py chat\" },\n  JavaScript: { file: \"answer.js\", lib: \".js\", check: \"node course/check.js \", train: \"node course/model.js train 60\", chat: \"node course/model.js chat\" }\n};\n\nasync function main(input) {\n  const work = await records.get(\"llm_work\", String(input.work));\n  if (!work) return { notify: \"That lesson's work is no longer there.\" };\n  const code = String(input.code ?? work.code ?? \"\");\n  const run = RUN[work.language] || RUN.Python;\n  const files = { [run.file]: code };\n  const earlier = await records.list(\"llm_work\", { where: \"=passed == true && language == params.language && lesson != params.lesson\", params: { language: work.language, lesson: work.lesson }, limit: 100 });\n  for (const row of earlier) if (row.passed_code) files[\"lib/\" + row.lesson + run.lib] = row.passed_code;\n  const result = await computer.run({ command: run.check + work.lesson, files, seconds: 15 });\n  const passed = result.exitCode === 0 && !result.timedOut;\n  const output = result.timedOut\n    ? result.output + \"\\n⏱️ Your code ran for more than 15 seconds, so it was stopped: is there a loop that never ends?\"\n    : result.output;\n  await records.update(\"llm_work\", work.id, {\n    code,\n    result: output.slice(0, 20000),\n    passed: passed || work.passed === true,\n    tries: (work.tries || 0) + 1,\n    checked: new Date().toISOString(),\n    ...(passed ? { passed_code: code } : {})\n  });\n  if (passed) return { celebrate: \"🎉 Every check passed!\" };\n  const last = output.trim().split(\"\\n\").pop() || \"\";\n  return { notify: /checks passed/.test(last) ? last + \" See below what to fix.\" : \"Not yet: see below what to fix.\" };\n}",
+      "tests": [
+        {
+          "name": "a pass celebrates",
+          "input": {
+            "work": "1",
+            "code": "def mean(xs): ..."
+          },
+          "records": {
+            "llm_work": [
+              {
+                "lesson": "l03",
+                "language": "Python",
+                "code": "",
+                "passed": false,
+                "tries": 0
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "✅ mean([2, 4, 6]) is 4\n\n🎉 4 of 4 checks passed.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {
+            "celebrate": "🎉 Every check passed!"
+          }
+        },
+        {
+          "name": "a failure says how many checks passed",
+          "input": {
+            "work": "1",
+            "code": "function mean(xs) { return 1; }"
+          },
+          "records": {
+            "llm_work": [
+              {
+                "lesson": "l03",
+                "language": "JavaScript",
+                "code": "",
+                "passed": false,
+                "tries": 2
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 1,
+              "output": "❌ mean([2, 4, 6]) should be 4, but it gave 1\n\n1 of 4 checks passed.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {
+            "notify": "1 of 4 checks passed. See below what to fix."
+          }
+        }
+      ]
+    },
+    {
+      "key": "mine",
+      "kind": "action",
+      "summary": "Opens the person's own model: their book, its training and their chat with it.",
+      "code": "// The person's model lives on their learner record (each person's own).\nasync function main() {\n  const [me] = await records.list(\"llm_learners\", { limit: 1 });\n  if (!me) return { notify: \"Pick Python or JavaScript first, on the course page.\" };\n  return { go: { screen: \"model\", params: { id: me.id } } };\n}",
+      "tests": [
+        {
+          "name": "opens the person's model",
+          "input": null,
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "model",
+              "params": {
+                "id": "1"
+              }
+            }
+          }
+        },
+        {
+          "name": "without a language it asks for one",
+          "input": null,
+          "expect": {
+            "notify": "Pick Python or JavaScript first, on the course page."
+          }
+        }
+      ]
+    },
+    {
+      "key": "train",
+      "kind": "job",
+      "summary": "Trains a person's model on their book on the computer when they press Train, and keeps it on their record.",
+      "settings": {
+        "watch": {
+          "table": "llm_learners",
+          "on": "update",
+          "condition": "=row.status == \"Training\" && \"status\" in changed"
+        }
+      },
+      "code": "// \"Train my model\": the book's text and the person's code of the lessons they've passed go to the computer, which\n// trains their model (a minute at most) and keeps it as a file on their own learner record, with what it said.\nconst RUN = {\n  Python: { file: \"answer.py\", lib: \".py\", check: \"python3 course/check.py \", train: \"python3 course/model.py train 60\", chat: \"python3 course/model.py chat\" },\n  JavaScript: { file: \"answer.js\", lib: \".js\", check: \"node course/check.js \", train: \"node course/model.js train 60\", chat: \"node course/model.js chat\" }\n};\nfunction changedIds(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  return ids;\n}\n\nasync function main(input) {\n  const trained = [];\n  for (const id of changedIds(input)) {\n    const me = await records.get(\"llm_learners\", id);\n    if (!me || me.status !== \"Training\") continue;\n    if (!me.book) {\n      await records.update(\"llm_learners\", id, { status: \"Problem\", note: \"Add a book first: a text, Word or PDF file.\" });\n      continue;\n    }\n    let book;\n    try {\n      book = await docs.text({ record: { table: \"llm_learners\", id }, field: \"book\" });\n    } catch (error) {\n      await records.update(\"llm_learners\", id, { status: \"Problem\", note: \"I couldn't read the book: \" + error.message });\n      continue;\n    }\n    const run = RUN[me.language] || RUN.Python;\n    const files = { \"book.txt\": book.text.slice(0, 150000) };\n    const passed = await records.list(\"llm_work\", { where: \"=whose == params.who && passed == true && language == params.language\", params: { who: me.whose, language: me.language }, limit: 100 });\n    for (const row of passed) if (row.passed_code) files[\"lib/\" + row.lesson + run.lib] = row.passed_code;\n    const result = await computer.run({ command: run.train, files, seconds: 240, keep: { \"model.json\": { table: \"llm_learners\", id, field: \"model\" } } });\n    const mine = passed.length\n      ? \"It used your own code from \" + passed.length + (passed.length === 1 ? \" lesson\" : \" lessons\") + \" and the course's for the rest.\"\n      : \"It used the course's code: pass lessons and it uses yours.\";\n    if (result.exitCode === 0 && result.kept[\"model.json\"]) {\n      await records.update(\"llm_learners\", id, { status: \"Ready\", note: result.output.trim() + \"\\n\" + mine, trained: new Date().toISOString(), model_language: me.language });\n      trained.push(id);\n    } else {\n      await records.update(\"llm_learners\", id, { status: \"Problem\", note: (result.timedOut ? \"Training took too long. \" : \"Training stopped. \") + result.output.trim().slice(-2000) });\n    }\n  }\n  return { trained };\n}",
+      "tests": [
+        {
+          "name": "a book trains the person's model with their passed lessons' code",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python",
+                "status": "Training",
+                "book": {
+                  "name": "story.txt",
+                  "size": 10,
+                  "type": "text/plain"
+                },
+                "whose": "7"
+              }
+            ],
+            "llm_work": [
+              {
+                "lesson": "l10",
+                "language": "Python",
+                "passed": true,
+                "passed_code": "def vocabulary(text): ...",
+                "whose": "7"
+              }
+            ]
+          },
+          "docs": {
+            "text": {
+              "name": "story.txt",
+              "text": "Once upon a time.",
+              "more": false
+            }
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "Trained for 900 steps in 20 s: the loss went from 3.70 to 1.90.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {
+                "model.json": {
+                  "name": "model.json",
+                  "size": 9000
+                }
+              }
+            }
+          },
+          "expect": {
+            "trained": [
+              "1"
+            ]
+          }
+        },
+        {
+          "name": "without a book it says to add one",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "JavaScript",
+                "status": "Training"
+              }
+            ]
+          },
+          "expect": {
+            "trained": []
+          }
+        }
+      ]
+    },
+    {
+      "key": "reply",
+      "kind": "action",
+      "summary": "Sends the person's words to their trained model on the computer and keeps its reply in their chat.",
+      "code": "// A chat with the person's own model: their words and its reply are their own messages. Their model (the file on their\n// learner record) runs on the computer with their passed lessons' code, in the language it was trained in.\nconst RUN = {\n  Python: { file: \"answer.py\", lib: \".py\", check: \"python3 course/check.py \", train: \"python3 course/model.py train 60\", chat: \"python3 course/model.py chat\" },\n  JavaScript: { file: \"answer.js\", lib: \".js\", check: \"node course/check.js \", train: \"node course/model.js train 60\", chat: \"node course/model.js chat\" }\n};\n\nasync function main(input) {\n  const me = await records.get(\"llm_learners\", String(input.learner));\n  const text = String((input && input.text) || \"\").trim();\n  if (!text) return { notify: \"Say something first.\" };\n  if (!me || !me.model) return { notify: \"Train your model on a book first.\" };\n  const language = me.model_language || me.language;\n  const run = RUN[language] || RUN.Python;\n  const files = { \"message.txt\": text.slice(0, 2000) };\n  const passed = await records.list(\"llm_work\", { where: \"=passed == true && language == params.language\", params: { language }, limit: 100 });\n  for (const row of passed) if (row.passed_code) files[\"lib/\" + row.lesson + run.lib] = row.passed_code;\n  const now = Date.now();\n  await records.create(\"llm_messages\", { who: \"You\", text: text.slice(0, 2000), at: new Date(now).toISOString() });\n  const result = await computer.run({ command: run.chat, files, recordFiles: { \"model.json\": { table: \"llm_learners\", id: me.id, field: \"model\" } }, seconds: 20 });\n  const said = result.exitCode === 0 ? result.output.trim() : \"(It couldn't answer: \" + (result.output.trim().split(\"\\n\").pop() || \"it stopped\") + \")\";\n  await records.create(\"llm_messages\", { who: \"Model\", text: (said || \"…\").slice(0, 4000), at: new Date(now + 1).toISOString() });\n  return {};\n}",
+      "tests": [
+        {
+          "name": "the person's words and the model's reply join their chat",
+          "input": {
+            "learner": "1",
+            "text": "The cat"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python",
+                "model": {
+                  "name": "model.json",
+                  "size": 9000,
+                  "type": "application/json"
+                },
+                "model_language": "Python"
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "sat by the window and the light.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {}
+        },
+        {
+          "name": "without a model it says to train one",
+          "input": {
+            "learner": "1",
+            "text": "Hi"
+          },
+          "records": {
+            "llm_learners": [
+              {
+                "language": "Python"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "Train your model on a book first."
+          }
+        }
+      ]
+    },
+    {
+      "key": "clear_chat",
+      "kind": "action",
+      "summary": "Clears the person's chat with their model.",
+      "code": "// The person's own messages, put away (each person's own: nobody else's are reached).\nasync function main() {\n  const messages = await records.list(\"llm_messages\", { limit: 45 });\n  for (const message of messages) await records.markObsolete(\"llm_messages\", message.id);\n  return { notify: \"Your chat is cleared.\" };\n}",
+      "tests": [
+        {
+          "name": "puts away the person's messages",
+          "input": null,
+          "records": {
+            "llm_messages": [
+              {
+                "who": "You",
+                "text": "Hi"
+              },
+              {
+                "who": "Model",
+                "text": "the"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "Your chat is cleared."
+          }
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "course",
+    "formulas": {
+      "state_of": {
+        "params": [
+          "lessons",
+          "key"
+        ],
+        "formula": "=lessons.exists(l, l.key == key) ? lessons.filter(l, l.key == key)[0].state : \"✨ New\""
+      }
+    },
+    "screens": {
+      "course": {
+        "data": {
+          "me": {
+            "from": "llm_learners",
+            "limit": 1
+          },
+          "lessons": {
+            "script": "lessons"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "🤖 Make your own LLM",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Build a tiny language model of your own, from your very first line of code to a model that reads a book and talks back. Fourteen short lessons: code basics, counting and chance, the maths (vectors, matrices, softmax, a step downhill), then text, a bigram model, a tiny neural model and attention. Each lesson has checks your code must pass, run on a real computer.",
+            "size": "body",
+            "class": "hero-sub"
+          },
+          {
+            "type": "grid",
+            "columns": 1,
+            "class": "pick",
+            "showIf": "=size(data.me) == 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "Which language would you like to learn in?",
+                "size": "title"
+              },
+              {
+                "type": "text",
+                "value": "Both work the same way and build the same model. Python reads a little like English and is what most people use for AI; JavaScript is the language of the web. You can switch later.",
+                "size": "body"
+              },
+              {
+                "type": "row",
+                "content": [
+                  {
+                    "type": "button",
+                    "label": "🐍 Python",
+                    "emphasis": "primary",
+                    "do": [
+                      {
+                        "runScript": {
+                          "script": "start",
+                          "input": {
+                            "language": "Python"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "button",
+                    "label": "🟨 JavaScript",
+                    "emphasis": "primary",
+                    "do": [
+                      {
+                        "runScript": {
+                          "script": "start",
+                          "input": {
+                            "language": "JavaScript"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "chip",
+                "value": "=size(data.me) > 0 && data.me[0].language == \"JavaScript\" ? \"🟨 JavaScript\" : \"🐍 Python\"",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=string(size(data.lessons.filter(l, l.done))) + \" of 14 lessons passed\"",
+                "tone": "success"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Switch language",
+                "do": [
+                  {
+                    "openDialog": "language"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "progress",
+            "value": "=double(size(data.lessons.filter(l, l.done)))",
+            "max": 14,
+            "label": "Your course",
+            "showIf": "=size(data.me) > 0",
+            "class": "big-progress"
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "button",
+                "label": "Continue ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "next"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "My model 🤖",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "mine",
+                      "input": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🧱 Code basics",
+            "size": "title",
+            "class": "unit-title",
+            "showIf": "=size(data.me) > 0"
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "1. 👋 Lists and loops",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l01\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l01"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "2. 🔡 Text, and counting with a dictionary",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l02\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l02"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🎲 Counting and chance",
+            "size": "title",
+            "class": "unit-title",
+            "showIf": "=size(data.me) > 0"
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "3. 📊 Averages and spread",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l03\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l03"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "4. 🎯 From counts to probabilities",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l04\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l04"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "5. 🎲 Rolling the dice: sampling",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l05\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l05"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "📐 The maths",
+            "size": "title",
+            "class": "unit-title",
+            "showIf": "=size(data.me) > 0"
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "6. ➡️ Vectors and the dot product",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l06\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l06"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "7. 🧮 Matrices",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l07\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l07"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "8. 🌡️ Softmax: scores into probabilities",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l08\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l08"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "9. 📉 Loss and a step downhill",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l09\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l09"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🔤 A model of text",
+            "size": "title",
+            "class": "unit-title",
+            "showIf": "=size(data.me) > 0"
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "10. 🔤 Text into tokens",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l10\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l10"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "11. 👯 A bigram model",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l11\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l11"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "12. ✍️ Writing text by sampling",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l12\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l12"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🧠 Learning and attention",
+            "size": "title",
+            "class": "unit-title",
+            "showIf": "=size(data.me) > 0"
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "13. 🧠 A tiny neural model",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l13\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l13"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "class": "lesson-row",
+            "showIf": "=size(data.me) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "14. 👀 Attention, with a tiny context",
+                "size": "body",
+                "class": "lesson-name"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=state_of(data.lessons, \"l14\")",
+                "tone": "neutral"
+              },
+              {
+                "type": "button",
+                "label": "Open",
+                "icon": "open",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l14"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "dialog",
+            "key": "language",
+            "title": "Switch language",
+            "content": [
+              {
+                "type": "text",
+                "value": "Your lessons in each language are kept: switching back finds them as you left them.",
+                "size": "body"
+              },
+              {
+                "type": "row",
+                "content": [
+                  {
+                    "type": "button",
+                    "label": "🐍 Python",
+                    "emphasis": "primary",
+                    "do": [
+                      {
+                        "runScript": {
+                          "script": "start",
+                          "input": {
+                            "language": "Python"
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "language"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "button",
+                    "label": "🟨 JavaScript",
+                    "emphasis": "primary",
+                    "do": [
+                      {
+                        "runScript": {
+                          "script": "start",
+                          "input": {
+                            "language": "JavaScript"
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "language"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l01": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 1 of 14 · 🧱 Code basics",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "👋 Lists and loops",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "A program is a list of steps the computer follows, one after another. Everything your model will do (read a book, count letters, guess the next one) is built from a few small ideas, and the first two are lists and loops.\n\nA list holds many values in order: the letters of a word, the numbers in a row. A loop goes through a list one value at a time and does something with each. To add up a list, you start with 0 and add each number in turn. To count something, you start with 0 and add 1 each time you see it.\n\nA function is a named recipe: it takes values in (its arguments), works on them, and gives one value back with return. Each lesson asks you for a function or two, and checks them with tests written for the lesson.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "# A function that adds 1 to every number in a list\ndef plus_one(numbers):\n    result = []\n    for number in numbers:\n        result.append(number + 1)\n    return result\n\nprint(plus_one([1, 2, 3]))   # [2, 3, 4]",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "// A function that adds 1 to every number in a list\nfunction plusOne(numbers) {\n  const result = [];\n  for (const number of numbers) {\n    result.push(number + 1);\n  }\n  return result;\n}\n\nconsole.log(plusOne([1, 2, 3]));   // [ 2, 3, 4 ]",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write total(numbers), which adds up a list of numbers (total([1, 2, 3]) is 6, and an empty list's total is 0), and count(items, wanted), which says how many times wanted is in the list (count([\"a\", \"b\", \"a\"], \"a\") is 2).",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🔡 Text, and counting with a dictionary →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l02"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l02": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 2 of 14 · 🧱 Code basics",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🔡 Text, and counting with a dictionary",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "To a computer, text is a list of characters: letters, spaces, full stops and new lines. Your model will read a book one character at a time, so this is exactly how it will see the world.\n\nCounting how often each character appears is the first thing every language model learns. For that you need a dictionary: a table of keys, each with a value. Here the keys are characters and the values are how many times each one appeared. Looking up a key that isn't there yet needs care: start it at 0.\n\nIn a long English book the space is the most common character, then e, t and a. Those counts are already a tiny model of English: they tell you which characters to expect most.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "counts = {}\ncounts[\"a\"] = 1\ncounts[\"a\"] = counts[\"a\"] + 1\nprint(counts)               # {'a': 2}\nprint(counts.get(\"z\", 0))   # 0: z isn't there yet\n\nfor char in \"hi!\":\n    print(char)             # h, then i, then !",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const counts = {};\ncounts[\"a\"] = 1;\ncounts[\"a\"] = counts[\"a\"] + 1;\nconsole.log(counts);              // { a: 2 }\nconsole.log(counts[\"z\"] || 0);    // 0: z isn't there yet\n\nfor (const char of \"hi!\") {\n  console.log(char);              // h, then i, then !\n}",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write tally(text), which counts each character of the text: tally(\"banana\") is {\"b\": 1, \"a\": 3, \"n\": 2}. Spaces count too.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 📊 Averages and spread →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l03"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l03": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 3 of 14 · 🎲 Counting and chance",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "📊 Averages and spread",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Statistics is how we describe a lot of numbers with a few. The mean (the average) is the total divided by how many there are: the middle the numbers balance around.\n\nThe variance says how spread out they are: for each number, how far it is from the mean, squared (so being below counts as much as being above), and then the mean of those. Numbers all the same have a variance of 0; numbers far apart have a big one.\n\nModels are full of these ideas. When your model starts learning, its guesses are spread out; as it learns, they gather around the right answers. Later you'll watch one number, the loss, fall as its mean gets better.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "xs = [2, 4, 6]\nprint(sum(xs))         # 12\nprint(len(xs))         # 3\nprint(sum(xs) / len(xs))   # 4.0: the mean\nprint((2 - 4) ** 2)    # 4: a distance, squared",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const xs = [2, 4, 6];\nconst sum = xs.reduce((a, b) => a + b, 0);\nconsole.log(sum);              // 12\nconsole.log(xs.length);        // 3\nconsole.log(sum / xs.length);  // 4: the mean\nconsole.log((2 - 4) ** 2);     // 4: a distance, squared",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write mean(xs), the average of a list, and variance(xs), the mean of the squared distances from the mean: variance([2, 4, 6]) is 8/3, about 2.667.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🎯 From counts to probabilities →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l04"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l04": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 4 of 14 · 🎲 Counting and chance",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🎯 From counts to probabilities",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "A probability is a number from 0 to 1 that says how likely something is: 0 never, 1 always, 0.5 half the time. The probabilities of everything that could happen add up to exactly 1.\n\nCounts become probabilities by dividing each count by the total. If after the letter q the book shows u 98 times and a 2 times, then after q the chance of u is 98 / 100 = 0.98. This list of probabilities is called a distribution.\n\nThis is the heart of a language model: for whatever text came before, a distribution over every character that could come next.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "counts = [1, 3]\nwhole = sum(counts)              # 4\nprint([c / whole for c in counts])   # [0.25, 0.75]",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const counts = [1, 3];\nconst whole = counts.reduce((a, b) => a + b, 0);   // 4\nconsole.log(counts.map((c) => c / whole));          // [ 0.25, 0.75 ]",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write normalize(counts), which turns a list of counts into probabilities that add up to 1: normalize([2, 6]) is [0.25, 0.75].",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🎲 Rolling the dice: sampling →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l05"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l05": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 5 of 14 · 🎲 Counting and chance",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🎲 Rolling the dice: sampling",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Once you have a distribution, you can sample from it: pick one outcome, so that likely ones come up often and unlikely ones now and then. This is how your model will write: it picks each next character by chance, following its probabilities, so it doesn't write the same thing every time.\n\nHere's the trick. Take a random number r between 0 and 1. Walk along the probabilities, adding them up as you go; the first one that takes the running total past r is the one you pick. With [0.25, 0.75], an r below 0.25 picks the first and anything else picks the second: exactly a quarter of the time and three quarters of the time.\n\nThe checks give you r themselves, so the answers are always the same.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "import random\nr = random.random()     # a number from 0 up to (not including) 1\nrunning = 0.0\nrunning = running + 0.25\nprint(r < running)      # True about a quarter of the time",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const r = Math.random();   // a number from 0 up to (not including) 1\nlet running = 0;\nrunning = running + 0.25;\nconsole.log(r < running);  // true about a quarter of the time",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write sample(probs, r), which gives the position (counting from 0) of the outcome r picks: sample([0.25, 0.75], 0.1) is 0 and sample([0.25, 0.75], 0.3) is 1.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: ➡️ Vectors and the dot product →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l06"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l06": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 6 of 14 · 📐 The maths",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "➡️ Vectors and the dot product",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "A vector is a list of numbers that belong together, like a point's position [x, y]. Models describe every character with a vector of a few dozen numbers (its embedding), and learn those numbers so that characters used alike get alike vectors.\n\nYou add two vectors place by place, and scale one by multiplying every number. The dot product multiplies two vectors place by place and adds the results: dot([1, 2, 3], [4, 5, 6]) is 1×4 + 2×5 + 3×6 = 32. It's big when two vectors point the same way, 0 when they have nothing in common, and it's how attention will decide what to look at.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "a = [1, 2]\nb = [10, 20]\nprint([x + y for x, y in zip(a, b)])   # [11, 22]: zip pairs them up",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const a = [1, 2];\nconst b = [10, 20];\nconsole.log(a.map((x, i) => x + b[i]));   // [ 11, 22 ]",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write dot(a, b), add(a, b) and scale(a, k): dot([1, 2, 3], [4, 5, 6]) is 32, add([1, 2], [10, 20]) is [11, 22] and scale([1, -2], 3) is [3, -6].",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🧮 Matrices →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l07"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l07": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 7 of 14 · 📐 The maths",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🧮 Matrices",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "A matrix is a table of numbers: a list of rows, each a vector. Multiplying a matrix by a vector gives a new vector: one dot product for each row. That one move turns, say, a 24-number description of the text so far into a score for every character in the book.\n\nTransposing a matrix swaps its rows and columns: the first column becomes the first row. You'll need it because the model's last layer is stored one way and used the other.\n\nNearly everything inside a real language model is matrices times vectors, billions of times. Yours does the same, just small.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "m = [[1, 2],\n     [3, 4]]\nprint(m[1])          # [3, 4]: the second row\nprint(m[1][0])       # 3\nprint(len(m), len(m[0]))   # 2 rows, 2 columns",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const m = [[1, 2],\n           [3, 4]];\nconsole.log(m[1]);        // [ 3, 4 ]: the second row\nconsole.log(m[1][0]);     // 3\nconsole.log(m.length, m[0].length);   // 2 rows, 2 columns",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write matvec(m, v), one dot product per row (matvec([[1, 2], [3, 4]], [1, 1]) is [3, 7]), and transpose(m) (transpose([[1, 2, 3], [4, 5, 6]]) is [[1, 4], [2, 5], [3, 6]]). You may use your dot from the last lesson.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🌡️ Softmax: scores into probabilities →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l08"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l08": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 8 of 14 · 📐 The maths",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🌡️ Softmax: scores into probabilities",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "A model doesn't give probabilities straight away: it gives a score to every character, any number at all, higher meaning more likely. Softmax turns scores into probabilities: raise e (about 2.718) to the power of each score, then divide each by their total. Big scores win most of the probability, and everything still adds up to 1.\n\nOne practical trick: e to the power of 1000 is too big for a computer. Subtracting the biggest score from every score first changes nothing in the answer and keeps the numbers small.\n\nDividing the scores by a \"temperature\" before softmax makes the model bolder (below 1) or more adventurous (above 1). Your model talks at 0.8.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "import math\nprint(math.exp(0))     # 1.0\nprint(math.exp(1))     # 2.718…\nprint(max([1, 5, 3]))  # 5",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "console.log(Math.exp(0));          // 1\nconsole.log(Math.exp(1));          // 2.718…\nconsole.log(Math.max(...[1, 5, 3]));   // 5",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write softmax(xs): softmax([0, 0]) is [0.5, 0.5], softmax([1, 2, 3]) is about [0.090, 0.245, 0.665], and softmax([1000, 1000]) must still be [0.5, 0.5].",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 📉 Loss and a step downhill →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l09"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l09": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 9 of 14 · 📐 The maths",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "📉 Loss and a step downhill",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "How does a model learn? First it needs to know how wrong it is. The loss (cross-entropy) is minus the log of the probability it gave the right answer: give the right character 0.9 and the loss is small (0.105); give it 0.01 and the loss is big (4.6). Learning means making the loss smaller, over thousands of examples.\n\nThe gradient says, for every number in the model, which way to nudge it to raise the loss, and how strongly. So we step the other way: each weight minus a small learning rate times its gradient. That's gradient descent, a walk downhill one small step at a time.\n\nFor softmax with cross-entropy the gradient of each score is wonderfully simple: its probability, minus 1 for the right answer. You'll use that in lesson 13.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "import math\nprint(-math.log(0.9))    # 0.105…: a small loss\nprint(-math.log(0.01))   # 4.605…: a big one",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "console.log(-Math.log(0.9));    // 0.105…: a small loss\nconsole.log(-Math.log(0.01));   // 4.605…: a big one",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write loss(probs, target), minus the log of the probability at position target (loss([0.1, 0.9], 1) is about 0.105), and step(weights, grads, rate), each weight minus rate times its gradient (step([1, 2], [0.5, -1], 0.1) is [0.95, 2.1]).",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🔤 Text into tokens →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l10"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l10": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 10 of 14 · 🔤 A model of text",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🔤 Text into tokens",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Models work on numbers, not letters, so text is split into tokens and each token gets a number. Big models use pieces of words; yours uses single characters, which keeps it tiny and means it can write any word it has seen letters of.\n\nThe vocabulary is every different character in the book, in a fixed order (sorted, so it's always the same). Encoding turns text into the positions of its characters in the vocabulary; decoding turns the positions back into text. With the vocabulary [\"e\", \"h\", \"l\", \"o\"], \"hello\" encodes to [1, 0, 2, 2, 3].",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "print(sorted(set(\"banana\")))    # ['a', 'b', 'n']\nprint(\"abc\".index(\"c\"))         # 2\nprint(\"\".join([\"h\", \"i\"]))      # hi",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "console.log([...new Set(\"banana\")].sort());   // [ 'a', 'b', 'n' ]\nconsole.log([\"a\", \"b\", \"c\"].indexOf(\"c\"));     // 2\nconsole.log([\"h\", \"i\"].join(\"\"));              // hi",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write vocabulary(text) (the sorted different characters), encode(text, vocab) and decode(ids, vocab). Your model will use these three to read the book and to write its replies.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 👯 A bigram model →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l11"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l11": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 11 of 14 · 🔤 A model of text",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "👯 A bigram model",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Here is your first real language model. A bigram is a pair of characters side by side. Count every pair in the book, in a table with a row for each character and a column for what came after it: counts[a][b] is how many times b followed a.\n\nTo predict what follows a, take row a and turn it into probabilities. One worry: a pair the book never shows would get probability 0, so the model could never write it. The fix is add-one smoothing: pretend every pair was seen once more than it was, so (count + 1) / (total of the row + the number of characters).\n\nThis model only ever looks one character back. Remember that: it's why the later lessons add a context.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "counts = [[0] * 3 for _ in range(3)]   # a 3 × 3 table of zeros\ncounts[0][2] += 1\nids = [0, 1, 2]\nprint(list(zip(ids, ids[1:])))   # [(0, 1), (1, 2)]: the pairs",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const counts = Array.from({ length: 3 }, () => new Array(3).fill(0));\ncounts[0][2] += 1;\nconst ids = [0, 1, 2];\nfor (let i = 0; i + 1 < ids.length; i += 1) {\n  console.log(ids[i], ids[i + 1]);   // 0 1, then 1 2: the pairs\n}",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write bigrams(ids, size), the size × size table of pair counts (bigrams([0, 1, 0, 1], 2) is [[0, 2], [1, 0]]), and following(counts, a), the smoothed probabilities of what follows a (following([[0, 2], [1, 0]], 0) is [0.25, 0.75]).",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: ✍️ Writing text by sampling →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l12"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l12": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 12 of 14 · 🔤 A model of text",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "✍️ Writing text by sampling",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Now make it write. Start from one character. Ask the model what follows it (following), pick one by chance (sample), add it to the text, and go again from the new last character. Each step uses one random number.\n\nRun on a real book, a bigram model writes something that looks like words from far away: the right letters next to each other, but nothing longer makes sense, because it only remembers one character. That's what the context and attention in the last lessons improve.\n\nThis loop, predict, sample, add, repeat, is exactly how every chat model writes its answers, one token at a time.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "ids = [3]\nids.append(5)\nprint(ids[-1])   # 5: the last one",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const ids = [3];\nids.push(5);\nconsole.log(ids[ids.length - 1]);   // 5: the last one",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write generate(counts, start, rs): starting from the list [start], for each random number r in rs add sample(following(counts, last), r). generate([[0, 6], [6, 0]], 0, [0.5, 0.5, 0.5]) is [0, 1, 0, 1]. Use your own following and sample.",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 🧠 A tiny neural model →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l13"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l13": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 13 of 14 · 🧠 Learning and attention",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🧠 A tiny neural model",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Counting works, but it can't share what it learns: knowing that \"th\" is common tells it nothing about \"Th\". A neural model learns numbers instead, by gradient descent, and the same machinery grows into the big models.\n\nThe tiniest one is a bigram model made of weights: a table W with a row of scores for each character. To predict what follows a, softmax row a. To learn from one example (a was followed by b), nudge row a: each score minus a small rate times (its probability, minus 1 for b). The probability of b goes up a little, the others down a little. Do that for every pair in a book, many times, and the table ends up close to the counts, learned rather than counted.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "w = [[0, 0], [1, -1]]\nrow = [x - 0.5 for x in w[0]]   # a new row\ncopy = [list(r) for r in w]     # a copy: w stays as it was\ncopy[0] = row",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "const w = [[0, 0], [1, -1]];\nconst row = w[0].map((x) => x - 0.5);   // a new row\nconst copy = w.map((r) => [...r]);      // a copy: w stays as it was\ncopy[0] = row;",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write predict(weights, a), the softmax of row a, and learn(weights, a, b, rate), which gives back new weights with row a nudged as above (don't change the weights you were given): learn([[0, 0], [1, -1]], 0, 1, 1) is [[-0.5, 0.5], [1, -1]].",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next: 👀 Attention, with a tiny context →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "lesson": "l14"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "l14": {
+        "params": {
+          "work": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "work": {
+            "record": "llm_work",
+            "id": "=params.work"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "Lesson 14 of 14 · 🧠 Learning and attention",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.passed ? \"✅ Passed\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=data.work.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "👀 Attention, with a tiny context",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "The last idea, and the one big models are named after (transformers). Instead of one character back, look at the last few, the context: your model uses 8. Each character in the context has a vector (its embedding plus its place).\n\nAttention lets the newest character choose which of the context to listen to. Its vector is the query; every context vector is a key and a value. Score each key by its dot product with the query, divided by the square root of the vector's length; softmax the scores into weights; the answer is the weighted mix of the values. A key like the query gets a big weight.\n\nTo train on a book, cut it into windows: each run of k characters with the one that came next, the answer to learn.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "In code",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "import math\nprint(math.sqrt(16))        # 4.0\nids = [5, 6, 7, 8]\nprint(ids[0:2], ids[2])     # [5, 6] 7: a window and what came next",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"Python\""
+          },
+          {
+            "type": "text",
+            "value": "console.log(Math.sqrt(16));               // 4\nconst ids = [5, 6, 7, 8];\nconsole.log(ids.slice(0, 2), ids[2]);     // [ 5, 6 ] 7: a window and what came next",
+            "size": "body",
+            "class": "example",
+            "showIf": "=data.work.language == \"JavaScript\""
+          },
+          {
+            "type": "text",
+            "value": "🧩 Your turn. Write attention(query, keys, values) as described (use your dot, softmax, add and scale), and windows(ids, k), every [context, next] pair: windows([5, 6, 7, 8], 2) is [[[5, 6], 7], [[6, 7], 8]]. Then your model is complete: give it a book!",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.work",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "work": "=params.work",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "What the checks said",
+            "size": "title",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "text",
+            "value": "=data.work.result",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.work.result != \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Give your model a book 🤖",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "mine",
+                      "input": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "model": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "learner": {
+            "record": "llm_learners",
+            "id": "=params.id"
+          },
+          "messages": {
+            "from": "llm_messages",
+            "sort": "-at",
+            "limit": 40
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "=data.learner.status == \"Ready\" ? \"✅ Your model is ready\" : data.learner.status == \"Training\" ? \"🏋️ Training…\" : data.learner.status == \"Problem\" ? \"😕 Something went wrong\" : \"📚 No model yet\"",
+                "tone": "primary"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All lessons",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🤖 Your little LLM",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Your model reads a book one character at a time and learns which character tends to come next, looking at the last 8. Then it can continue anything you write, in the book's style. Be honest with yourself about what to expect: it's tiny (a few thousand numbers, trained for a minute), so it writes something that looks like the book from far away, with real words now and then. It doesn't understand you; it continues your words. Real chat models are the same idea with billions of numbers, trained for months.",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "text",
+            "value": "1. Give it a book",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "A text, Word or PDF file: a story, a book out of copyright, your own writing. Longer is better (it reads up to 150,000 characters).",
+            "size": "body"
+          },
+          {
+            "type": "form",
+            "record": "=data.learner",
+            "fields": [
+              {
+                "field": "book",
+                "label": "The book"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save the book",
+                "disabled": "=!form.changed",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.learner",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "Saved: now train your model on it."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "2. Train it",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "=data.learner.language == \"Python\" ? \"Training runs on the computer, in Python with numpy, using your own functions from the lessons you have passed (the course's own for the rest). It takes about a minute: this page shows it when it's done.\" : \"Training runs on the computer, in plain JavaScript, using your own functions from the lessons you have passed (the course's own for the rest). It takes about a minute: this page shows it when it's done.\"",
+            "size": "body"
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Train my model 🏋️",
+                "emphasis": "primary",
+                "disabled": "=data.learner.status == \"Training\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.learner",
+                      "set": {
+                        "status": "Training",
+                        "note": ""
+                      }
+                    }
+                  },
+                  {
+                    "notify": "Training has started: about a minute."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "🏋️ Training… this page updates by itself when it's done.",
+            "size": "body",
+            "class": "working",
+            "showIf": "=data.learner.status == \"Training\""
+          },
+          {
+            "type": "text",
+            "value": "=data.learner.note",
+            "size": "body",
+            "class": "output",
+            "showIf": "=data.learner.note != \"\""
+          },
+          {
+            "type": "text",
+            "value": "3. Talk to it",
+            "size": "title"
+          },
+          {
+            "type": "text",
+            "value": "Start a sentence the way the book might, and it carries on. Its newest reply is at the top.",
+            "size": "body",
+            "showIf": "=data.learner.status == \"Ready\""
+          },
+          {
+            "type": "form",
+            "table": "llm_messages",
+            "class": "say",
+            "showIf": "=data.learner.status == \"Ready\"",
+            "fields": [
+              {
+                "field": "text",
+                "label": "Say something"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send 💬",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "reply",
+                      "input": {
+                        "learner": "=params.id",
+                        "text": "=form.text"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Clear the chat",
+                "confirm": "Clear your chat with your model?",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "clear_chat",
+                      "input": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "class": "chat",
+            "showIf": "=size(data.messages) > 0",
+            "rows": "=data.messages",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.who == \"You\" ? \"🙂 You\" : \"🤖 Model\""
+              },
+              {
+                "label": "Said",
+                "value": "=row.text"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "style": ":root {\n  font-family: ui-rounded, \"SF Pro Rounded\", \"Nunito\", \"Quicksand\", \"Segoe UI\", system-ui, sans-serif;\n  background:\n    radial-gradient(circle at 4% 0%, rgba(45, 212, 191, 0.26), transparent 38%),\n    radial-gradient(circle at 96% 6%, rgba(129, 140, 248, 0.30), transparent 42%),\n    radial-gradient(circle at 50% 100%, rgba(250, 204, 21, 0.18), transparent 50%),\n    rgb(var(--v-theme-surface));\n}\n.v-btn { text-transform: none; letter-spacing: 0; border-radius: 999px; font-weight: 700; }\n.v-btn--variant-flat {\n  background: linear-gradient(90deg, #0F766E, #4338CA) !important;\n  color: #fff !important;\n  box-shadow: 0 6px 16px rgba(67, 56, 202, 0.28);\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.v-btn--variant-flat:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 22px rgba(67, 56, 202, 0.32); }\n.v-btn--disabled.v-btn--variant-flat { opacity: 0.45; box-shadow: none; }\n.v-chip { font-weight: 700; }\n.x-hero-title > span {\n  display: inline-block;\n  font-size: clamp(1.6rem, 4.2vw, 2.5rem);\n  line-height: 1.15;\n  font-weight: 800;\n  background: linear-gradient(90deg, #0F766E, #4338CA 60%, #A21CAF);\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n}\n.x-hero-sub > span { display: block; max-width: 66ch; opacity: 0.85; font-size: 1.05rem; line-height: 1.6; }\n.x-pick > .v-card, .x-pick.v-card {\n  border-radius: 24px;\n  background: rgba(var(--v-theme-surface), 0.9);\n  box-shadow: 0 12px 30px rgba(15, 118, 110, 0.14);\n}\n.x-lesson-text > span {\n  display: block;\n  max-width: 70ch;\n  white-space: pre-line;\n  font-size: 1.08rem;\n  line-height: 1.7;\n  padding: 20px 24px;\n  border-radius: 22px;\n  background: rgba(var(--v-theme-surface), 0.88);\n  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);\n}\n.x-example > span, .x-output > span {\n  display: block;\n  max-width: 100%;\n  overflow-x: auto;\n  white-space: pre;\n  font-family: ui-monospace, \"SFMono-Regular\", \"JetBrains Mono\", Menlo, Consolas, monospace;\n  font-size: 0.92rem;\n  line-height: 1.55;\n  padding: 16px 18px;\n  border-radius: 16px;\n  background: #10172A;\n  color: #E2E8F0;\n}\n.x-output > span { white-space: pre-wrap; background: #0B3B36; color: #ECFDF5; }\n.x-task > span {\n  display: block;\n  max-width: 70ch;\n  font-weight: 700;\n  font-size: 1.05rem;\n  line-height: 1.6;\n  padding: 14px 18px;\n  border-radius: 16px;\n  background: rgba(67, 56, 202, 0.10);\n  border-left: 6px solid #4338CA;\n}\n.x-code textarea {\n  font-family: ui-monospace, \"SFMono-Regular\", \"JetBrains Mono\", Menlo, Consolas, monospace !important;\n  font-size: 0.95rem !important;\n  line-height: 1.5 !important;\n  min-height: 14em;\n  tab-size: 4;\n}\n.x-code .v-card, .x-say .v-card { background: transparent; box-shadow: none; }\n.x-working > span { display: block; font-weight: 700; color: rgb(var(--v-theme-primary)); animation: x-pulse 1.6s ease-in-out infinite; }\n@keyframes x-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }\n@media (prefers-reduced-motion: reduce) { .x-working > span { animation: none; } }\n.app-node--progress .v-progress-linear { border-radius: 999px; }\n.app-node--progress .v-progress-linear__determinate { background: linear-gradient(90deg, #0F766E, #4338CA, #A21CAF) !important; border-radius: 999px; }\n.x-big-progress .v-progress-linear { height: 18px !important; }\n.x-continue .v-btn { height: auto !important; min-height: 52px; padding: 10px 26px; font-size: 1.05rem; }\n.x-continue .v-btn__content { white-space: normal; }\n.x-lesson-list .v-card, .x-lesson-list .v-table, .x-chat .v-card, .x-chat .v-table { background: transparent; }\n.x-lesson-list thead, .x-chat thead { display: none; }\n.x-lesson-list table, .x-chat table { border-collapse: separate; border-spacing: 0 8px; }\n.x-lesson-list tbody { counter-reset: lesson; }\n.x-lesson-list tbody tr { counter-increment: lesson; background: rgb(var(--v-theme-surface)); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07); transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer; }\n.x-lesson-list tbody tr:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(67, 56, 202, 0.16); }\n.x-lesson-list td { border: none !important; padding: 12px 14px !important; }\n.x-lesson-list td:first-child { border-radius: 16px 0 0 16px; font-weight: 800; }\n.x-lesson-list td:last-child { border-radius: 0 16px 16px 0; white-space: nowrap; }\n.x-lesson-list td:first-child::before {\n  content: counter(lesson);\n  display: inline-grid;\n  place-items: center;\n  width: 28px;\n  height: 28px;\n  margin-right: 12px;\n  border-radius: 50%;\n  background: rgba(15, 118, 110, 0.14);\n  color: #0F766E;\n  font-weight: 800;\n  font-size: 0.85rem;\n}\n.x-lesson-list td:nth-child(2) { opacity: 0.7; font-size: 0.92rem; }\n.x-chat td { border: none !important; padding: 10px 14px !important; vertical-align: top; background: rgb(var(--v-theme-surface)); }\n.x-chat td:first-child { border-radius: 14px 0 0 14px; white-space: nowrap; font-weight: 800; }\n.x-chat td:last-child { border-radius: 0 14px 14px 0; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; }\n@media (max-width: 600px) {\n  .x-lesson-list td:nth-child(2) { display: none; }\n  .x-lesson-text > span { padding: 16px; font-size: 1rem; }\n}\n.x-unit-title > span { display: block; margin-top: 8px; font-weight: 800; color: #0F766E; }\n.x-lesson-row { padding: 8px 10px 8px 16px; border-radius: 16px; background: rgb(var(--v-theme-surface)); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07); border-left: 6px solid #4338CA; }\n.x-lesson-name > span { font-weight: 800; font-size: 1.02rem; }\n",
+    "computer": {
+      "files": {
+        "course/check.js": "// Checks your code for a lesson: node course/check.js <lesson>. Your earlier lessons' code (lib/) and the course's\n// own (reference.js) are loaded first, so a lesson can use what came before; then yours (answer.js) and its checks.\nconst { library, load } = require(\"./library.js\");\nconst { LESSONS } = require(\"./tests.js\");\n\nconst close = (got, expected) => {\n  if (typeof expected === \"boolean\" || typeof got === \"boolean\") return got === expected;\n  if (typeof expected === \"number\" && typeof got === \"number\") return Math.abs(got - expected) <= 1e-6 * Math.max(1, Math.abs(expected));\n  if (Array.isArray(expected) && Array.isArray(got)) return got.length === expected.length && expected.every((item, i) => close(got[i], item));\n  if (expected && typeof expected === \"object\" && got && typeof got === \"object\" && !Array.isArray(got)) {\n    const keys = Object.keys(expected);\n    return Object.keys(got).length === keys.length && keys.every((key) => close(got[key], expected[key]));\n  }\n  return got === expected;\n};\n\nconst shown = (value) => {\n  if (typeof value === \"number\") return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)));\n  if (Array.isArray(value)) return `[${value.map(shown).join(\", \")}]`;\n  if (value && typeof value === \"object\") return `{ ${Object.entries(value).map(([key, item]) => `${JSON.stringify(key)}: ${shown(item)}`).join(\", \")} }`;\n  return value === undefined ? \"undefined\" : JSON.stringify(value);\n};\n\nfunction main() {\n  const { needs, run } = LESSONS[process.argv[2]];\n  const space = library();\n  const before = Object.fromEntries(needs.map((name) => [name, space[name]]));\n  try {\n    load(space, \"answer.js\", \"your code\");\n  } catch (error) {\n    if (error instanceof SyntaxError || error?.name === \"SyntaxError\") {\n      console.log(`❌ JavaScript can't read your code: ${error.message}.`);\n    } else {\n      console.log(`❌ Your code stopped before the checks: ${error?.name || \"Error\"}: ${error?.message || error}`);\n    }\n    return 1;\n  }\n  const missing = needs.filter((name) => space[name] === before[name]);\n  if (missing.length) {\n    console.log(`❌ Write ${missing.map((name) => `function ${name}(…) { … }`).join(\" and \")} in your code: the checks look for it.`);\n    return 1;\n  }\n  let passed = 0;\n  let total = 0;\n  const m = new Proxy(space, {\n    get(target, name) {\n      if (typeof target[name] !== \"function\") throw new Error(`there's no function called ${String(name)}`);\n      return target[name];\n    }\n  });\n  run(m, {\n    same(what, work, expected) {\n      total += 1;\n      let got;\n      try {\n        got = work();\n      } catch (error) {\n        console.log(`❌ ${what} should be ${shown(expected)}, but it stopped: ${error?.name || \"Error\"}: ${error?.message || error}`);\n        return;\n      }\n      if (close(got, expected)) {\n        passed += 1;\n        console.log(`✅ ${what} is ${shown(expected)}`);\n      } else {\n        console.log(`❌ ${what} should be ${shown(expected)}, but it gave ${shown(got)}`);\n      }\n    }\n  });\n  console.log(\"\");\n  if (passed === total) {\n    console.log(`🎉 ${passed} of ${total} checks passed.`);\n    return 0;\n  }\n  console.log(`${passed} of ${total} checks passed.`);\n  return 1;\n}\n\nprocess.exitCode = main();\n",
+        "course/check.py": "# Checks your code for a lesson: python3 course/check.py <lesson>. Your earlier lessons' code (lib/) and the course's\n# own (reference.py) are loaded first, so a lesson can use what came before; then yours (answer.py) and its checks.\nimport math\nimport os\nimport sys\n\nsys.dont_write_bytecode = True\nHERE = os.path.dirname(os.path.abspath(__file__))\nsys.path.insert(0, HERE)\nimport tests  # noqa: E402\n\n\nclass Names:\n    \"\"\"Your functions, by name, as the checks call them.\"\"\"\n\n    def __init__(self, space):\n        self.__dict__[\"_space\"] = space\n\n    def __getattr__(self, name):\n        if name not in self._space:\n            raise NameError(f\"there's no function called {name}\")\n        return self._space[name]\n\n\ndef close(got, expected):\n    if isinstance(expected, bool) or isinstance(got, bool):\n        return got is expected\n    if isinstance(expected, (int, float)) and isinstance(got, (int, float)):\n        return math.isclose(got, expected, rel_tol=1e-6, abs_tol=1e-6)\n    if isinstance(expected, (list, tuple)) and isinstance(got, (list, tuple)):\n        return len(got) == len(expected) and all(close(a, b) for a, b in zip(got, expected))\n    if isinstance(expected, dict) and isinstance(got, dict):\n        return set(got) == set(expected) and all(close(got[key], expected[key]) for key in expected)\n    return got == expected\n\n\ndef shown(value):\n    if isinstance(value, float):\n        return f\"{value:.6g}\"\n    if isinstance(value, (list, tuple)):\n        return \"[\" + \", \".join(shown(item) for item in value) + \"]\"\n    return repr(value)\n\n\nclass Checker:\n    def __init__(self):\n        self.passed = 0\n        self.total = 0\n\n    def same(self, what, work, expected):\n        self.total += 1\n        try:\n            got = work()\n        except Exception as error:  # noqa: BLE001 - a learner's mistake is shown, never raised\n            print(f\"❌ {what} should be {shown(expected)}, but it stopped: {type(error).__name__}: {error}\")\n            return\n        if close(got, expected):\n            self.passed += 1\n            print(f\"✅ {what} is {shown(expected)}\")\n        else:\n            print(f\"❌ {what} should be {shown(expected)}, but it gave {shown(got)}\")\n\n\ndef load(space, path, name):\n    with open(path, encoding=\"utf-8\") as file:\n        exec(compile(file.read(), name, \"exec\"), space)  # noqa: S102 - the learner's own code, in the sandbox\n\n\ndef main():\n    key = sys.argv[1]\n    needs, run = tests.LESSONS[key]\n    space = {\"__name__\": \"mylib\"}\n    load(space, os.path.join(HERE, \"reference.py\"), \"reference.py\")\n    for name in sorted(os.listdir(\"lib\")) if os.path.isdir(\"lib\") else []:\n        try:\n            load(space, os.path.join(\"lib\", name), name)\n        except Exception:  # noqa: BLE001 - an earlier lesson's code that no longer runs is left out\n            pass\n    before = {name: space.get(name) for name in needs}\n    try:\n        load(space, \"answer.py\", \"your code\")\n    except SyntaxError as error:\n        print(f\"❌ Python can't read your code: {error.msg} (line {error.lineno}).\")\n        return 1\n    except Exception as error:  # noqa: BLE001\n        print(f\"❌ Your code stopped before the checks: {type(error).__name__}: {error}\")\n        return 1\n    missing = [name for name in needs if space.get(name) is before[name]]\n    if missing:\n        print(\"❌ Write \" + \" and \".join(f\"def {name}(…)\" for name in missing) + \" in your code: the checks look for it.\")\n        return 1\n    checker = Checker()\n    run(Names(space), checker)\n    print(\"\")\n    if checker.passed == checker.total:\n        print(f\"🎉 {checker.passed} of {checker.total} checks passed.\")\n        return 0\n    print(f\"{checker.passed} of {checker.total} checks passed.\")\n    return 1\n\n\nsys.exit(main())\n",
+        "course/library.js": "// Your library: the course's functions (reference.js), then your earlier lessons' (lib/), each in one shared space,\n// so a later one takes the place of the course's own. Write each as `function name(…) { … }`: that's what the space\n// keeps by name.\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst vm = require(\"node:vm\");\n\nfunction load(space, file, name) {\n  vm.runInContext(fs.readFileSync(file, \"utf8\"), space, { filename: name });\n}\n\nfunction library() {\n  const space = vm.createContext({ console, Math, JSON, Array, Object, Number, String, Map, Set });\n  load(space, path.join(__dirname, \"reference.js\"), \"reference.js\");\n  const lib = fs.existsSync(\"lib\") ? fs.readdirSync(\"lib\").sort() : [];\n  for (const name of lib) {\n    try {\n      load(space, path.join(\"lib\", name), name);\n    } catch {\n      // An earlier lesson's code that no longer runs is left out.\n    }\n  }\n  return space;\n}\n\nmodule.exports = { library, load };\n",
+        "course/model.js": "// Your little language model: node course/model.js train [seconds] [steps] | chat\n//   train: learns from book.txt and writes model.json (a minute at most, fewer steps for a short text).\n//   chat:  continues message.txt in the book's style with model.json, and prints the reply.\n// It is made of your functions (lib/, the lessons you've passed) and the course's (reference.js) for the rest: the\n// characters (vocabulary, encode, decode, windows) and, when it talks, softmax, sample and attention. Training runs the\n// same maths in plain loops over typed arrays, so it's fast: a context of K characters, each an embedding (E) plus its\n// place (P); attention from the last character over the context, added to it; then one layer (Wo, b) gives a score for\n// every character.\nconst fs = require(\"node:fs\");\nconst { library } = require(\"./library.js\");\n\nconst K = 8;\nconst D = 24;\nconst MAX_CHARS = 150000;\n\nconst cleaned = (text) =>\n  text.replace(/\\r\\n?/g, \"\\n\").replace(/\\t/g, \" \").split(\"\\n\").map((line) => line.split(/\\s+/).filter(Boolean).join(\" \")).join(\"\\n\")\n    .replace(/\\n{3,}/g, \"\\n\\n\").trim().slice(0, MAX_CHARS);\n\n/** A random number generator that gives the same numbers every time (mulberry32). */\nfunction seeded(seed) {\n  let state = seed >>> 0;\n  return () => {\n    state = (state + 0x6d2b79f5) >>> 0;\n    let t = state;\n    t = Math.imul(t ^ (t >>> 15), t | 1);\n    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n  };\n}\n\nfunction train(seconds, most) {\n  const lib = library();\n  const text = cleaned(fs.readFileSync(\"book.txt\", \"utf8\"));\n  if (text.length < 200) {\n    console.log(\"The book is too short to learn from: give it a book or a long text (a few pages at least).\");\n    return 1;\n  }\n  const vocab = lib.vocabulary(text);\n  const ids = lib.encode(text, vocab);\n  const pairs = lib.windows(ids, K);\n  const V = vocab.length;\n  const random = seeded(7);\n  const normal = () => Math.sqrt(-2 * Math.log(random() + 1e-12)) * Math.cos(2 * Math.PI * random()) * 0.3;\n  const params = {\n    E: Float64Array.from({ length: V * D }, normal),\n    P: Float64Array.from({ length: K * D }, normal),\n    Wo: Float64Array.from({ length: D * V }, normal),\n    b: new Float64Array(V)\n  };\n  const grads = Object.fromEntries(Object.entries(params).map(([name, value]) => [name, new Float64Array(value.length)]));\n  const moments = Object.fromEntries(Object.entries(params).map(([name, value]) => [name, [new Float64Array(value.length), new Float64Array(value.length)]]));\n  const batch = 32;\n  // A short text needs fewer steps: about one an example, from 1,500 up to the most asked for.\n  most = Math.min(most, Math.max(1500, pairs.length));\n  const rate = 0.01;\n  const root = Math.sqrt(D);\n  const x = new Float64Array(K * D);\n  const dx = new Float64Array(K * D);\n  const h = new Float64Array(D);\n  const dh = new Float64Array(D);\n  const q = new Float64Array(D);\n  const a = new Float64Array(K);\n  const p = new Float64Array(V);\n  const started = Date.now();\n  let steps = 0;\n  let first = null;\n  let last = null;\n  while ((Date.now() - started) / 1000 < seconds && steps < most) {\n    for (const grad of Object.values(grads)) grad.fill(0);\n    let total = 0;\n    for (let n = 0; n < batch; n += 1) {\n      const [context, target] = pairs[Math.floor(random() * pairs.length)];\n      for (let i = 0; i < K; i += 1) for (let d = 0; d < D; d += 1) x[i * D + d] = params.E[context[i] * D + d] + params.P[i * D + d];\n      for (let d = 0; d < D; d += 1) q[d] = x[(K - 1) * D + d];\n      let top = -Infinity;\n      for (let i = 0; i < K; i += 1) {\n        let s = 0;\n        for (let d = 0; d < D; d += 1) s += x[i * D + d] * q[d];\n        a[i] = s / root;\n        top = Math.max(top, a[i]);\n      }\n      let whole = 0;\n      for (let i = 0; i < K; i += 1) whole += (a[i] = Math.exp(a[i] - top));\n      for (let i = 0; i < K; i += 1) a[i] /= whole;\n      for (let d = 0; d < D; d += 1) {\n        let s = q[d];\n        for (let i = 0; i < K; i += 1) s += a[i] * x[i * D + d];\n        h[d] = s;\n      }\n      top = -Infinity;\n      for (let j = 0; j < V; j += 1) {\n        let s = params.b[j];\n        for (let d = 0; d < D; d += 1) s += h[d] * params.Wo[d * V + j];\n        p[j] = s;\n        top = Math.max(top, s);\n      }\n      whole = 0;\n      for (let j = 0; j < V; j += 1) whole += (p[j] = Math.exp(p[j] - top));\n      for (let j = 0; j < V; j += 1) p[j] /= whole;\n      total += -Math.log(p[target] + 1e-12);\n      p[target] -= 1;\n      dh.fill(0);\n      for (let j = 0; j < V; j += 1) {\n        const g = p[j] / batch;\n        grads.b[j] += g;\n        for (let d = 0; d < D; d += 1) {\n          grads.Wo[d * V + j] += h[d] * g;\n          dh[d] += params.Wo[d * V + j] * g;\n        }\n      }\n      // h = Σ a_i x_i + q: back through the attention and the softmax of its scores.\n      let mix = 0;\n      const da = new Float64Array(K);\n      for (let i = 0; i < K; i += 1) {\n        let s = 0;\n        for (let d = 0; d < D; d += 1) {\n          dx[i * D + d] = a[i] * dh[d];\n          s += x[i * D + d] * dh[d];\n        }\n        da[i] = s;\n        mix += a[i] * s;\n      }\n      const dq = Float64Array.from(dh);\n      for (let i = 0; i < K; i += 1) {\n        const ds = (a[i] * (da[i] - mix)) / root;\n        for (let d = 0; d < D; d += 1) {\n          dq[d] += ds * x[i * D + d];\n          dx[i * D + d] += ds * q[d];\n        }\n      }\n      for (let d = 0; d < D; d += 1) dx[(K - 1) * D + d] += dq[d];\n      for (let i = 0; i < K; i += 1) {\n        for (let d = 0; d < D; d += 1) {\n          grads.E[context[i] * D + d] += dx[i * D + d];\n          grads.P[i * D + d] += dx[i * D + d];\n        }\n      }\n    }\n    const value = total / batch;\n    first = first === null ? value : first;\n    last = last === null ? value : 0.98 * last + 0.02 * value;\n    steps += 1;\n    for (const [name, value] of Object.entries(params)) {\n      const [m, v] = moments[name];\n      const grad = grads[name];\n      for (let i = 0; i < value.length; i += 1) {\n        m[i] = 0.9 * m[i] + 0.1 * grad[i];\n        v[i] = 0.999 * v[i] + 0.001 * grad[i] * grad[i];\n        value[i] -= (rate * (m[i] / (1 - 0.9 ** steps))) / (Math.sqrt(v[i] / (1 - 0.999 ** steps)) + 1e-8);\n      }\n    }\n  }\n  const rows = (flat, width) => Array.from({ length: flat.length / width }, (_, row) => Array.from(flat.slice(row * width, (row + 1) * width), (n) => Math.round(n * 1e5) / 1e5));\n  fs.writeFileSync(\"model.json\", JSON.stringify({ vocab, K, D, E: rows(params.E, D), P: rows(params.P, D), Wo: rows(params.Wo, V), b: rows(params.b, V)[0] }));\n  console.log(`Read ${text.length.toLocaleString(\"en\")} characters: ${V} different ones, ${pairs.length.toLocaleString(\"en\")} examples.`);\n  console.log(`Trained for ${steps.toLocaleString(\"en\")} steps in ${Math.round((Date.now() - started) / 1000)} s: the loss went from ${first.toFixed(2)} to ${last.toFixed(2)}.`);\n  return 0;\n}\n\nfunction chat() {\n  const lib = library();\n  const model = JSON.parse(fs.readFileSync(\"model.json\", \"utf8\"));\n  const message = fs.readFileSync(\"message.txt\", \"utf8\");\n  const { vocab, K: k, E, P, b } = model;\n  const outRows = lib.transpose(model.Wo);\n  const known = new Set(vocab);\n  const space = known.has(\" \") ? \" \" : vocab[0];\n  const prompt = [...message.trim()].filter((char) => known.has(char)).join(\"\") || space;\n  const ids = lib.encode((space.repeat(k) + prompt + space).slice(-k), vocab);\n  const random = seeded(message.length);\n  const reply = [];\n  for (let n = 0; n < 240; n += 1) {\n    const context = ids.slice(-k);\n    const rows = context.map((id, place) => lib.add(E[id], P[place]));\n    const h = lib.add(lib.attention(rows[rows.length - 1], rows, rows), rows[rows.length - 1]);\n    const logits = lib.add(lib.matvec(outRows, h), b);\n    const next = lib.sample(lib.softmax(logits.map((value) => value / 0.8)), random());\n    ids.push(next);\n    reply.push(next);\n    const text = lib.decode(reply, vocab);\n    if (text.length > 60 && \".!?\\n\".includes(text[text.length - 1])) break;\n  }\n  console.log(lib.decode(reply, vocab).trim());\n  return 0;\n}\n\nconst [command, seconds, steps] = process.argv.slice(2);\nif (command === \"train\") process.exitCode = train(Number(seconds) || 60, Number(steps) || 12000);\nelse if (command === \"chat\") process.exitCode = chat();\nelse {\n  console.log(\"model.js train [seconds] [steps] | chat\");\n  process.exitCode = 2;\n}\n",
+        "course/model.py": "# Your little language model: python3 course/model.py train | chat\n#   train [seconds] [steps]: learns from book.txt and writes model.json (a minute at most, fewer steps for a short text).\n#   chat:  continues message.txt in the book's style with model.json, and prints the reply.\n# It is made of your functions (lib/, the lessons you've passed) and the course's (reference.py) for the rest: the\n# characters (vocabulary, encode, decode, windows) and, when it talks, softmax, sample and attention. Training runs the\n# same maths in numpy, so it's fast: a context of K characters, each an embedding (E) plus its place (P); attention\n# from the last character over the context, added to it; then one layer (Wo, b) gives a score for every character.\nimport json\nimport math\nimport os\nimport random\nimport sys\nimport time\n\nimport numpy as np\n\nsys.dont_write_bytecode = True\nHERE = os.path.dirname(os.path.abspath(__file__))\nK = 8\nD = 24\nMAX_CHARS = 150000\n\n\ndef library():\n    space = {\"__name__\": \"mylib\"}\n    with open(os.path.join(HERE, \"reference.py\"), encoding=\"utf-8\") as file:\n        exec(compile(file.read(), \"reference.py\", \"exec\"), space)  # noqa: S102\n    for name in sorted(os.listdir(\"lib\")) if os.path.isdir(\"lib\") else []:\n        try:\n            with open(os.path.join(\"lib\", name), encoding=\"utf-8\") as file:\n                exec(compile(file.read(), name, \"exec\"), space)  # noqa: S102\n        except Exception:  # noqa: BLE001 - an earlier lesson's code that no longer runs is left out\n            pass\n    return space\n\n\ndef cleaned(text):\n    text = text.replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\").replace(\"\\t\", \" \")\n    lines = [\" \".join(line.split()) for line in text.split(\"\\n\")]\n    out = \"\\n\".join(lines)\n    while \"\\n\\n\\n\" in out:\n        out = out.replace(\"\\n\\n\\n\", \"\\n\\n\")\n    return out.strip()[:MAX_CHARS]\n\n\ndef softmax_rows(x):\n    x = x - x.max(axis=-1, keepdims=True)\n    e = np.exp(x)\n    return e / e.sum(axis=-1, keepdims=True)\n\n\ndef train(seconds, most):\n    lib = library()\n    with open(\"book.txt\", encoding=\"utf-8\", errors=\"ignore\") as file:\n        text = cleaned(file.read())\n    if len(text) < 200:\n        print(\"The book is too short to learn from: give it a book or a long text (a few pages at least).\")\n        return 1\n    vocab = lib[\"vocabulary\"](text)\n    ids = lib[\"encode\"](text, vocab)\n    pairs = lib[\"windows\"](ids, K)\n    X = np.array([pair[0] for pair in pairs], dtype=np.int64)\n    Y = np.array([pair[1] for pair in pairs], dtype=np.int64)\n    V = len(vocab)\n    rng = np.random.default_rng(7)\n    params = {\n        \"E\": rng.normal(0, 0.3, (V, D)),\n        \"P\": rng.normal(0, 0.3, (K, D)),\n        \"Wo\": rng.normal(0, 0.3, (D, V)),\n        \"b\": np.zeros(V),\n    }\n    moments = {name: (np.zeros_like(value), np.zeros_like(value)) for name, value in params.items()}\n    batch, rate, root = 128, 0.01, math.sqrt(D)\n    # A short text needs fewer steps: about one an example, from 1,500 up to the most asked for.\n    most = min(most, max(1500, len(pairs)))\n    started = time.time()\n    steps, first, last = 0, None, None\n    while time.time() - started < seconds and steps < most:\n        pick = rng.integers(0, len(X), batch)\n        xb, yb = X[pick], Y[pick]\n        E, P, Wo, b = params[\"E\"], params[\"P\"], params[\"Wo\"], params[\"b\"]\n        x = E[xb] + P[None]\n        q = x[:, -1]\n        a = softmax_rows(np.einsum(\"bkd,bd->bk\", x, q) / root)\n        h = np.einsum(\"bk,bkd->bd\", a, x) + q\n        p = softmax_rows(h @ Wo + b)\n        value = float(-np.log(p[np.arange(batch), yb] + 1e-12).mean())\n        first = value if first is None else first\n        last = value if last is None else 0.98 * last + 0.02 * value\n        dl = p.copy()\n        dl[np.arange(batch), yb] -= 1\n        dl /= batch\n        grads = {\"Wo\": h.T @ dl, \"b\": dl.sum(0)}\n        dh = dl @ Wo.T\n        dx = a[:, :, None] * dh[:, None, :]\n        da = np.einsum(\"bkd,bd->bk\", x, dh)\n        ds = a * (da - (a * da).sum(1, keepdims=True))\n        dq = dh + np.einsum(\"bk,bkd->bd\", ds, x) / root\n        dx += ds[:, :, None] * q[:, None, :] / root\n        dx[:, -1] += dq\n        dE = np.zeros_like(E)\n        np.add.at(dE, xb, dx)\n        grads[\"E\"], grads[\"P\"] = dE, dx.sum(0)\n        steps += 1\n        for name, grad in grads.items():\n            m, v = moments[name]\n            m *= 0.9\n            m += 0.1 * grad\n            v *= 0.999\n            v += 0.001 * grad * grad\n            params[name] -= rate * (m / (1 - 0.9 ** steps)) / (np.sqrt(v / (1 - 0.999 ** steps)) + 1e-8)\n    model = {\"vocab\": vocab, \"K\": K, \"D\": D, **{name: np.round(value, 5).tolist() for name, value in params.items()}}\n    with open(\"model.json\", \"w\", encoding=\"utf-8\") as file:\n        json.dump(model, file)\n    print(f\"Read {len(text):,} characters: {V} different ones, {len(pairs):,} examples.\")\n    print(f\"Trained for {steps:,} steps in {time.time() - started:.0f} s: the loss went from {first:.2f} to {last:.2f}.\")\n    return 0\n\n\ndef chat():\n    lib = library()\n    with open(\"model.json\", encoding=\"utf-8\") as file:\n        model = json.load(file)\n    with open(\"message.txt\", encoding=\"utf-8\") as file:\n        message = file.read()\n    vocab, k = model[\"vocab\"], model[\"K\"]\n    E, P, b = model[\"E\"], model[\"P\"], model[\"b\"]\n    out_rows = lib[\"transpose\"](model[\"Wo\"])\n    known = set(vocab)\n    space = \" \" if \" \" in known else vocab[0]\n    prompt = \"\".join(char for char in message.strip() if char in known) or space\n    ids = lib[\"encode\"]((space * k + prompt + space)[-k:], vocab)\n    rng = random.Random(len(message))\n    reply = []\n    for _ in range(240):\n        context = ids[-k:]\n        rows = [lib[\"add\"](E[i], P[place]) for place, i in enumerate(context)]\n        h = lib[\"add\"](lib[\"attention\"](rows[-1], rows, rows), rows[-1])\n        logits = lib[\"add\"](lib[\"matvec\"](out_rows, h), b)\n        probs = lib[\"softmax\"]([value / 0.8 for value in logits])\n        nxt = lib[\"sample\"](probs, rng.random())\n        ids.append(nxt)\n        reply.append(nxt)\n        text = lib[\"decode\"](reply, vocab)\n        if len(text) > 60 and text[-1] in \".!?\\n\":\n            break\n    print(lib[\"decode\"](reply, vocab).strip())\n    return 0\n\n\nif __name__ == \"__main__\":\n    command = sys.argv[1] if len(sys.argv) > 1 else \"\"\n    if command == \"train\":\n        sys.exit(train(float(sys.argv[2]) if len(sys.argv) > 2 else 60, int(sys.argv[3]) if len(sys.argv) > 3 else 12000))\n    if command == \"chat\":\n        sys.exit(chat())\n    print(\"model.py train [seconds] | chat\")\n    sys.exit(2)\n",
+        "course/reference.js": "// The course's own solutions, one lesson after another. Your code takes their place lesson by lesson: the checks and\n// your model use your functions where you've written them, and these where you haven't yet.\n\n// --- l01 ---\nfunction total(numbers) {\n  let result = 0;\n  for (const number of numbers) result = result + number;\n  return result;\n}\n\nfunction count(items, wanted) {\n  let found = 0;\n  for (const item of items) {\n    if (item === wanted) found = found + 1;\n  }\n  return found;\n}\n\n// --- l02 ---\nfunction tally(text) {\n  const counts = {};\n  for (const char of text) counts[char] = (counts[char] || 0) + 1;\n  return counts;\n}\n\n// --- l03 ---\nfunction mean(xs) {\n  return xs.reduce((sum, x) => sum + x, 0) / xs.length;\n}\n\nfunction variance(xs) {\n  const middle = mean(xs);\n  return xs.reduce((sum, x) => sum + (x - middle) ** 2, 0) / xs.length;\n}\n\n// --- l04 ---\nfunction normalize(counts) {\n  const whole = counts.reduce((sum, c) => sum + c, 0);\n  return counts.map((c) => c / whole);\n}\n\n// --- l05 ---\nfunction sample(probs, r) {\n  let running = 0;\n  for (let index = 0; index < probs.length; index += 1) {\n    running = running + probs[index];\n    if (r < running) return index;\n  }\n  return probs.length - 1;\n}\n\n// --- l06 ---\nfunction dot(a, b) {\n  let sum = 0;\n  for (let i = 0; i < a.length; i += 1) sum = sum + a[i] * b[i];\n  return sum;\n}\n\nfunction add(a, b) {\n  return a.map((x, i) => x + b[i]);\n}\n\nfunction scale(a, k) {\n  return a.map((x) => x * k);\n}\n\n// --- l07 ---\nfunction matvec(m, v) {\n  return m.map((row) => dot(row, v));\n}\n\nfunction transpose(m) {\n  return m[0].map((_, column) => m.map((row) => row[column]));\n}\n\n// --- l08 ---\nfunction softmax(xs) {\n  const top = Math.max(...xs);\n  const exps = xs.map((x) => Math.exp(x - top));\n  const whole = exps.reduce((sum, e) => sum + e, 0);\n  return exps.map((e) => e / whole);\n}\n\n// --- l09 ---\nfunction loss(probs, target) {\n  return -Math.log(probs[target]);\n}\n\nfunction step(weights, grads, rate) {\n  return weights.map((w, i) => w - rate * grads[i]);\n}\n\n// --- l10 ---\nfunction vocabulary(text) {\n  return [...new Set(text)].sort();\n}\n\nfunction encode(text, vocab) {\n  const index = new Map(vocab.map((char, i) => [char, i]));\n  return [...text].map((char) => index.get(char));\n}\n\nfunction decode(ids, vocab) {\n  return ids.map((i) => vocab[i]).join(\"\");\n}\n\n// --- l11 ---\nfunction bigrams(ids, size) {\n  const counts = Array.from({ length: size }, () => new Array(size).fill(0));\n  for (let i = 0; i + 1 < ids.length; i += 1) counts[ids[i]][ids[i + 1]] += 1;\n  return counts;\n}\n\nfunction following(counts, a) {\n  const row = counts[a];\n  const whole = row.reduce((sum, c) => sum + c, 0) + row.length;\n  return row.map((c) => (c + 1) / whole);\n}\n\n// --- l12 ---\nfunction generate(counts, start, rs) {\n  const ids = [start];\n  for (const r of rs) ids.push(sample(following(counts, ids[ids.length - 1]), r));\n  return ids;\n}\n\n// --- l13 ---\nfunction predict(weights, a) {\n  return softmax(weights[a]);\n}\n\nfunction learn(weights, a, b, rate) {\n  const probs = predict(weights, a);\n  const row = weights[a].map((w, j) => w - rate * (probs[j] - (j === b ? 1 : 0)));\n  return weights.map((r, i) => (i === a ? row : [...r]));\n}\n\n// --- l14 ---\nfunction attention(query, keys, values) {\n  const size = query.length;\n  const weights = softmax(keys.map((key) => dot(query, key) / Math.sqrt(size)));\n  let out = new Array(values[0].length).fill(0);\n  weights.forEach((w, i) => {\n    out = add(out, scale(values[i], w));\n  });\n  return out;\n}\n\nfunction windows(ids, k) {\n  const pairs = [];\n  for (let i = k; i < ids.length; i += 1) pairs.push([ids.slice(i - k, i), ids[i]]);\n  return pairs;\n}\n",
+        "course/reference.py": "# The course's own solutions, one lesson after another. Your code takes their place lesson by lesson: the checks and\n# your model use your functions where you've written them, and these where you haven't yet.\nimport math\n\n# --- l01 ---\ndef total(numbers):\n    result = 0\n    for number in numbers:\n        result = result + number\n    return result\n\ndef count(items, wanted):\n    found = 0\n    for item in items:\n        if item == wanted:\n            found = found + 1\n    return found\n\n# --- l02 ---\ndef tally(text):\n    counts = {}\n    for char in text:\n        counts[char] = counts.get(char, 0) + 1\n    return counts\n\n# --- l03 ---\ndef mean(xs):\n    return sum(xs) / len(xs)\n\ndef variance(xs):\n    middle = mean(xs)\n    return sum((x - middle) ** 2 for x in xs) / len(xs)\n\n# --- l04 ---\ndef normalize(counts):\n    whole = sum(counts)\n    return [c / whole for c in counts]\n\n# --- l05 ---\ndef sample(probs, r):\n    running = 0.0\n    for index, p in enumerate(probs):\n        running = running + p\n        if r < running:\n            return index\n    return len(probs) - 1\n\n# --- l06 ---\ndef dot(a, b):\n    return sum(x * y for x, y in zip(a, b))\n\ndef add(a, b):\n    return [x + y for x, y in zip(a, b)]\n\ndef scale(a, k):\n    return [x * k for x in a]\n\n# --- l07 ---\ndef matvec(m, v):\n    return [dot(row, v) for row in m]\n\ndef transpose(m):\n    return [list(column) for column in zip(*m)]\n\n# --- l08 ---\ndef softmax(xs):\n    top = max(xs)\n    exps = [math.exp(x - top) for x in xs]\n    whole = sum(exps)\n    return [e / whole for e in exps]\n\n# --- l09 ---\ndef loss(probs, target):\n    return -math.log(probs[target])\n\ndef step(weights, grads, rate):\n    return [w - rate * g for w, g in zip(weights, grads)]\n\n# --- l10 ---\ndef vocabulary(text):\n    return sorted(set(text))\n\ndef encode(text, vocab):\n    index = {char: i for i, char in enumerate(vocab)}\n    return [index[char] for char in text]\n\ndef decode(ids, vocab):\n    return \"\".join(vocab[i] for i in ids)\n\n# --- l11 ---\ndef bigrams(ids, size):\n    counts = [[0] * size for _ in range(size)]\n    for a, b in zip(ids, ids[1:]):\n        counts[a][b] = counts[a][b] + 1\n    return counts\n\ndef following(counts, a):\n    row = counts[a]\n    whole = sum(row) + len(row)\n    return [(c + 1) / whole for c in row]\n\n# --- l12 ---\ndef generate(counts, start, rs):\n    ids = [start]\n    for r in rs:\n        ids.append(sample(following(counts, ids[-1]), r))\n    return ids\n\n# --- l13 ---\ndef predict(weights, a):\n    return softmax(weights[a])\n\ndef learn(weights, a, b, rate):\n    probs = predict(weights, a)\n    row = [w - rate * (p - (1 if j == b else 0)) for j, (w, p) in enumerate(zip(weights[a], probs))]\n    return [row if i == a else list(r) for i, r in enumerate(weights)]\n\n# --- l14 ---\ndef attention(query, keys, values):\n    size = len(query)\n    weights = softmax([dot(query, key) / math.sqrt(size) for key in keys])\n    out = [0.0] * len(values[0])\n    for w, value in zip(weights, values):\n        out = add(out, scale(value, w))\n    return out\n\ndef windows(ids, k):\n    return [[ids[i - k:i], ids[i]] for i in range(k, len(ids))]\n",
+        "course/tests.js": "// Every lesson's checks. Each takes your functions (m) and a checker (c): c.same(what, () => got, expected).\nconst LESSONS = {};\nconst lesson = (key, needs, run) => {\n  LESSONS[key] = { needs, run };\n};\n\nlesson(\"l01\", [\"total\", \"count\"], (m, c) => {\n  c.same(\"total([1, 2, 3])\", () => m.total([1, 2, 3]), 6);\n  c.same(\"total([10, -4])\", () => m.total([10, -4]), 6);\n  c.same(\"total([])\", () => m.total([]), 0);\n  c.same('count([\"a\", \"b\", \"a\"], \"a\")', () => m.count([\"a\", \"b\", \"a\"], \"a\"), 2);\n  c.same('count([...\"banana\"], \"n\")', () => m.count([...\"banana\"], \"n\"), 2);\n  c.same(\"count([1, 2], 3)\", () => m.count([1, 2], 3), 0);\n});\n\nlesson(\"l02\", [\"tally\"], (m, c) => {\n  c.same('tally(\"banana\")', () => m.tally(\"banana\"), { b: 1, a: 3, n: 2 });\n  c.same('tally(\"\")', () => m.tally(\"\"), {});\n  c.same('tally(\"a a\")', () => m.tally(\"a a\"), { a: 2, \" \": 1 });\n});\n\nlesson(\"l03\", [\"mean\", \"variance\"], (m, c) => {\n  c.same(\"mean([2, 4, 6])\", () => m.mean([2, 4, 6]), 4);\n  c.same(\"mean([1, 2])\", () => m.mean([1, 2]), 1.5);\n  c.same(\"variance([2, 4, 6])\", () => m.variance([2, 4, 6]), 8 / 3);\n  c.same(\"variance([5, 5, 5])\", () => m.variance([5, 5, 5]), 0);\n});\n\nlesson(\"l04\", [\"normalize\"], (m, c) => {\n  c.same(\"normalize([2, 6])\", () => m.normalize([2, 6]), [0.25, 0.75]);\n  c.same(\"normalize([1, 1, 1, 1])\", () => m.normalize([1, 1, 1, 1]), [0.25, 0.25, 0.25, 0.25]);\n  c.same(\"the sum of normalize([3, 0, 7])\", () => m.normalize([3, 0, 7]).reduce((a, b) => a + b, 0), 1);\n});\n\nlesson(\"l05\", [\"sample\"], (m, c) => {\n  c.same(\"sample([0.25, 0.75], 0.1)\", () => m.sample([0.25, 0.75], 0.1), 0);\n  c.same(\"sample([0.25, 0.75], 0.3)\", () => m.sample([0.25, 0.75], 0.3), 1);\n  c.same(\"sample([0.5, 0, 0.5], 0.5)\", () => m.sample([0.5, 0, 0.5], 0.5), 2);\n  c.same(\"sample([0.2, 0.3, 0.5], 0.99)\", () => m.sample([0.2, 0.3, 0.5], 0.99), 2);\n});\n\nlesson(\"l06\", [\"dot\", \"add\", \"scale\"], (m, c) => {\n  c.same(\"dot([1, 2, 3], [4, 5, 6])\", () => m.dot([1, 2, 3], [4, 5, 6]), 32);\n  c.same(\"dot([1, 0], [0, 1])\", () => m.dot([1, 0], [0, 1]), 0);\n  c.same(\"add([1, 2], [10, 20])\", () => m.add([1, 2], [10, 20]), [11, 22]);\n  c.same(\"scale([1, -2], 3)\", () => m.scale([1, -2], 3), [3, -6]);\n});\n\nlesson(\"l07\", [\"matvec\", \"transpose\"], (m, c) => {\n  c.same(\"matvec([[1, 2], [3, 4]], [1, 1])\", () => m.matvec([[1, 2], [3, 4]], [1, 1]), [3, 7]);\n  c.same(\"matvec([[2, 0, 1]], [1, 2, 3])\", () => m.matvec([[2, 0, 1]], [1, 2, 3]), [5]);\n  c.same(\"transpose([[1, 2, 3], [4, 5, 6]])\", () => m.transpose([[1, 2, 3], [4, 5, 6]]), [[1, 4], [2, 5], [3, 6]]);\n});\n\nlesson(\"l08\", [\"softmax\"], (m, c) => {\n  c.same(\"softmax([0, 0])\", () => m.softmax([0, 0]), [0.5, 0.5]);\n  c.same(\"softmax([1, 2, 3])\", () => m.softmax([1, 2, 3]), [0.09003057, 0.24472847, 0.66524096]);\n  c.same(\"softmax([1000, 1000])\", () => m.softmax([1000, 1000]), [0.5, 0.5]);\n});\n\nlesson(\"l09\", [\"loss\", \"step\"], (m, c) => {\n  c.same(\"loss([0.5, 0.5], 0)\", () => m.loss([0.5, 0.5], 0), Math.log(2));\n  c.same(\"loss([0.1, 0.9], 1)\", () => m.loss([0.1, 0.9], 1), 0.10536052);\n  c.same(\"step([1, 2], [0.5, -1], 0.1)\", () => m.step([1, 2], [0.5, -1], 0.1), [0.95, 2.1]);\n});\n\nlesson(\"l10\", [\"vocabulary\", \"encode\", \"decode\"], (m, c) => {\n  c.same('vocabulary(\"hello\")', () => m.vocabulary(\"hello\"), [\"e\", \"h\", \"l\", \"o\"]);\n  c.same('encode(\"hello\", [\"e\", \"h\", \"l\", \"o\"])', () => m.encode(\"hello\", [\"e\", \"h\", \"l\", \"o\"]), [1, 0, 2, 2, 3]);\n  c.same('decode([1, 0, 2, 2, 3], [\"e\", \"h\", \"l\", \"o\"])', () => m.decode([1, 0, 2, 2, 3], [\"e\", \"h\", \"l\", \"o\"]), \"hello\");\n});\n\nlesson(\"l11\", [\"bigrams\", \"following\"], (m, c) => {\n  c.same(\"bigrams([0, 1, 0, 1], 2)\", () => m.bigrams([0, 1, 0, 1], 2), [[0, 2], [1, 0]]);\n  c.same(\"following([[0, 2], [1, 0]], 0)\", () => m.following([[0, 2], [1, 0]], 0), [0.25, 0.75]);\n  c.same(\"following([[0, 0], [0, 0]], 1)\", () => m.following([[0, 0], [0, 0]], 1), [0.5, 0.5]);\n});\n\nlesson(\"l12\", [\"generate\"], (m, c) => {\n  const counts = [[0, 6], [6, 0]];\n  c.same(\"generate([[0, 6], [6, 0]], 0, [0.5, 0.5, 0.5])\", () => m.generate(counts, 0, [0.5, 0.5, 0.5]), [0, 1, 0, 1]);\n  c.same(\"generate([[0, 6], [6, 0]], 1, [0.95])\", () => m.generate(counts, 1, [0.95]), [1, 1]);\n  c.same(\"generate([[0, 6], [6, 0]], 0, [])\", () => m.generate(counts, 0, []), [0]);\n});\n\nlesson(\"l13\", [\"predict\", \"learn\"], (m, c) => {\n  const w = () => [[0, 0], [1, -1]];\n  c.same(\"predict([[0, 0], [1, -1]], 0)\", () => m.predict(w(), 0), [0.5, 0.5]);\n  c.same(\"learn([[0, 0], [1, -1]], 0, 1, 1)\", () => m.learn(w(), 0, 1, 1), [[-0.5, 0.5], [1, -1]]);\n  c.same(\"predict(learn([[0, 0], [1, -1]], 0, 1, 1), 0)[1] > 0.5\", () => m.predict(m.learn(w(), 0, 1, 1), 0)[1] > 0.5, true);\n  c.same(\"the weights you were given stay the same\", () => {\n    const given = w();\n    m.learn(given, 0, 1, 1);\n    return given;\n  }, [[0, 0], [1, -1]]);\n});\n\nlesson(\"l14\", [\"attention\", \"windows\"], (m, c) => {\n  c.same(\"attention([1, 0], [[1, 0], [1, 0]], [[2, 4], [4, 8]])\", () => m.attention([1, 0], [[1, 0], [1, 0]], [[2, 4], [4, 8]]), [3, 6]);\n  c.same(\"attention([4, 0], [[1, 0], [0, 1]], [[1, 0], [0, 1]])\", () => m.attention([4, 0], [[1, 0], [0, 1]], [[1, 0], [0, 1]]), [0.94419278, 0.05580722]);\n  c.same(\"windows([5, 6, 7, 8], 2)\", () => m.windows([5, 6, 7, 8], 2), [[[5, 6], 7], [[6, 7], 8]]);\n  c.same(\"windows([1, 2], 2)\", () => m.windows([1, 2], 2), []);\n});\n\nmodule.exports = { LESSONS };\n",
+        "course/tests.py": "# Every lesson's checks. Each takes your functions (`m`) and a checker (`c`): c.same(what, got, expected).\nimport math\n\nLESSONS = {}\n\ndef lesson(key, *needs):\n    def keep(run):\n        LESSONS[key] = (list(needs), run)\n        return run\n    return keep\n\n@lesson(\"l01\", \"total\", \"count\")\ndef _(m, c):\n    c.same(\"total([1, 2, 3])\", lambda: m.total([1, 2, 3]), 6)\n    c.same(\"total([10, -4])\", lambda: m.total([10, -4]), 6)\n    c.same(\"total([])\", lambda: m.total([]), 0)\n    c.same('count([\"a\", \"b\", \"a\"], \"a\")', lambda: m.count([\"a\", \"b\", \"a\"], \"a\"), 2)\n    c.same('count(list(\"banana\"), \"n\")', lambda: m.count(list(\"banana\"), \"n\"), 2)\n    c.same(\"count([1, 2], 3)\", lambda: m.count([1, 2], 3), 0)\n\n@lesson(\"l02\", \"tally\")\ndef _(m, c):\n    c.same('tally(\"banana\")', lambda: m.tally(\"banana\"), {\"b\": 1, \"a\": 3, \"n\": 2})\n    c.same('tally(\"\")', lambda: m.tally(\"\"), {})\n    c.same('tally(\"a a\")', lambda: m.tally(\"a a\"), {\"a\": 2, \" \": 1})\n\n@lesson(\"l03\", \"mean\", \"variance\")\ndef _(m, c):\n    c.same(\"mean([2, 4, 6])\", lambda: m.mean([2, 4, 6]), 4)\n    c.same(\"mean([1, 2])\", lambda: m.mean([1, 2]), 1.5)\n    c.same(\"variance([2, 4, 6])\", lambda: m.variance([2, 4, 6]), 8 / 3)\n    c.same(\"variance([5, 5, 5])\", lambda: m.variance([5, 5, 5]), 0)\n\n@lesson(\"l04\", \"normalize\")\ndef _(m, c):\n    c.same(\"normalize([2, 6])\", lambda: m.normalize([2, 6]), [0.25, 0.75])\n    c.same(\"normalize([1, 1, 1, 1])\", lambda: m.normalize([1, 1, 1, 1]), [0.25, 0.25, 0.25, 0.25])\n    c.same(\"sum(normalize([3, 0, 7]))\", lambda: sum(m.normalize([3, 0, 7])), 1)\n\n@lesson(\"l05\", \"sample\")\ndef _(m, c):\n    c.same(\"sample([0.25, 0.75], 0.1)\", lambda: m.sample([0.25, 0.75], 0.1), 0)\n    c.same(\"sample([0.25, 0.75], 0.3)\", lambda: m.sample([0.25, 0.75], 0.3), 1)\n    c.same(\"sample([0.5, 0.0, 0.5], 0.5)\", lambda: m.sample([0.5, 0.0, 0.5], 0.5), 2)\n    c.same(\"sample([0.2, 0.3, 0.5], 0.99)\", lambda: m.sample([0.2, 0.3, 0.5], 0.99), 2)\n\n@lesson(\"l06\", \"dot\", \"add\", \"scale\")\ndef _(m, c):\n    c.same(\"dot([1, 2, 3], [4, 5, 6])\", lambda: m.dot([1, 2, 3], [4, 5, 6]), 32)\n    c.same(\"dot([1, 0], [0, 1])\", lambda: m.dot([1, 0], [0, 1]), 0)\n    c.same(\"add([1, 2], [10, 20])\", lambda: m.add([1, 2], [10, 20]), [11, 22])\n    c.same(\"scale([1, -2], 3)\", lambda: m.scale([1, -2], 3), [3, -6])\n\n@lesson(\"l07\", \"matvec\", \"transpose\")\ndef _(m, c):\n    c.same(\"matvec([[1, 2], [3, 4]], [1, 1])\", lambda: m.matvec([[1, 2], [3, 4]], [1, 1]), [3, 7])\n    c.same(\"matvec([[2, 0, 1]], [1, 2, 3])\", lambda: m.matvec([[2, 0, 1]], [1, 2, 3]), [5])\n    c.same(\"transpose([[1, 2, 3], [4, 5, 6]])\", lambda: m.transpose([[1, 2, 3], [4, 5, 6]]), [[1, 4], [2, 5], [3, 6]])\n\n@lesson(\"l08\", \"softmax\")\ndef _(m, c):\n    c.same(\"softmax([0, 0])\", lambda: m.softmax([0, 0]), [0.5, 0.5])\n    c.same(\"softmax([1, 2, 3])\", lambda: m.softmax([1, 2, 3]), [0.09003057, 0.24472847, 0.66524096])\n    c.same(\"softmax([1000, 1000])\", lambda: m.softmax([1000, 1000]), [0.5, 0.5])\n\n@lesson(\"l09\", \"loss\", \"step\")\ndef _(m, c):\n    c.same(\"loss([0.5, 0.5], 0)\", lambda: m.loss([0.5, 0.5], 0), math.log(2))\n    c.same(\"loss([0.1, 0.9], 1)\", lambda: m.loss([0.1, 0.9], 1), 0.10536052)\n    c.same(\"step([1, 2], [0.5, -1], 0.1)\", lambda: m.step([1, 2], [0.5, -1], 0.1), [0.95, 2.1])\n\n@lesson(\"l10\", \"vocabulary\", \"encode\", \"decode\")\ndef _(m, c):\n    c.same('vocabulary(\"hello\")', lambda: m.vocabulary(\"hello\"), [\"e\", \"h\", \"l\", \"o\"])\n    c.same('encode(\"hello\", [\"e\", \"h\", \"l\", \"o\"])', lambda: m.encode(\"hello\", [\"e\", \"h\", \"l\", \"o\"]), [1, 0, 2, 2, 3])\n    c.same('decode([1, 0, 2, 2, 3], [\"e\", \"h\", \"l\", \"o\"])', lambda: m.decode([1, 0, 2, 2, 3], [\"e\", \"h\", \"l\", \"o\"]), \"hello\")\n\n@lesson(\"l11\", \"bigrams\", \"following\")\ndef _(m, c):\n    c.same(\"bigrams([0, 1, 0, 1], 2)\", lambda: m.bigrams([0, 1, 0, 1], 2), [[0, 2], [1, 0]])\n    c.same(\"following([[0, 2], [1, 0]], 0)\", lambda: m.following([[0, 2], [1, 0]], 0), [0.25, 0.75])\n    c.same(\"following([[0, 0], [0, 0]], 1)\", lambda: m.following([[0, 0], [0, 0]], 1), [0.5, 0.5])\n\n@lesson(\"l12\", \"generate\")\ndef _(m, c):\n    counts = [[0, 6], [6, 0]]\n    c.same(\"generate([[0, 6], [6, 0]], 0, [0.5, 0.5, 0.5])\", lambda: m.generate(counts, 0, [0.5, 0.5, 0.5]), [0, 1, 0, 1])\n    c.same(\"generate([[0, 6], [6, 0]], 1, [0.95])\", lambda: m.generate(counts, 1, [0.95]), [1, 1])\n    c.same(\"generate([[0, 6], [6, 0]], 0, [])\", lambda: m.generate(counts, 0, []), [0])\n\n@lesson(\"l13\", \"predict\", \"learn\")\ndef _(m, c):\n    w = [[0, 0], [1, -1]]\n    c.same(\"predict([[0, 0], [1, -1]], 0)\", lambda: m.predict(w, 0), [0.5, 0.5])\n    c.same(\"learn([[0, 0], [1, -1]], 0, 1, 1.0)\", lambda: m.learn(w, 0, 1, 1.0), [[-0.5, 0.5], [1, -1]])\n    c.same(\"predict(learn([[0, 0], [1, -1]], 0, 1, 1.0), 0)[1] > 0.5\", lambda: m.predict(m.learn(w, 0, 1, 1.0), 0)[1] > 0.5, True)\n    c.same(\"the weights you were given stay the same\", lambda: (m.learn(w, 0, 1, 1.0), w)[1], [[0, 0], [1, -1]])\n\n@lesson(\"l14\", \"attention\", \"windows\")\ndef _(m, c):\n    c.same(\"attention([1, 0], [[1, 0], [1, 0]], [[2, 4], [4, 8]])\", lambda: m.attention([1, 0], [[1, 0], [1, 0]], [[2, 4], [4, 8]]), [3, 6])\n    c.same(\"attention([4, 0], [[1, 0], [0, 1]], [[1, 0], [0, 1]])\", lambda: m.attention([4, 0], [[1, 0], [0, 1]], [[1, 0], [0, 1]]), [0.94419278, 0.05580722])\n    c.same(\"windows([5, 6, 7, 8], 2)\", lambda: m.windows([5, 6, 7, 8], 2), [[[5, 6], 7], [[6, 7], 8]])\n    c.same(\"windows([1, 2], 2)\", lambda: m.windows([1, 2], 2), [])\n"
+      },
+      "internet": false
+    }
+  }
+}

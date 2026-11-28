@@ -10,8 +10,8 @@ import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGatewa
 import { internetLimits } from "./internetUsage.js";
 import { secretMask } from "./secretMask.js";
 import {
-  ensureMountPoints, folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable,
-  sweepSandboxes, toolsDir
+  ensureMountPoints, folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, sharedScratch,
+  shellAvailable, sweepSandboxes, toolsDir
 } from "./gvisor.js";
 
 const run = promisify(execFile);
@@ -49,8 +49,24 @@ const LIMITS = {
   perServer: 2,
   // What one command may receive and send, a bot's new connections a minute and a home's internet a day (D-127): the
   // MERCBOT_INTERNET_* Env names set them (internetUsage.js).
-  internet: internetLimits({})
+  internet: internetLimits({}),
+  // Apps' programs (D-146): at most this many at once per server (MERCBOT_APP_RUNS), one past them waiting up to
+  // appWaitSeconds for a turn; what one may be given and bring back.
+  appRuns: 4,
+  appWaitSeconds: 30,
+  program: Object.freeze({ files: 40, chars: 2000000, fileChars: 1000000, inputBytes: 160 * 1024 * 1024, bring: 5, bringBytes: 2 * 1024 * 1024, keep: 3, keepBytes: 25 * 1024 * 1024 })
 };
+
+// Where an app's program runs (D-146): its files' folder, the sandbox's working folder.
+const WORK = "/work";
+// A file's name in a program's folder: words, dots, dashes and folders, never "..", nor a name starting with a dot.
+const PROGRAM_FILE = /^(?!.*(?:^|\/)\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}(?:\/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}){0,3}$/u;
+
+/** A program's file name, or null when it isn't one. */
+export function programFileName(name) {
+  const text = String(name ?? "");
+  return PROGRAM_FILE.test(text) ? text : null;
+}
 
 /** Why a run was stopped, as its bot is told (a run out of time says how long it had). */
 const STOPPED = Object.freeze({
@@ -123,7 +139,8 @@ function bundle({
     mounts: [
       ...(dirs.chat ? [folderMount(dirs.chat, CHAT, { readonly: reads("chat") })] : []),
       ...(dirs.bot ? [folderMount(dirs.bot, BOT, { readonly: reads("bot") })] : []),
-      folderMount(dirs.shared, SHARED, { readonly: reads("shared") }),
+      // An app's program (D-146) has no place: none of the home's folders.
+      ...(dirs.shared ? [folderMount(dirs.shared, SHARED, { readonly: reads("shared") })] : []),
       // The records' Database files, to read and copy from, never to change (D-130).
       ...(dirs.db ? [folderMount(dirs.db, DB, { readonly: true })] : []),
       // The bot's whole command outputs in its chat, to read with grep, tail and the like (D-48).
@@ -237,6 +254,61 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
     });
   return { done, kill: (reason) => started.then((job) => job.kill(reason), () => {}), output };
 }
+
+/**
+ * An app's program (D-146) in gVisor: `command` in /work, the run's folder `work`, with each of `readOnly` (its name in
+ * /work and the server's file) mounted over its place there, read-only. No network unless `internet`, then a gateway of
+ * its own as a command's (D-126, D-127). Resolves to { exitCode, output, seconds, killed }, its output cut as a
+ * command's is; `kill` stops it.
+ */
+function executeProgram({ env, work, readOnly, command, maxSeconds, limits, internet, gateway: startOne, meter }) {
+  const output = outputBuffer(limits);
+  const place = sandboxPlace("program");
+  let notes = [];
+  const started = (async () => {
+    const gatewayDir = internet ? path.join(place.dir, "gateway") : "";
+    const gateway = internet ? await sandboxGateway(gatewayDir, startOne, { limits: limits.internet, meter }) : null;
+    try {
+      const job = await runSandboxed({
+        env,
+        place,
+        spec: bundle({
+          runtimeEnv: env, dirs: {}, script: command, limits, gateway: gatewayDir, cwd: WORK,
+          mounts: [
+            { source: work, destination: WORK },
+            ...readOnly.map((file) => ({ source: file.source, destination: `${WORK}/${file.name}`, readonly: true }))
+          ]
+        }),
+        flags: internet ? ["--host-uds=open"] : [],
+        maxSeconds,
+        memory: limits.sandboxMemory,
+        onOutput: (text) => output.add(text)
+      });
+      return {
+        ...job,
+        done: job.done.finally(() => {
+          if (!gateway) return null;
+          notes = gateway.notes();
+          return gateway.close().catch(() => {});
+        })
+      };
+    } catch (error) {
+      await gateway?.close().catch(() => {});
+      await fs.rm(place.dir, { recursive: true, force: true }).catch(() => {});
+      throw error;
+    }
+  })();
+  const done = started
+    .then(({ done: ended }) => ended, (error) => {
+      output.add(`\n${error.message}`);
+      return { exitCode: 127, seconds: 0, killed: null };
+    })
+    .then((result) => ({ ...result, output: withNotes(output.text, notes) }));
+  return { done, kill: (reason) => started.then((job) => job.kill(reason), () => {}) };
+}
+
+/** A refusal of an app's program (D-146), with what kind it is: unavailable, busy, refused (the meter) or invalid. */
+const programRefusal = (kind, message) => Object.assign(new Error(message), { programRefusal: kind });
 
 /**
  * Another program in the bots' sandbox (D-49: everything runs in gVisor), with the place's
@@ -384,7 +456,12 @@ export function createShell({
   media = { on: false, filesLater: async () => {} },
   gateway = startGateway,
   internet,
-  limits = { ...LIMITS, perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer, internet: internet.limits },
+  limits = {
+    ...LIMITS,
+    perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer,
+    appRuns: Number(env.MERCBOT_APP_RUNS) || LIMITS.appRuns,
+    internet: internet.limits
+  },
   server = `${os.hostname()}:${process.pid}`
 }) {
   const endHandlers = new Set();
@@ -577,6 +654,177 @@ export function createShell({
     return { status: "running", run: String(row.id), note: backgroundNote(foregroundSeconds, maxSeconds) };
   }
 
+  // Apps' programs (D-146) take turns among themselves, apart from the bots' commands, so a model training for minutes
+  // never holds up a bot's command, nor a bot's long command a button.
+  let programsActive = 0;
+  const programsWaiting = [];
+  function programSlot() {
+    if (programsActive < limits.appRuns) {
+      programsActive += 1;
+      return Promise.resolve(true);
+    }
+    return new Promise((resolve) => {
+      const entry = { resolve, timer: null };
+      entry.timer = setTimeout(() => {
+        programsWaiting.splice(programsWaiting.indexOf(entry), 1);
+        resolve(false);
+      }, limits.appWaitSeconds * 1000);
+      entry.timer.unref?.();
+      programsWaiting.push(entry);
+    });
+  }
+  function programRelease() {
+    const next = programsWaiting.shift();
+    if (!next) {
+      programsActive -= 1;
+      return;
+    }
+    clearTimeout(next.timer);
+    next.resolve(true);
+  }
+
+  /** A program's files checked: { name: text } by name, within the limits; `what` names them in a refusal. */
+  function checkedFiles(given, what) {
+    const entries = Object.entries(given && typeof given === "object" && !Array.isArray(given) ? given : {});
+    for (const [name, text] of entries) {
+      if (!programFileName(name)) throw programRefusal("invalid", `"${name}" isn't a file name a program can have: letters, digits, _ . - and up to 3 folders, like "tests/check.py"`);
+      if (typeof text !== "string") throw programRefusal("invalid", `${what} ${name} isn't text`);
+      if (text.length > limits.program.fileChars) throw programRefusal("invalid", `${what} ${name} is over ${limits.program.fileChars} characters`);
+    }
+    return entries;
+  }
+
+  /** A file the program left in its folder, by name: its path, never a link out of the folder, or null. */
+  async function leftFile(work, name) {
+    const file = path.join(work, name);
+    const found = await fs.lstat(file).catch(() => null);
+    if (!found?.isFile()) return null;
+    const [real, folder] = await Promise.all([fs.realpath(file), fs.realpath(work)]);
+    return real.startsWith(`${folder}${path.sep}`) ? { path: real, size: found.size } : null;
+  }
+
+  /**
+   * An app's program (D-146) on the computer of the app's bot, `botId` in home `workspaceId`, for `userId`: `command`
+   * (bash) run in /work, a fresh gVisor sandbox with the bots' commands' limits, its computation recorded through the
+   * meter as a command's (D-73), with no network unless `internet` (then the bot's gateway, D-126, D-127). /work holds
+   * `files` ({ name: text }, the script's), `inputs` ([{ name, source }], files of the server's copied in, such as a
+   * record's) and, read-only over their place there, `readOnlyFiles` ({ name: text }, the app's own). Afterwards it reads
+   * back `bring` (names: text files, small) and hands each file of `keep` ({ name: async (path, size) => answer }) to its
+   * handler before its folder goes. Answers { exitCode, output, seconds, timedOut, stopped?, files, kept }. Refuses,
+   * throwing an error with `programRefusal` ("unavailable", "busy", "refused" or "invalid"), without the sandbox, when
+   * the meter won't have it, with no turn within appWaitSeconds, or what it was given isn't right.
+   */
+  async function runProgram({
+    workspaceId, botId, userId = null, command, files = {}, readOnlyFiles = {}, inputs = [], seconds = 10, internet: online = false,
+    bring = [], keep = {}
+  }) {
+    if (stopping) throw programRefusal("unavailable", "This server is shutting down; try again in a moment.");
+    if (!shellAvailable(env)) throw programRefusal("unavailable", "This server has no computer to run programs on: gVisor and its toolbox aren't installed here.");
+    const script = String(command ?? "").trim();
+    if (!script || script.length > 4000) throw programRefusal("invalid", "command is the command line to run, 1 to 4,000 characters, such as \"python3 main.py\"");
+    const own = checkedFiles(files, "file");
+    const app = checkedFiles(readOnlyFiles, "the app's file");
+    const given = [...own.map(([name]) => name), ...inputs.map((input) => input.name)];
+    for (const name of inputs.map((input) => input.name)) {
+      if (!programFileName(name)) throw programRefusal("invalid", `"${name}" isn't a file name a program can have`);
+    }
+    const clash = given.find((name) => app.some(([appName]) => appName === name));
+    if (clash) throw programRefusal("invalid", `${clash} is one of the app's own files, which a run can't replace: give yours another name`);
+    if (new Set(given).size !== given.length) throw programRefusal("invalid", "two of the files have the same name");
+    if (given.length + app.length > limits.program.files) throw programRefusal("invalid", `at most ${limits.program.files} files a run`);
+    if ([...own, ...app].reduce((sum, [, text]) => sum + text.length, 0) > limits.program.chars) {
+      throw programRefusal("invalid", `the files are over ${limits.program.chars} characters in all`);
+    }
+    const sizes = await Promise.all(inputs.map((input) => fs.stat(input.source).then((found) => found.size)));
+    if (sizes.reduce((sum, size) => sum + size, 0) > limits.program.inputBytes) throw programRefusal("invalid", `the records' files are over ${limits.program.inputBytes / 1024 / 1024} MB in all`);
+    const wanted = [...new Set((Array.isArray(bring) ? bring : []).map(String))];
+    const keeping = Object.entries(keep || {});
+    if (wanted.length > limits.program.bring || !wanted.every(programFileName)) throw programRefusal("invalid", `bring names at most ${limits.program.bring} files the program writes, like "out.json"`);
+    if (keeping.length > limits.program.keep || !keeping.every(([name]) => programFileName(name))) throw programRefusal("invalid", `keep names at most ${limits.program.keep} files the program writes`);
+    const maxSeconds = Math.min(Math.max(Number(seconds) || 10, 1), limits.maxSeconds);
+    let hold;
+    try {
+      hold = await meter.startComputation({ workspaceId, botId, ...(userId ? { userId } : {}) });
+    } catch (error) {
+      const refusal = refusalOf(error);
+      if (refusal) throw programRefusal("refused", refusal.message);
+      throw error;
+    }
+    if (!(await programSlot())) {
+      await hold.settle(0).catch(() => {});
+      throw programRefusal("busy", "The computer is busy with other apps' programs; try again in a moment.");
+    }
+    let settled = false;
+    let folder = null;
+    try {
+      folder = await sharedScratch(env, "mercbot-program-");
+      const work = path.join(folder, "work");
+      const appFolder = path.join(folder, "app");
+      const write = async (root, name, text) => {
+        await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true, mode: 0o2775 });
+        await fs.writeFile(path.join(root, name), text, { mode: 0o664 });
+      };
+      await fs.mkdir(work, { mode: 0o2775 });
+      for (const [name, text] of own) await write(work, name, text);
+      for (const input of inputs) {
+        await fs.mkdir(path.dirname(path.join(work, input.name)), { recursive: true, mode: 0o2775 });
+        await fs.copyFile(input.source, path.join(work, input.name));
+      }
+      // The app's own files sit in their place in /work, each a read-only mount over an empty file there.
+      for (const [name, text] of app) {
+        await write(appFolder, name, text);
+        await write(work, name, "");
+      }
+      const startedAt = Date.now();
+      const job = executeProgram({
+        env, work, command: script, maxSeconds, limits, internet: Boolean(online), gateway,
+        readOnly: app.map(([name]) => ({ name, source: path.join(appFolder, name) })),
+        meter: online ? internet.forGateway({ workspaceId, botId }) : null
+      });
+      // Before its block runs out the next is opened; when that's refused, it stops (D-73).
+      let heldUntil = startedAt + hold.blockSeconds * 1000;
+      const heartbeat = setInterval(() => {
+        if (Date.now() < heldUntil - 2 * limits.heartbeatSeconds * 1000) return;
+        heldUntil = Infinity;
+        hold.renew().then((renewed) => (renewed ? (heldUntil = Date.now() + hold.blockSeconds * 1000) : job.kill("paused")), () => job.kill("paused"));
+      }, limits.heartbeatSeconds * 1000);
+      heartbeat.unref();
+      const result = await job.done.finally(() => clearInterval(heartbeat));
+      settled = true;
+      hold.settle(result.seconds).catch((error) => console.warn("Recording a program's computation failed.", error));
+      const back = {};
+      let brought = 0;
+      for (const name of wanted) {
+        const file = await leftFile(work, name);
+        if (file && (brought += file.size) > limits.program.bringBytes) {
+          throw programRefusal("invalid", `the files to bring back are over ${limits.program.bringBytes / 1024 / 1024} MB: keep a big one in a record's file instead`);
+        }
+        back[name] = file ? await fs.readFile(file.path, "utf8") : null;
+      }
+      const kept = {};
+      for (const [name, handle] of keeping) {
+        const file = await leftFile(work, name);
+        if (file && file.size > limits.program.keepBytes) throw programRefusal("invalid", `${name} is over ${limits.program.keepBytes / 1024 / 1024} MB, too big to keep`);
+        kept[name] = file ? await handle(file.path, file.size) : null;
+      }
+      return {
+        exitCode: result.exitCode,
+        output: result.output,
+        seconds: result.seconds,
+        timedOut: result.killed === "time",
+        ...(result.killed ? { stopped: STOPPED[result.killed] || `It ran out of time (${maxSeconds} s).` } : {}),
+        files: back,
+        kept
+      };
+    } catch (error) {
+      if (!settled) await hold.settle(0).catch(() => {});
+      throw error;
+    } finally {
+      programRelease();
+      if (folder) await fs.rm(folder, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
   /** A run's state, for the call's own home: status, output so far, files changed. */
   async function check(runId, options) {
     const row = await runs.find(runId, options);
@@ -736,6 +984,7 @@ export function createShell({
     detach,
     terminalCommand,
     start,
+    runProgram,
     check,
     sweep,
     removeOldOutputs,

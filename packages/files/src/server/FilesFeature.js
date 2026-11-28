@@ -80,8 +80,9 @@ const FilesFeature = defineFeature({
    * @param {import("@local/account/server/types").Meter} capabilities.meter what the bots' commands run is recorded through (D-73)
    * @param {{ useFilesSync: (sync: object | null) => void }} capabilities.sweeps the account's sweeps, whose usage archive
    *   is kept in the files bucket when there is one (D-91)
-   * @param {{ useRecordFiles: (impl: object) => void }} capabilities.apps mercbot.apps, whose records' files and pictures
-   *   live in the home's Database files (D-130), which this feature writes
+   * @param {{ useRecordFiles: (impl: object) => void, useComputer: (impl: object) => void }} capabilities.apps
+   *   mercbot.apps, whose records' files and pictures live in the home's Database files (D-130), which this feature
+   *   writes, and whose scripts run programs in its sandboxes (D-146)
    * @param {import("@local/account/server/types").MediaCheck | null} capabilities.mediaCheck how a copy checks pictures and videos (D-90)
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
@@ -105,6 +106,8 @@ const FilesFeature = defineFeature({
       // another kind, or where they aren't.
       text: (homeId, virtualPath) => files.apps.textOf(files.store.homePlace(homeId), virtualPath)
     });
+    // Apps' scripts run programs on their bot's computer (D-146), in the command line's sandboxes.
+    apps.useComputer({ available: () => files.shell.available(), run: (request) => files.shell.runProgram(request) });
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
     // so this server carries on moves whose server stopped only once it listens.

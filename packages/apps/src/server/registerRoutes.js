@@ -125,7 +125,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     return {
       app: withTemplateState(app),
       version,
-      definition,
+      // An app's own files for its programs (D-146) stay on the server: the screens show their names only.
+      definition: definition?.computer?.files ? { ...definition, computer: { ...definition.computer, files: Object.keys(definition.computer.files) } } : definition,
       tables: screenTables(tables),
       theme,
       functions: await scripts.functionCode(app.id, ctx.options, { draft: request.query?.version === "draft" }),
