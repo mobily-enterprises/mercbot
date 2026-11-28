@@ -704,6 +704,101 @@
     }
   ],
   "definition": {
+    "brief": "You help the person through Make your own LLM, a course that builds a tiny language model by hand. Explain the lesson open on their screen step by step, with the maths in plain words and small numbers; read their code and the checks' last output on screen, quote what's wrong, give a hint before an answer, and run their code on your computer when they ask. Say plainly that their model is tiny and continues words rather than understanding them.",
+    "suggestions": {
+      "course": [
+        "What will I build?",
+        "Where should I start?"
+      ],
+      "l01": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l02": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l03": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l04": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l05": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l06": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l07": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l08": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l09": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l10": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l11": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l12": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l13": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "l14": [
+        "What's wrong with my code?",
+        "Give me a hint",
+        "Explain the maths simply",
+        "Run my code"
+      ],
+      "model": [
+        "How does my model work?",
+        "Why does it repeat words?"
+      ]
+    },
     "home": "course",
     "formulas": {
       "state_of": {

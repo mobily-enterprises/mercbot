@@ -46,6 +46,11 @@ Records are by field name: links are the linked record's id, ` +
   `subject, text }) (jobs only): a notice from the home's main bot in their chat with it ("From <app>: <text>"), or an email ` +
   `from the mailbox the app's owners chose; only when they switched it on for the app, within its daily limit, else an ` +
   `error says so. A test gives them as notify: { member: answer, email: answer }.
+- await chat.tell(personId, text) → { told: true } (buttons and jobs): the app's bot (its own, else the home's main one) ` +
+  `tells that person of the home text (1 to 2,000 characters) in their own chat with it inside the app, which they can ` +
+  `answer there ("Your course is ready", "Lesson 4 is ready"); at most 20 a day to one person from one app; never for a ` +
+  `public app's visitors. A job names whose record it's about (the record's person field, or whose) as personId. A test ` +
+  `gives it as chat: { tell: answer }.
 - await docs.pdf({ template, record: { table, id }, into: "a file field" | { table, id, field }, name }) → { file: { name, ` +
   `size } }: the record as a PDF in a file field (buttons and jobs, 3 a run). The template is HTML (up to 20,000 ` +
   `characters) with {{field}} for the record's values, shown as screens show them, and {{lines:table:link:field,field}} ` +
@@ -55,7 +60,7 @@ Records are by field name: links are the linked record's id, ` +
   `others; a file of another kind is an error saying so. A test gives it as docs: { text: answer }.
 - await computer.run({ command, files, recordFiles, seconds, bring, keep }) → { exitCode, output, seconds, timedOut, files, kept }: ` +
   `runs command (bash, such as "python3 main.py" or "node main.js") in a fresh sandbox on the app's bot's computer (buttons ` +
-  `and jobs; Python 3 with numpy, Node, no internet), in a folder holding files ({ "main.py": "text" }), records' files ` +
+  `and jobs; Python 3 with numpy, Node; offline unless the app's definition sets computer.internet: true), in a folder holding files ({ "main.py": "text" }), records' files ` +
   `(recordFiles: { "book.txt": { table, id, field } }) and the app's own files (its definition's computer.files), read-only. ` +
   `seconds: a button's 1 to 20, a job's 1 to 300 (default 10); output is what it printed (long output cut in the middle); ` +
   `bring: ["out.json"] reads small text files back into files; keep: { "model.json": { table, id, field } } puts a file it ` +

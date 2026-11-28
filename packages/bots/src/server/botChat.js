@@ -120,6 +120,8 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     const others = people.filter((person) => String(person.user_id) !== me)
       .map((person) => ({ id: String(person.user_id), name: person.name }));
     const body = withMentions(messageBody(input), chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })), others);
+    // What's on screen comes only with a message from inside the app, to its bot (D-147).
+    if (!chat.bot_app_id) delete body.snapshot;
     // The person's name as they wrote it (R2): the chat still names them once they've left it, or the home.
     body.authorName = (joining
       ? (await records.chats.names([me], options)).get(me)

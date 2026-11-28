@@ -77,6 +77,13 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "bills": [
+        "What's due this week?",
+        "What do I pay each month?",
+        "Which bills went up?"
+      ]
+    },
     "home": "bills",
     "navigation": {
       "style": "tabs",

@@ -124,6 +124,9 @@ export function createScreenRuntime({
   const grandTotals = reactive({});
   const busy = ref(false);
   const dialogs = reactive({});
+  // The screen's forms as they are now, typed but unsaved text included, by path: what the app's chat sends its bot
+  // with each message (D-147, appSnapshot.js). Each AppForm keeps its own entry while it's shown.
+  const forms = new Map();
 
   const tableNamed = (name) => tables.find((table) => table.key === name);
   const queryTable = (name) => tableNamed(screen.data?.[name]?.record || screen.data?.[name]?.from);
@@ -291,7 +294,7 @@ export function createScreenRuntime({
   // Cards move where the screen's routes can move them, never in a view (it only shows).
   const moves = Boolean(api.move) && !readOnly;
   return {
-    slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
+    slug, state, data, grandTotals, attention, loading, busy, dialogs, forms, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
     rowScope, load, loadAll, reloadChanged, run, move, moves, linkChoices, lists, browse, followState, stop, signal: reading.signal, version,
     attachesFiles, filesOnNew, attachNew, showsPictures
   };

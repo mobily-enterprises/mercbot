@@ -53,7 +53,8 @@ const appsWide = computed(() => footerHovered.value || appsFocused.value);
 const appIcons = ["$calendarToday", "$mail", "$description"];
 // The person's pinned apps, the list's Apps section above People (the person, 28 Nov: not in the top row, which keeps
 // the home's name its room).
-const { pinned: pinnedApps, open: openApp } = usePinnedApps();
+// The apps whose bot the person talks to join it (D-147).
+const { pinned: pinnedApps, open: openApp } = usePinnedApps({ appChats: () => props.model.appChats || [] });
 
 </script>
 

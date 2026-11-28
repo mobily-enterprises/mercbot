@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, provide, reactive, watch } from "vue";
+import { computed, inject, onBeforeUnmount, provide, reactive, watch } from "vue";
 import { calculate, celSchema, isFileField, isRollup, isWorkedOut, limitProblem } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
@@ -8,6 +8,7 @@ import { EMAIL, SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, refreshedDraft
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import RecordFileField from "./RecordFileField.vue";
 import { appsApi, errorText } from "./appsApi.js";
+import { formOnScreen } from "./appSnapshot.js";
 
 // A form (D-35). Inputs come from the field types; the app only lists field names. Money is typed
 // in units and stored in cents; a link is picked from its table's records, searched on the server as the person types,
@@ -166,6 +167,19 @@ const valid = computed(() => entries.value.filter(shown).every((entry) => !probl
 const shownProblem = (entry) => (creating.value && !touched.has(entry.field) ? "" : problem(entry));
 const changed = computed(() => entries.value.some((entry) => String(draft[entry.field] ?? "") !== String(toInput(entry.def, record.value?.[entry.field]) ?? "")));
 const buttonScope = computed(() => formScope(valid.value, changed.value));
+
+// What this form shows now, for the app's chat (D-147): read as the person sends a message (appSnapshot.js).
+const onScreen = () => formOnScreen({
+  table: table.value,
+  record: record.value,
+  creating: creating.value,
+  entries: entries.value.filter(shown),
+  draft,
+  toInput
+});
+const forms = runtime.forms;
+forms?.set(props.path, onScreen);
+onBeforeUnmount(() => forms?.delete(props.path));
 
 // After a create form's button succeeds, it's empty again for the next one.
 provide(APP_FORM_KEY, {

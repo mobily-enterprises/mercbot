@@ -93,6 +93,13 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "month": [
+        "What did I spend most on?",
+        "Am I over budget?",
+        "Compare with last month"
+      ]
+    },
     "home": "month",
     "navigation": {
       "style": "tabs",

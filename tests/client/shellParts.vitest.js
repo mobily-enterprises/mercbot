@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toChatRow } from "../../src/components/mercbot/chatDirectory.js";
 import { chatMenuItems, chatQuestion, chatRights, inviteChoices, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
-import { checkExtensions, showsIntroSlides } from "../../src/components/mercbot/shellChat.js";
+import { beforeShell, checkExtensions, showsIntroSlides } from "../../src/components/mercbot/shellChat.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
 import { galleryChips, galleryView } from "../../src/components/templates/galleryView.js";
 
@@ -246,5 +246,19 @@ describe("what a copy built on Mercbot adds (extensions.js)", () => {
     expect(showsIntroSlides(1, { introSlides: true })).toBe(true);
     expect(showsIntroSlides(1, { introSlides: false })).toBe(false);
     expect(showsIntroSlides(2, { introSlides: true }), "a second home never shows them (D-36)").toBe(false);
+  });
+
+  it("opens a home's shell only once every read the copy asks for before it (beforeShell) has answered, a failed one too", async () => {
+    const heard = [];
+    let answer;
+    const slow = () => new Promise((resolve) => { answer = resolve; });
+    const ready = beforeShell({ beforeShell: [slow, async () => { throw new Error("offline"); }, () => heard.push("sync")] });
+    ready.then(() => heard.push("ready"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(heard, "the slow read still holds the shell").toEqual(["sync"]);
+    answer();
+    await ready;
+    expect(heard).toEqual(["sync", "ready"]);
+    await expect(beforeShell({}), "a copy that asks for none").resolves.toBeUndefined();
   });
 });

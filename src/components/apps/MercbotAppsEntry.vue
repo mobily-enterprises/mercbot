@@ -12,7 +12,7 @@ defineProps({
   icon: { type: Boolean, default: false }
 });
 const paths = usePaths();
-const { pinned } = usePinnedApps();
+const { pinned } = usePinnedApps({ appChats: () => [] });
 </script>
 
 <template>

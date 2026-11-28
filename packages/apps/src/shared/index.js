@@ -5,6 +5,8 @@ export { CALCULATED_TYPES, calculate, calculatedFormulas, calculatedUsing, check
 export { withNamedFormulas } from "./namedFormulas.js";
 export { changesOn, jobSchedule } from "./schedules.js";
 export { expandLines } from "./lines.js";
+export { BRIEF_LIMIT, SUGGESTION_LIMITS, briefOf, suggestionsFor } from "./botBrief.js";
+export { GUIDE_LIMIT, appGuide } from "./appGuide.js";
 export { BOARD_FIELDS, isBoard, shiftDays } from "./boards.js";
 export { limitProblem } from "./fieldChecks.js";
 export { APP_ICONS, APP_ICON_GROUPS, APP_ICON_NAMES, isAppIcon } from "./appIcons.js";

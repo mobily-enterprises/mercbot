@@ -14,6 +14,7 @@ import { homeIdOf } from "./callOptions.js";
 import { internalOnly } from "./appConnectedAccess.js";
 import { RegistryError, keepOwnerField, newId } from "./registry.js";
 import { asDrafted, createScriptDrafts } from "./scriptDrafts.js";
+import { versionGuide } from "./appBots.js";
 
 const COLOR = /^#[0-9a-f]{6}$/iu;
 // How many versions a page of an app's version list holds.
@@ -301,11 +302,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     const views = await viewsOf(options);
     const expanded = withCopies(definition, views);
     // The draft's scripts (D-139): what the draft's buttons and screens run.
-    const scripts = asDrafted(await appScripts.queryAll({ filters: { appId: app.id } }, passedOn(options))).map((script) => ({
-      key: script.key,
-      kind: script.kind,
-      params: script.settings?.params || []
-    }));
+    const drafted = asDrafted(await appScripts.queryAll({ filters: { appId: app.id } }, passedOn(options)));
+    const scripts = drafted.map((script) => ({ key: script.key, kind: script.kind, params: script.settings?.params || [] }));
     const errors = [
       ...checkApp(expanded, tables, { bots: bots.map((bot) => bot.name), scripts, views }),
       ...checkStyle(expanded?.style).errors
@@ -319,7 +317,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       await holdHome(txOptions);
       const current = await find(slugOrId, txOptions);
       if (!fromTemplate) await fork(current, txOptions);
-      const fields = { definition: stored, summary: String(summary).slice(0, 2000), createdBy: actor, kind: "builder" };
+      // With its app guide (D-147), written here once, never per chat turn.
+      const fields = { definition: stored, guide: versionGuide(current, expanded, tables, drafted), summary: String(summary).slice(0, 2000), createdBy: actor, kind: "builder" };
       let draftId = current.draftVersionId;
       if (draftId) {
         await appVersions.patch(String(draftId), fields, { ...txOptions, returning: "none" });
@@ -364,9 +363,11 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       const draft = await appVersions.get(String(app.draftVersionId), {}, txOptions);
       await visitorAccessOf.checkWidening(app, draft.definition, canManage, txOptions);
       const number = await nextNumber(app.id, txOptions);
-      // The draft's scripts go live with it, and the version keeps them as they are now (D-139).
+      // The draft's scripts go live with it, kept with the version as they are now (D-139), and its guide written with them (D-147).
       const scripts = await scriptDrafts.publish(app.id, txOptions);
-      await appVersions.patch(String(draft.id), { number, publishedAt: new Date().toISOString(), createdBy: actor, scripts }, { ...txOptions, returning: "none" });
+      const tables = await registry.loadTables(txOptions);
+      const guide = versionGuide(app, await namedBots(toNames(draft.definition, tables), true, txOptions), tables, scripts);
+      await appVersions.patch(String(draft.id), { number, publishedAt: new Date().toISOString(), createdBy: actor, scripts, guide }, { ...txOptions, returning: "none" });
       await appRows.patch(app.id, { liveVersionId: String(draft.id), draftVersionId: null }, { ...txOptions, returning: "none" });
       await practices.remove(draft.id, txOptions);
       await audit({

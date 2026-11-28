@@ -87,7 +87,10 @@ test("Learn to program: a course written to the person's wishes, every lesson's 
   };
   const faces = async () => [{ id: mainBot, name: "Otto", main: true, archived: false }, ...(coach ? [{ id: coach, name: "Coach", main: false, archived: false }] : [])];
   const records = { ...bots, directory: { ...bots.directory, homeBotFaces: faces } };
-  const home = await appsHome(cleanup, { slug: "apps-program", knex, records, extras: { inputs: { "mercbot.app-connected": { ...NO_CONNECTED_APPS, appBot } } } });
+  // What the app's scripts tell a person in their chat with its bot (D-147): the bots' side, kept to be read.
+  const told = [];
+  const telling = { members: async () => [home.userId], tellPerson: async (_call, message) => told.push(message) };
+  const home = await appsHome(cleanup, { slug: "apps-program", knex, records, extras: { inputs: { "mercbot.app-connected": { ...NO_CONNECTED_APPS, appBot, ...telling } } } });
   const { userId, workspaceId, options } = home;
   const { gate, apps, runtime, scripts, watches, jobs } = home.apps;
   await knex("workspace_memberships").insert({ workspace_id: workspaceId, user_id: userId, role_sid: "member", status: "active" });
@@ -143,6 +146,8 @@ test("Learn to program: a course written to the person's wishes, every lesson's 
   assert.match(prompts[0].item, /Language: Python\\nWhat I want to learn and do: Make small games\\nHow much I know already: I've never programmed/u);
   const planned = await record("course", "course", { id: course.id });
   assert.deepEqual([planned.title, planned.status, planned.lessons, planned.ready], ["🐍 Python from zero", "Ready", 2, 2]);
+  const ready = "Your course \"🐍 Python from zero\" is ready: every lesson passed its tests on the computer. Open it whenever you like! 🎉";
+  assert.deepEqual(told, [{ appId: app.id, title: "Learn to program", botId: coach, userId, text: ready }], "its learner hears it once, in their chat with Coach");
   const [doubles, greet] = await rows("course", "lessons", { id: course.id });
   assert.deepEqual([doubles.title, doubles.status, doubles.fixes, greet.title, greet.status, greet.fixes], ["✖️ Doubles", "New", 0, "👋 Greetings", "New", 1]);
   assert.equal(doubles.check, "✅ doubles three\n✅ doubles zero\n✅ doubles a negative number\n\n🎉 3 of 3 tests passed.");

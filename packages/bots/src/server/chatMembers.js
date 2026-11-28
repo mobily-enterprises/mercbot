@@ -144,6 +144,8 @@ export function createChatMembers({ records, notices, computer, systemContext, p
         directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id),
         directPerson: directPerson(row),
         appId: row.app_id ?? null,
+        // A person's own chat with an app's bot (D-147): that app's id.
+        botAppId: row.bot_app_id ?? null,
         madeBy: row.made_by == null ? null : String(row.made_by),
         botsJoinIn: Boolean(row.bots_join_in),
         onboardingStep: row.onboarding_step ?? null,

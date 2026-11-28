@@ -84,6 +84,16 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "recipes": [
+        "What can I cook tonight?",
+        "Something quick and vegetarian"
+      ],
+      "recipe": [
+        "Scale this for 6 people",
+        "What can I swap in?"
+      ]
+    },
     "home": "recipes",
     "navigation": {
       "style": "tabs",

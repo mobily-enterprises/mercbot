@@ -78,6 +78,16 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "board": [
+        "What's most urgent?",
+        "Which tickets have waited longest?"
+      ],
+      "ticket": [
+        "Summarise this ticket",
+        "Draft a reply"
+      ]
+    },
     "home": "board",
     "navigation": {
       "style": "tabs",

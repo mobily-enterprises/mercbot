@@ -15,13 +15,15 @@ describe("Settings' sections", () => {
       accountMenu: [],
       generalActions: [],
       shellParts: [],
+      beforeShell: [],
       helpPageTools: [],
       aboutUpdates: null,
       appParts: [],
       pageShareParts: [],
       botActions: [],
       messageCards: [],
-      peopleActions: []
+      peopleActions: [],
+      introSlides: true
     });
     expect(listedSections(extensions.settingsSections, new Set()).map((entry) => entry.title)).toEqual([
       "General",

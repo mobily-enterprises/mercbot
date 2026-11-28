@@ -49,6 +49,16 @@ export function createKeyHolds() {
 export const showsIntroSlides = (homeCount, extensions) => homeCount <= 1 && extensions.introSlides !== false;
 
 /**
+ * What a home's page waits for, with its chats, before it shows the shell (extensions.js `beforeShell`): every read the
+ * copy asks for, so its shell parts know what to show from their first frame. A read that fails doesn't hold the shell.
+ * @param {{ beforeShell?: Array<() => unknown> }} extensions
+ * @returns {Promise<void>}
+ */
+export async function beforeShell(extensions) {
+  await Promise.all((extensions.beforeShell || []).map((read) => Promise.resolve().then(read).catch(() => {})));
+}
+
+/**
  * The shell's check, as it starts, of what a copy built on Mercbot adds (extensions.js): a copy still written for a
  * shape that's gone stops here, naming the fix, instead of losing its part without a word.
  * @param {Record<string, unknown>} extensions

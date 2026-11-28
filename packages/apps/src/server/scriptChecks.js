@@ -23,8 +23,8 @@ const EVERY = ["15min", "hour", "day", "week", "month"];
 export const ON = { create: ["create"], update: ["update"], any: ["create", "update"] };
 const READS = { list: true, get: true, totals: true };
 const WRITES = { create: true, update: true, markObsolete: true };
-// The host groups a test answers by operation, from its own `ai`, `notify`, `docs` and `computer`.
-const ANSWERED = new Set(["ai", "notify", "docs", "computer"]);
+// The host groups a test answers by operation, from its own `ai`, `notify`, `docs`, `computer` and `chat`.
+const ANSWERED = new Set(["ai", "notify", "docs", "computer", "chat"]);
 
 const typeOf = (value) => (typeof value === "number" ? "double" : typeof value === "boolean" ? "bool" : "string");
 
@@ -64,7 +64,8 @@ export const hostFor = (kind) =>
           connected: { actions: true, run: true },
           people: { me: true },
           // Programs on the bot's computer (D-146) too: a screen's would run one on every view.
-          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true, text: true }, computer: { run: true } }),
+          // And telling a person in their chat with the app's bot (D-147).
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true, text: true }, computer: { run: true }, chat: { tell: true } }),
           // Sending without a button press (D-137): a job's, when the app's owners and admins switched it on.
           ...(kind === "job" ? { notify: { member: true, email: true } } : {})
         };

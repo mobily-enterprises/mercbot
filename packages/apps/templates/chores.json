@@ -59,6 +59,12 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "board": [
+        "Who's behind on chores?",
+        "What's left for today?"
+      ]
+    },
     "home": "board",
     "navigation": {
       "style": "tabs",

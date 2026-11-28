@@ -279,3 +279,17 @@ describe("Rooms, People and Bots", () => {
     expect(model({ chats: [chat("2")] }).rooms.empty).toBe(false);
   });
 });
+
+// A person's own chat with an app's bot (D-147) is the app's, listed in the sidebar's Apps section, never a room.
+describe("a person's chats with apps' bots", () => {
+  it("aren't rooms: they're the Apps section's, newest first, a hidden one left out", () => {
+    const appChat = (id, botAppId, place = {}) => chat(id, { kind: "private", botAppId, title: `App ${id}`, place });
+    const model = buildSidebarModel({
+      publicRooms: [], people: [], bots: [], sections: [],
+      chats: [chat("1"), appChat("2", "a_learn"), appChat("3", "a_study"), appChat("4", "a_old", { hidden: true })]
+    });
+    expect(model.groups.flatMap((group) => ids(group.chats))).toEqual(["1"]);
+    expect(ids(model.hidden)).toEqual([]);
+    expect(ids(model.appChats)).toEqual(["3", "2"]);
+  });
+});

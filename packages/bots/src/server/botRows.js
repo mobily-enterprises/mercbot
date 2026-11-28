@@ -1,4 +1,5 @@
 // Bots, sections and messages as the page sees them, and the person's input cleaned on the way in.
+import { cleanSnapshot } from "../shared/onScreen.js";
 import { plainMentions } from "./mentions.js";
 import { BotsError } from "./botsError.js";
 import { templateChipOf } from "./botTemplate.js";
@@ -77,7 +78,7 @@ function shownDiscussion(body) {
 
 export function toMessage(row) {
   // The model transcript and a routine run's prompt stay on the server; the page only needs what's shown.
-  const { transcript, trigger, recording, ...kept } = row.body || {};
+  const { transcript, trigger, recording, snapshot, ...kept } = row.body || {};
   const body = row.kind === "discussion" ? shownDiscussion(kept) : kept;
   return {
     id: String(row.id),
@@ -163,6 +164,9 @@ export function messageBody(input) {
   if (!trimmed && !quotes.length && !attachments.length) throw new BotsError(400, "Write a message first.", { code: "bots_message_empty" });
   if (trimmed.length > 8000) throw new BotsError(400, "That message is too long.", { code: "bots_message_too_long" });
   const body = { text: trimmed };
+  // What was on the person's screen in an app as they wrote to its bot (D-147), cleaned and cut to its limits.
+  const snapshot = cleanSnapshot(input.snapshot);
+  if (snapshot) body.snapshot = snapshot;
   if (quotes.length) body.quotes = quotes;
   if (attachments.length) body.attachments = attachments;
   return body;

@@ -4981,3 +4981,75 @@ wall clock), `appsCheck.test.js` (the save check), `appsPersonalTables.integrati
 `appsLlmCourse.integration.js` (every lesson's solution passes and its starting code fails, in both languages; a lesson
 checked, a model trained and a chat in both), `appsLearnToProgram.integration.js` (a course written, a broken lesson
 fixed before it opens, an answer checked and explained, its quiz) and the template tests.
+
+## D-147 — Every app has a bot to talk to, in each person's own chat inside the app (2026-11-28)
+
+The owner: every app gets a bot you can talk to from inside it, "absolutely very easy to instruct with basic prompts
+CAREFULLY avoiding busting the cache", "aware, EASILY, of what page the app has open … SPECTACULAR: to the text in the
+textboxes", "FULLY aware about EVERYTHING about the app … created automatically by mercbot, like pre-packaged and always
+the same for every app … created on save"; a person's app chats in the chats list under Apps; apps' jobs may message a
+person there.
+
+- **The app's bot** is its own (D-144) while it's in the home and not archived, else the home's main bot (`appBotOf`,
+  `packages/apps/src/server/appBots.js`), the same rule wherever it's read.
+- **One chat per person and app** (`conversations.bot_app_id`, with its maker `made_by`, migration
+  `20261208120000_app_bot_chats.cjs`, unique per home, app and person, Private only): made the first time the person
+  opens it (`POST …/apps/:slug/bot-chat`, any member), the person and the bot its members, named after the app
+  (`records.chats.appBotChat`). The Builder's app chat (D-41) stays the app's one Public chat. When the app's bot
+  changes, the new one joins the person's chat and the old one stays until someone removes it, as a new Builder does.
+- **A brief and suggestions** are the definition's `brief` (a few plain sentences, at most 1,000 characters) and
+  `suggestions` (`{ "<screen>": [questions] }`, at most 4 a screen of 80 characters), checked on save
+  (`shared/botBrief.js`). A template carries them in its definition, the same keys as any app's (not a separate
+  `botBrief`), so they're versioned, followed and forked with its screens. An app without a brief gets one written the
+  same way every time from its name and its template's description; a screen without suggestions offers "What can I do
+  here?" and "How does this app work?". Study, Learn to program and Make your own LLM have briefs and suggestions on
+  every lesson screen; the most-used templates suggest questions on their main screens.
+- **The app guide** (`shared/appGuide.js`): plain labelled text written from the app itself, with no AI and no clock, and
+  every object's keys sorted, so the same app gives the same bytes: what it's for, each screen (what it reads, its parts,
+  forms, lists and buttons with what their steps do), the tables it uses and their fields (types, choices, links,
+  formulas, roll-ups, whose records they are), its scripts and when they run, what visitors reach; at most 40,000
+  characters, the screens' texts shortened first, then cut with a note. It is kept with each version
+  (`app_versions.guide`): written as a draft is saved and again as it's published (with the scripts that went live).
+  A version without one (made before, or by a restore, a field's removal or a template's update) gets it the first time
+  its bot needs it, written once. A turn only reads it. The chat is on the live app only (a draft's preview has the
+  Builder's), so its bot reads the live version's guide.
+- **The prompt** (`botAgent.js` `instructionsFor`): the bot's own instructions as in every chat (D-112, D-113), then, at
+  their end, what this chat is, the app's guide and its brief: the system part, the same bytes every turn of that chat,
+  changing only with a new version or brief. Nothing per turn goes there: the time and the rest stay in the state note,
+  and what's on screen is in the person's message.
+- **What's on screen** comes with every message sent from the app's chat (`src/components/apps/appSnapshot.js`): the app
+  and screen, the tab, what the screen was opened with, the record open, every form's fields with what's typed in them,
+  saved or not (each form's own entry in the screen's runtime), the screen's words and its lists' first 20 rows as shown,
+  and the last thing a button said. The server cleans it again (`@local/bots/shared/onScreen` `cleanSnapshot`): a field
+  whole up to 20,000 characters and 60,000 in all, forms first, then the record, the words and the lists, each cut with a
+  note. It's kept on the message (the page isn't sent it back) and only on a message in an app's chat, and each message
+  reads the same in every later turn ("On their screen as they wrote this…"), so the chat before stays cached. It is the
+  person's own view; a form field marked `"private": true` is left out of it.
+- **The chat panel** (`AppBotChat.vue`): "Ask <bot>" (its face, with an unread dot when the bot said something the
+  person hasn't read, such as a job's message) opens the shell's own chat view (`MercbotChatPanel`, `bare`) beside the
+  app, 400 px on a wide screen (the app narrows), the whole screen on a phone. The button is in the app's bar, beside
+  Ask Builder, rather than floating at the bottom right: a floating button covered the app's own buttons as they
+  scrolled under it (Learn to program's Check my answer at 390 px), and nothing in the bar ever does. The screen's
+  suggestions are chips that fill the message box while it's empty, and a quiet line over the box says what goes with
+  the next message ("Sees: Lesson · Doubles · Your code (12 lines)": the screen, the record open and each field with
+  something typed, by label and size, never its text). The record open is the one the screen was opened on (its first
+  parameter). The chat's news comes on the home's event stream and a reply is asked for again every 1.5 s until it's
+  there; the app's page reads `{ chatId, unread }` as it opens (`GET …/apps/:slug` `botChat`).
+- **The bot works as the person**, as every bot in a chat does (D-138, D-145): it reads and changes the app's records
+  with the data tools through the gate as the person it works for, so it sees only their own personal records.
+- **In the chats list**: a person's app chats aren't rooms; the sidebar's Apps section (D-35's pinned apps) lists the
+  pinned apps, then the apps whose bot they've talked to, newest first, one row an app with its chat's last words and
+  unread mark. A row opens the app; with its chat open (`?chat=1`) when the chat is why it's listed or has news.
+- **`chat.tell(personId, text)`** in a button's or a job's script: the app's bot says it in that person's chat with it,
+  made if needed, unread for them, and they answer it there. 1 to 2,000 characters, at most 20 a day to one person from
+  one app (`app_send_counts`, `tell:<person>`), someone of the home only, never on a public app's visitor's run, only
+  pretended in a draft's preview; in the app's activity. Unlike `notify.member` (D-137) it needs no switch from the
+  owners: it stays inside the person's own chat with the app. Study and Learn to program tell the course's learner when
+  it's ready.
+
+Proved by `appGuide.test.js`, `appsCheck.test.js`, `appsTemplates.test.js`, `appBotChats.integration.js` (the chat, the
+system part byte for byte across turns while what's on screen differs, a new brief changing it once),
+`appsBotGuide.integration.js` (the guide kept on save and publish, a turn never writing it again), `appsTell.integration.js`,
+`appTellChats.integration.js`, `appsCourseChats.integration.js` (one exchange a course), `appsStudy.integration.js`,
+`appsLearnToProgram.integration.js`, and the client tests `appSnapshot.vitest.js`, `appBotChat.vitest.js`,
+`sidebarApps.vitest.js`, `chatDirectory.vitest.js` and `chatList.vitest.js`.

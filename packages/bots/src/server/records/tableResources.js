@@ -34,7 +34,8 @@ export const botResource = defineTableResource({
 /** conversations
  * a chat (D-112): public (everyone in the home can open it) or private (its people only); a direct chat is one
  * person's own with one bot (directBotId), or two people's (directPersonId, the pair kept with directUserId the lower
- * id), private either way; the everyone chat has every active member of the home; an app's chat is its Builder's
+ * id), private either way; the everyone chat has every active member of the home; an app's chat is its Builder's; a
+ * person's own chat with an app's bot (D-147) names that app (botAppId), private, one per person and app
  */
 export const conversationResource = defineTableResource({
   name: "conversations",
@@ -46,6 +47,7 @@ export const conversationResource = defineTableResource({
     archivedBy: { type: "id", nullable: true },
     // Whether its bots join in when useful (D-115): on by default (D-129), its maker's and the home's owners' and admins'.
     botsJoinIn: { type: "boolean" },
+    botAppId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
     createdAt: { type: "dateTime" },
     directBotId: { type: "id", nullable: true, search: true },
     directPersonId: { type: "id", nullable: true, search: true },

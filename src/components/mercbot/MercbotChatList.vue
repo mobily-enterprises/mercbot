@@ -39,8 +39,8 @@ const props = defineProps({
   folded: { type: Object, default: () => ({}) },
   // People's +, when a copy built on Mercbot gives one (extensions.js peopleActions) and the person may use it.
   peopleActions: { type: Array, default: () => [] },
-  // The person's pinned apps (usePinnedApps), each { id, name, icon, color, picture, selected }: their own section,
-  // above People.
+  // The person's pinned apps and the apps whose bot they talk to (usePinnedApps' sidebarApps), each { id, name, icon,
+  // color, picture, selected, detail, unread, mentioned, opensChat }: their own section, above People.
   apps: { type: Array, default: () => [] },
   homeName: { type: String, default: "" }
 });
@@ -425,7 +425,8 @@ const SECTIONS = computed(() => [
       <button v-if="model.rooms.empty" type="button" class="mb-foot" @click="emit('new-room')">+ New room</button>
     </section>
 
-    <!-- The person's pinned apps: each opens the app. -->
+    <!-- The person's pinned apps, and the apps whose bot they talk to (D-147): each opens the app, its chat too when that
+         has news or put it here. -->
     <section v-if="apps.length" class="mb-section" aria-label="Apps">
       <div class="mb-section__head">
         <button type="button" class="mb-section__title" :aria-expanded="!folded.apps" @click="command('foldSection', { section: 'apps' })">
@@ -435,7 +436,15 @@ const SECTIONS = computed(() => [
       </div>
       <ul v-if="!folded.apps" class="mb-rows">
         <li v-for="app in apps" :key="app.id">
-          <MercbotSidebarRow :label="app.name" :name="app.name" :selected="app.selected" @click="emit('open-app', app)">
+          <MercbotSidebarRow
+            :label="app.name"
+            :name="app.name"
+            :detail="app.detail"
+            :unread="app.unread"
+            :mentioned="app.mentioned"
+            :selected="app.selected"
+            @click="emit('open-app', app)"
+          >
             <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="24" />
           </MercbotSidebarRow>
         </li>

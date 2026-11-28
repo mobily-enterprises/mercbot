@@ -88,6 +88,9 @@ const AppsFeature = defineFeature({
         registry: apps.registry,
         gate: apps.gate,
         apps: apps.apps,
+        // Every app's bot to talk to (D-147): botChat(slug, options), and forTurn(appId, options), what its bot's turn
+        // is told of the app (its name, guide and brief).
+        appBots: apps.appBots,
         // An app's picture and colour (D-141): set(actor, app, { icon, color }, options).
         icons: apps.icons,
         practices: apps.practices,

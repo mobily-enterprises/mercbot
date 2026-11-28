@@ -71,6 +71,12 @@
     }
   ],
   "definition": {
+    "suggestions": {
+      "log": [
+        "How did my week go?",
+        "Plan my next workout"
+      ]
+    },
     "home": "log",
     "navigation": {
       "style": "tabs",

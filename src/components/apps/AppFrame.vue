@@ -1,5 +1,5 @@
 <script setup>
-import { computed, provide, ref, shallowRef, watch } from "vue";
+import { computed, onBeforeUnmount, provide, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import ShellUpButton from "@jskit-ai/shell-web/client/components/ShellUpButton";
@@ -9,10 +9,14 @@ import AppTile from "@/components/apps/AppTile.vue";
 import AppNode from "@/components/apps/AppNode.vue";
 import AppTheme from "@/components/apps/AppTheme.vue";
 import AppCelebration from "@/components/apps/AppCelebration.vue";
+import AppBotChat from "@/components/apps/AppBotChat.vue";
+import MercbotAvatar from "@/components/mercbot/MercbotAvatar.vue";
+import { screenSnapshot } from "@/components/apps/appSnapshot.js";
+import { followChatNews, offersChat } from "@/components/apps/appBotChat.js";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
-import { expandLines, useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
+import { expandLines, suggestionsFor, useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
 import { browserFunctions } from "@/components/apps/scriptFunctions.js";
 import { askBuilder as openBuilderChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
@@ -33,7 +37,7 @@ import { useSnackbar } from "@/components/apps/useSnackbar.js";
 // close lands goes at most to Apps, never into the app.
 const route = useRoute();
 const router = useRouter();
-const { smAndDown } = useDisplay();
+const { smAndDown, width: displayWidth } = useDisplay();
 const paths = usePaths();
 
 const home = computed(() => String(route.params.workspaceSlug || ""));
@@ -104,8 +108,11 @@ function celebrate(message) {
   celebrationTimer = setTimeout(() => (celebration.value = null), CELEBRATION_MS);
 }
 
+// The last thing the app said (a button's message or celebration), which its chat's next message carries (D-147).
+const lastSaid = ref("");
 function onEffects(result) {
   for (const effect of result.effects || []) {
+    if (effect.notify || effect.celebrate) lastSaid.value = String(effect.notify || effect.celebrate);
     if (effect.confirmConnected) confirming.value = [...confirming.value, effect.confirmConnected];
     else if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
     else if (effect.notify) notify(effect.notify);
@@ -243,6 +250,46 @@ function onPointClick(event) {
   if (part) askBuilder(part);
 }
 
+// The app's chat (D-147): the person's own chat with the app's bot (its own, else the home's main bot), beside the app,
+// on the live app only (a draft's preview has the Builder's). ?chat=1 opens with it open, as the chats list's row does.
+// Each message carries what's on screen now, the screen's typed text included (appSnapshot.js).
+const appBot = computed(() => loaded.value?.bot || null);
+const chatShown = computed(() => offersChat(loaded.value, version.value));
+const chatting = ref(route.query.chat === "1");
+// The button's unread dot: the person's chat with the bot has something they haven't read (a job's "Lesson 4 is
+// ready"), as the app was read, then as the home's event stream tells; opening the chat reads it.
+const chatNews = ref(null);
+watch(() => loaded.value?.botChat, (news) => {
+  chatNews.value = news ? { ...news } : null;
+});
+watch(chatting, (open) => {
+  if (open && chatNews.value) chatNews.value = { ...chatNews.value, unread: false };
+});
+let stopNews = null;
+watch(chatShown, (shown) => {
+  if (!shown || stopNews) return;
+  stopNews = followChatNews((chatId) => {
+    if (!chatting.value && chatNews.value?.chatId === chatId) chatNews.value = { ...chatNews.value, unread: true };
+  });
+}, { immediate: true });
+onBeforeUnmount(() => stopNews?.());
+const mainArea = ref(null);
+const CHAT_WIDTH = 400;
+const chatWidth = computed(() => (smAndDown.value ? displayWidth.value : CHAT_WIDTH));
+const screenTitle = computed(() => {
+  const words = String(screenKey.value || "").replace(/[_-]+/gu, " ");
+  return navItems.value.find((item) => item.screen === screenKey.value)?.label || `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+});
+const suggestions = computed(() => suggestionsFor(definition.value, screenKey.value));
+const onScreen = () => screenSnapshot({
+  app: { name: loaded.value.app.name, slug: slug.value },
+  screen: { key: screenKey.value, title: screenTitle.value },
+  params: screenParams(definition.value.screens, screenKey.value, pathParts.value, route.query),
+  runtime: runtime.value,
+  main: mainArea.value,
+  notice: lastSaid.value
+});
+
 // Reset: the practice data starts again from the live records as they are now.
 async function resetPractice() {
   resetting.value = true;
@@ -278,7 +325,7 @@ async function publish() {
 </script>
 
 <template>
-  <div class="app-frame">
+  <div class="app-frame" :class="{ 'app-frame--chatting': chatShown && chatting && !smAndDown }" :style="{ '--app-chat-width': `${CHAT_WIDTH}px` }">
     <!-- The app's own look; the details drawer and notices stay in Mercbot's. -->
     <AppTheme :theme="loaded?.theme" class="app-frame__themed">
       <header class="app-frame__bar">
@@ -296,6 +343,22 @@ async function publish() {
             @retired="router.push(paths.page('/apps'))"
           />
           <template v-else>
+            <!-- The app's chat (D-147), in the bar so it never covers the app's own parts; its dot says the bot has news. -->
+            <v-btn
+              v-if="chatShown"
+              color="primary"
+              variant="tonal"
+              size="small"
+              rounded="pill"
+              :active="chatting"
+              :aria-label="`Ask ${appBot.name}${chatNews?.unread ? ': something new' : ''}`"
+              @click="chatting = !chatting"
+            >
+              <v-badge :model-value="Boolean(chatNews?.unread)" dot color="error" offset-x="2" offset-y="2">
+                <MercbotAvatar :bot="appBot" :size="20" still />
+              </v-badge>
+              <span class="ms-2">Ask {{ appBot.name }}</span>
+            </v-btn>
             <v-btn prepend-icon="$smartToy" variant="text" size="small" @click="askBuilder()">Ask Builder</v-btn>
             <v-btn icon="$adsClick" :variant="pointing ? 'tonal' : 'text'" :color="pointing ? 'primary' : undefined" size="small" aria-label="Point and ask" @click="pointing = !pointing; highlight = null" />
             <v-btn icon="$info" variant="text" size="small" aria-label="App details" @click="details = !details" />
@@ -340,7 +403,7 @@ async function publish() {
           </v-list>
         </nav>
 
-        <main class="app-frame__main" :class="{ 'app-frame__main--pointing': pointing }" @click.capture="onPointClick" @mousemove="onPointMove">
+        <main ref="mainArea" class="app-frame__main" :class="{ 'app-frame__main--pointing': pointing}" @click.capture="onPointClick" @mousemove="onPointMove">
           <v-alert v-if="pointing" type="info" variant="tonal" density="compact" class="mb-4">Click the part of the screen you want to ask the Builder about.</v-alert>
           <div v-if="pointing && highlight" class="app-frame__highlight" :style="highlight" />
           <v-tabs v-if="navItems.length && navStyle === 'tabs'" :model-value="screenKey" color="primary" class="mb-4">
@@ -375,6 +438,17 @@ async function publish() {
       </v-bottom-navigation>
     </AppTheme>
 
+    <v-navigation-drawer
+      v-if="chatShown"
+      v-model="chatting"
+      location="right"
+      :temporary="smAndDown"
+      :width="chatWidth"
+      class="app-frame__chat"
+    >
+      <AppBotChat v-if="chatting" :slug="slug" :bot="appBot" :suggestions="suggestions" :snapshot="onScreen" :me="loaded?.me?.id || ''" :width="chatWidth" @close="chatting = false" />
+    </v-navigation-drawer>
+
     <v-navigation-drawer v-if="loaded?.app" v-model="details" location="right" temporary width="440">
       <AppDetailsPanel :loaded="loaded" :home="home" @restored="(result) => { notify(`Restored as version ${result.number}.`); reopenApp(); }" @narrowed="(result) => { notify(`Saved as version ${result.number}.`); reopenApp(); }" @failed="(message) => notify(message, 'error')" @themed="() => { notify('Saved.'); reopenApp(); }" @ask="(about) => askBuilder(null, about)" />
     </v-navigation-drawer>
@@ -396,6 +470,12 @@ async function publish() {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+.app-frame--chatting {
+  padding-right: var(--app-chat-width);
+}
+.app-frame__chat :deep(.v-navigation-drawer__content) {
+  overflow: hidden;
 }
 .app-frame__themed {
   display: flex;

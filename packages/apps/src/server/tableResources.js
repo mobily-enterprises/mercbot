@@ -54,6 +54,8 @@ export const appVersionResource = defineTableResource({
     createdAt: { type: "dateTime" },
     createdBy: { type: "object", additionalProperties: true },
     definition: { type: "object", required: true, additionalProperties: true },
+    // The app guide for this version (D-147, appGuide.js), written as it's saved or published; null before.
+    guide: { type: "string", noTrim: true, nullable: true },
     // The app's scripts as this version went live (D-139), which restoring it brings back; null before scripts had drafts.
     scripts: { type: "array", nullable: true },
     kind: { type: "string", maxLength: 16, noTrim: true, search: true },

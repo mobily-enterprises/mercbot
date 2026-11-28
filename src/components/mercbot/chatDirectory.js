@@ -39,8 +39,11 @@ export function toChatRow(view) {
   };
 }
 
-/** A room: a chat that is neither a person's chat with a bot nor a chat between two people. */
-export const isRoom = (chat) => !chat.directBotId && !chat.directPerson;
+/**
+ * A room: a chat that is neither a person's chat with a bot nor a chat between two people, nor a person's own chat with
+ * an app's bot (D-147), which is the app's, in the Apps section.
+ */
+export const isRoom = (chat) => !chat.directBotId && !chat.directPerson && !chat.botAppId;
 
 /**
  * People or Bots: each entry is { id, entry: "person" | "bot", person | bot, templateName, templateLine, addedAt, chat,
@@ -170,7 +173,9 @@ export function buildSidebarModel({
       archivedOpen: Boolean(more.archivedBots)
     },
     hidden,
-    archived
+    archived,
+    // The person's chats with apps' bots (D-147), newest first: the Apps section's rows, with the pinned apps.
+    appChats: live.filter((chat) => chat.botAppId && !chat.hidden).sort(byActivity)
   };
   const order = [
     ...tiles,

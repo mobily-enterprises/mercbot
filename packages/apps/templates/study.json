@@ -1106,7 +1106,7 @@
           "condition": "=\"material\" in changed && row.material != \"\""
         }
       },
-      "code": "// A lesson the bot has written: its text goes on the lesson and its quiz becomes the lesson's questions (an earlier\n// quiz is put away, so a rewritten lesson starts fresh, as new). A course whose lessons are all written is ready.\nconst PER_RUN = 8;\n\nfunction parseLesson(material) {\n  const lines = String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\");\n  const at = lines.findIndex((line) => /^[\\s*#]*QUIZ\\b/i.test(line));\n  const text = (at < 0 ? lines : lines.slice(0, at)).join(\"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const questions = [];\n  let question = null;\n  for (const raw of at < 0 ? [] : lines.slice(at + 1)) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  const whole = questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter]));\n  return { text, questions: whole.slice(0, 6) };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  // Any lesson written while this job wasn't told (a run that failed), so none waits for ever.\n  for (const lesson of await records.list(\"study_lessons\", { where: \"=status == \\\"Writing\\\" && material != \\\"\\\"\", limit: PER_RUN })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = [];\n  let written = 0;\n  for (const id of ids.slice(0, PER_RUN)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\" || !lesson.material) continue;\n    const { text, questions } = parseLesson(lesson.material);\n    for (const old of await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) {\n      await records.markObsolete(\"study_questions\", old.id);\n    }\n    for (let index = 0; index < questions.length; index += 1) {\n      const entry = questions[index];\n      await records.create(\"study_questions\", {\n        lesson: id,\n        position: index + 1,\n        question: entry.question.slice(0, 1000),\n        choice_a: entry.choices.A.slice(0, 500),\n        choice_b: entry.choices.B.slice(0, 500),\n        choice_c: entry.choices.C.slice(0, 500),\n        choice_d: entry.choices.D.slice(0, 500),\n        answer: entry.answer,\n        why: entry.why.slice(0, 1000)\n      });\n    }\n    // Written again, it starts fresh for everyone: each person's progress in it is put away (kept, not counted).\n    for (const row of await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 100 })) {\n      await records.markObsolete(\"study_progress\", row.id);\n    }\n    await records.update(\"study_lessons\", id, { text: text || lesson.material, status: \"New\", request: \"\" });\n    if (!courses.includes(lesson.course)) courses.push(lesson.course);\n    written += 1;\n  }\n  const ready = [];\n  for (const course of courses) {\n    const waiting = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"Writing\\\"\", params: { course }, limit: 1 });\n    if (waiting.length) continue;\n    const row = await records.get(\"study_courses\", course);\n    if (row && row.status === \"Writing\") {\n      await records.update(\"study_courses\", course, { status: \"Ready\" });\n      ready.push(course);\n    }\n  }\n  return { written, ready };\n}",
+      "code": "// A lesson the bot has written: its text goes on the lesson and its quiz becomes the lesson's questions (an earlier\n// quiz is put away, so a rewritten lesson starts fresh, as new). A course whose lessons are all written is ready.\nconst PER_RUN = 8;\n\nfunction parseLesson(material) {\n  const lines = String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\");\n  const at = lines.findIndex((line) => /^[\\s*#]*QUIZ\\b/i.test(line));\n  const text = (at < 0 ? lines : lines.slice(0, at)).join(\"\\n\").replace(/\\n{3,}/g, \"\\n\\n\").trim();\n  const questions = [];\n  let question = null;\n  for (const raw of at < 0 ? [] : lines.slice(at + 1)) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  const whole = questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter]));\n  return { text, questions: whole.slice(0, 6) };\n}\n\nasync function main(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  // Any lesson written while this job wasn't told (a run that failed), so none waits for ever.\n  for (const lesson of await records.list(\"study_lessons\", { where: \"=status == \\\"Writing\\\" && material != \\\"\\\"\", limit: PER_RUN })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = [];\n  let written = 0;\n  for (const id of ids.slice(0, PER_RUN)) {\n    const lesson = await records.get(\"study_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\" || !lesson.material) continue;\n    const { text, questions } = parseLesson(lesson.material);\n    for (const old of await records.list(\"study_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) {\n      await records.markObsolete(\"study_questions\", old.id);\n    }\n    for (let index = 0; index < questions.length; index += 1) {\n      const entry = questions[index];\n      await records.create(\"study_questions\", {\n        lesson: id,\n        position: index + 1,\n        question: entry.question.slice(0, 1000),\n        choice_a: entry.choices.A.slice(0, 500),\n        choice_b: entry.choices.B.slice(0, 500),\n        choice_c: entry.choices.C.slice(0, 500),\n        choice_d: entry.choices.D.slice(0, 500),\n        answer: entry.answer,\n        why: entry.why.slice(0, 1000)\n      });\n    }\n    // Written again, it starts fresh for everyone: each person's progress in it is put away (kept, not counted).\n    for (const row of await records.list(\"study_progress\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 100 })) {\n      await records.markObsolete(\"study_progress\", row.id);\n    }\n    await records.update(\"study_lessons\", id, { text: text || lesson.material, status: \"New\", request: \"\" });\n    if (!courses.includes(lesson.course)) courses.push(lesson.course);\n    written += 1;\n  }\n  const ready = [];\n  for (const course of courses) {\n    const waiting = await records.list(\"study_lessons\", { where: \"=course == params.course && status == \\\"Writing\\\"\", params: { course }, limit: 1 });\n    if (waiting.length) continue;\n    const row = await records.get(\"study_courses\", course);\n    if (row && row.status === \"Writing\") {\n      await records.update(\"study_courses\", course, { status: \"Ready\" });\n      // Its learner hears it in their own chat with the app's bot, and can ask about it there (D-147).\n      if (row.learner) await chat.tell(row.learner, \"Your course \\\"\" + (row.title || row.goal) + \"\\\" is ready: every lesson is written. Open it whenever you like! 🎉\");\n      ready.push(course);\n    }\n  }\n  return { written, ready };\n}",
       "tests": [
         {
           "name": "a written lesson gets its text and quiz, and its course is ready",
@@ -1123,10 +1123,17 @@
               }
             ]
           },
+          "chat": {
+            "tell": {
+              "told": true
+            }
+          },
           "records": {
             "study_courses": [
               {
                 "goal": "How plants grow",
+                "title": "Plants",
+                "learner": "5",
                 "status": "Writing"
               }
             ],
@@ -1941,6 +1948,33 @@
     }
   ],
   "definition": {
+    "brief": "You're the tutor in Study. Help the person learn from their books and the course they're taking: explain the lesson they have open in simple words with a small example, give a hint before an answer, never answer a quiz question for them before they've tried, and say what to study next. For how they're doing, read their own progress.",
+    "suggestions": {
+      "learn": [
+        "What should I study next?",
+        "How am I doing?"
+      ],
+      "books": [
+        "Which book should I start with?"
+      ],
+      "course": [
+        "What's in this course?",
+        "Make it easier for me"
+      ],
+      "lesson": [
+        "Explain this lesson more simply",
+        "Give me an example",
+        "Quiz me on this"
+      ],
+      "quiz": [
+        "Give me a hint",
+        "Why is that the answer?"
+      ],
+      "progress": [
+        "Where am I weakest?",
+        "What should I go over again?"
+      ]
+    },
     "home": "learn",
     "navigation": {
       "style": "rail",

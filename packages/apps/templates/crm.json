@@ -17,6 +17,16 @@
   ],
   "tables": [],
   "definition": {
+    "suggestions": {
+      "pipeline": [
+        "Which deals need a follow-up?",
+        "What's likely to close this month?"
+      ],
+      "contact": [
+        "Summarise this contact",
+        "Draft a follow-up email"
+      ]
+    },
     "home": "pipeline",
     "navigation": {
       "style": "rail",

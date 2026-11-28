@@ -1,6 +1,7 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { GateError } from "./validate.js";
+import { appBotOf } from "./appBots.js";
 
 // Sending without a button press (D-137): an app's jobs and public forms may notify the home's members (a message from
 // the home's main bot in each one's chat with it) and send email from one of the home's connected mailboxes, each only
@@ -10,6 +11,9 @@ import { GateError } from "./validate.js";
 // Each send is in the app's activity. The bots make them (mercbot.app-connected: appMessages.js).
 const SEND_DAILY = Object.freeze({ standard: 50, max: 500 });
 const VISITOR_DAILY = 3;
+// A script's message to a person in their chat with the app's bot (D-147): its length, and how many one app sends one
+// person a day, whatever its sending switches say (it stays inside the person's own chat).
+const TELL = Object.freeze({ chars: 2000, daily: 20 });
 const TO_MAX = 10;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
@@ -29,9 +33,11 @@ export const sendingOf = (app) => ({
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources
  *   AppsFeature's handles: apps, appSendCounts and auditEvents
  * @param {() => import("./types.js").AppConnected} dependencies.connected read at call time: the bots' (mailboxes,
- *   members, managers, notifyMembers, sendEmail)
+ *   members, managers, notifyMembers, sendEmail, tellPerson)
+ * @param {(options: object) => Promise<Array<{ id: string, name: string, main: boolean, archived: boolean }>>}
+ *   dependencies.homeBots the home's bots, whose the app's is
  */
-export function createAppSending({ resources, connected }) {
+export function createAppSending({ resources, connected, homeBots }) {
   const { apps: appRows, appSendCounts, auditEvents } = resources;
 
   /**
@@ -150,12 +156,40 @@ export function createAppSending({ resources, connected }) {
     return name === "email" ? email(ctx, app, input) : notify(ctx, app, input);
   }
 
+  /**
+   * A job's or a button's `chat.tell(person, text)` (D-147): one person of the home (by id) told `text` (1 to TELL.chars
+   * characters) in their own chat with the app's bot, as that bot, which they can answer there; at most TELL.daily a day
+   * to one person from one app. Never on a public app's visitor's run; a draft's preview only says it would.
+   */
+  async function tellFromRun(ctx, appId, [to, text] = []) {
+    if (ctx.visitor) throw refused("Only the home's people are told things in their chat with the app's bot: a public app's visitors aren't.", "apps_tell_visitor");
+    if (ctx.practice) {
+      ctx.practice.simulated.push({ sent: { kind: "message" }, script: ctx.via?.script });
+      return { simulated: true };
+    }
+    const app = await appRows.get(String(appId), { fields: ["id", "name", "botId"] }, passedOn(ctx.options));
+    const words = String(text ?? "").trim();
+    if (!words || words.length > TELL.chars) throw refused(`A message is 1 to ${TELL.chars.toLocaleString("en")} characters.`, "apps_tell_invalid");
+    const call = { context: ctx.options.context };
+    const person = String(to ?? "");
+    if (!(await connected().members(call)).map(String).includes(person)) throw refused("A message goes to someone in the home, by their id.", "apps_tell_invalid");
+    const bot = appBotOf(app, await homeBots(call));
+    if (!bot) throw refused("This home has no bot to say it: an owner or admin chooses a main bot in Settings.", "apps_bot_missing");
+    if (!(await counted(app.id, `tell:${person}`, TELL.daily, 1, call))) {
+      throw refused(`This app has told this person ${TELL.daily} things today.`, "apps_send_limit");
+    }
+    await connected().tellPerson(call, { appId: app.id, title: app.name, botId: bot.id, userId: person, text: words });
+    await recorded(ctx, app, { kind: "message", to: 1 });
+    return { told: true };
+  }
+
   return Object.freeze({
     choose,
     today,
     notify,
     email,
-    fromRun
+    fromRun,
+    tellFromRun
   });
 }
 

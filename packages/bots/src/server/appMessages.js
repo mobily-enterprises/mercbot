@@ -7,7 +7,8 @@ import { AppConnectedError } from "./appConnected.js";
 // in each one's own chat with it (unread for them, and on their devices as any message is), and an email from one of the
 // home's connected mailboxes (Gmail or Outlook) that the app's owners and admins chose. The apps decide whether an app
 // may send at all and count what it sends (appSending.js); here it is only made. A test or staging copy logs an email
-// instead of sending it (D-69).
+// instead of sending it (D-69). An app's script also tells one person something in their own chat with the app's bot
+// (D-147, chat.tell), which they answer there.
 
 /**
  * @param {object} dependencies
@@ -15,8 +16,9 @@ import { AppConnectedError } from "./appConnected.js";
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {(reason: string) => object} dependencies.systemContext the bots'
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices a person's open pages hear of a message
  */
-export function createAppMessages({ records, integrations, env, systemContext }) {
+export function createAppMessages({ records, integrations, env, systemContext, notices }) {
   /** The home's connected mailboxes an app may send from, as its owners and admins choose one: { id, app, address }. */
   async function mailboxes(call) {
     const accounts = await integrations.reachableAccounts(call, { pluginIds: Object.keys(MAIL) });
@@ -47,6 +49,20 @@ export function createAppMessages({ records, integrations, env, systemContext })
     return userIds.length;
   }
 
+  /**
+   * A message to one person of the call's home from an app's script (D-147): the app's bot (`botId`, the apps' choice)
+   * says `text` in the person's own chat with it, made the first time (records.chats.appBotChat), unread for them, and
+   * their open pages hear of it. Answers the chat's id.
+   */
+  async function tellPerson(call, { appId, title, botId, userId, text }) {
+    const home = resolveWorkspaceScopeValue(call?.context);
+    const asPerson = { context: systemContext("an app's script tells a person in their chat with the app's bot").forWorkspace(home, { actorId: String(userId) }) };
+    const chat = await records.chats.appBotChat({ appId: String(appId), botId: String(botId), title }, asPerson);
+    await records.messages.append(String(chat.id), [{ kind: "text", role: "bot", authorBotId: String(botId), body: { text } }], asPerson);
+    await notices.publishEach("bots", [String(userId)], { type: "messages", chatId: String(chat.id) });
+    return String(chat.id);
+  }
+
   /** An email from the mailbox `account` (one of mailboxes'), to `to`: sent in a live copy, logged in a test copy. */
   async function sendEmail(call, { account, to, subject, text }) {
     const accounts = await integrations.reachableAccounts(call, { pluginIds: Object.keys(MAIL) });
@@ -66,6 +82,7 @@ export function createAppMessages({ records, integrations, env, systemContext })
     members,
     managers,
     notifyMembers,
+    tellPerson,
     sendEmail
   });
 }

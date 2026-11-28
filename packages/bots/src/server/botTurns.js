@@ -334,6 +334,8 @@ export function createBotTurns({
     const template = await templateOf(seat, records.homeTemplates, call);
     // What it knows (D-107): in its instructions, and searched with its tools and in the current state.
     const known = await knowledge.forTurn(seat, call);
+    // A person's own chat with an app's bot (D-147): the app's name, guide and brief, for the cached start of its prompt.
+    const app = seat.chat?.bot_app_id ? await apps.appBots.forTurn(String(seat.chat.bot_app_id), call) : null;
     const run = buildTools({
       call,
       records,
@@ -372,7 +374,7 @@ export function createBotTurns({
         withoutSecrets: (text) => withoutSecrets(text, call)
       })
     });
-    return { run, isBuilder, builder, toolSwitches, template, knowledge: known };
+    return { run, isBuilder, builder, toolSwitches, template, knowledge: known, app };
   }
 
   /**

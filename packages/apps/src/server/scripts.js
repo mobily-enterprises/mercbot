@@ -121,7 +121,7 @@ export function createScripts({
   const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
   const documents = createScriptDocs({ gate });
   const programs = createScriptComputer({ resources, gate, homeBots, computer });
-  const sending = createAppSending({ resources, connected });
+  const sending = createAppSending({ resources, connected, homeBots });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
   let quickjs = null;
@@ -361,7 +361,7 @@ export function createScripts({
       if (group === "ai") return aiCall(name, args);
       if (group === "docs") return docsCall(name, args);
       if (group === "computer") return computerCall(name, args);
-      if (group === "notify") return sending.fromRun(ctx, row.appId, name, args[0]);
+      if (group === "notify" || group === "chat") return group === "chat" ? sending.tellFromRun(ctx, row.appId, args) : sending.fromRun(ctx, row.appId, name, args[0]);
       if (group === "people") return personOfRun(ctx, row);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);

@@ -43,6 +43,8 @@ const props = defineProps({
   homeName: { type: String, default: "this home" },
   manages: { type: Boolean, default: false },
   phone: { type: Boolean, default: false },
+  // Inside an app's chat (AppBotChat.vue, D-147): the panel there has the header, so this has none of its own.
+  bare: { type: Boolean, default: false },
   // On a phone, whether another chat has news (the drawer button's dot).
   otherNews: { type: Boolean, default: false },
   status: { type: String, default: "" },
@@ -403,7 +405,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
     <div v-if="!page && writing" class="mb-chat__fade" aria-hidden="true" />
 
     <!-- The chat's header (plan 4.4): who's in it, Public or Private, a room's Invite, and its details. -->
-    <div v-if="chat && !page && !phone" class="mb-chat__head">
+    <div v-if="chat && !page && !phone && !bare" class="mb-chat__head">
       <button type="button" class="mb-chip" :aria-label="`${title} details`" @click="emit('open-details')">
         <MercbotChatAvatar :chat="chat" :me="me" :size="22" still />
         <span class="mb-chip__text">

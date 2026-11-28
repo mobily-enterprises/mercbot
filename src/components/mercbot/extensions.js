@@ -20,6 +20,10 @@
 //   the part's dialog is open. With `place` "notice", above the open chat's composer: each gets `pulse`, the open
 //   chat's message count, which changes as its messages come, and may emit `open-settings` with a Settings section's
 //   `value` to open it.
+// - beforeShell: reads a home's page waits for before it shows the shell, each an async function, started with the
+//   home's chats and waited for with them, its loading surface staying meanwhile (shellChat.js beforeShell), so a shell
+//   part can know what to show from its first frame. The home is the page's (homeApi.js currentHome()); a read that
+//   fails doesn't hold the shell.
 // - helpPageTools: tools after a help page's own (Copy for AI, Plain text), each { component }; it gets the `page`,
 //   { slug, title, group }.
 // - aboutUpdates: what Settings → About says about keeping this copy up to date, in place of Mercbot's own line, or null
@@ -46,6 +50,7 @@ export default {
   accountMenu: [],
   generalActions: [],
   shellParts: [],
+  beforeShell: [],
   helpPageTools: [],
   aboutUpdates: null,
   appParts: [],

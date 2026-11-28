@@ -49,6 +49,8 @@ export const appsApi = {
   list: () => request(""),
   setPins: (appIds) => request("/pins", { method: "PUT", body: { appIds } }),
   get: (slug, version) => request(`${app(slug)}${version === "draft" ? "?version=draft" : ""}`),
+  // The person's own chat with the app's bot (D-147), made the first time: { chat, bot }; 409 apps_bot_missing without one.
+  botChat: (slug) => post(`${app(slug)}/bot-chat`),
   // A view as a part of a screen shows it: { app: { id, slug }, screen, tables, style }.
   viewPart: (slug) => request(`${app(slug)}/part`),
   // `options.signal` drops a read the page no longer needs.

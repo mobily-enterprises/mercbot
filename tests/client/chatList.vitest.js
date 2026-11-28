@@ -257,3 +257,13 @@ describe("the sidebar", () => {
     expect(html).not.toContain("New chat or bots");
   });
 });
+
+describe("the Apps section's app chats", () => {
+  it("shows an app's chat news on its row: the bot's last words and an unread mark", async () => {
+    const learn = { id: "a_learn", name: "Learn to program", slug: "learn-to-program", icon: "school", color: "#335599", picture: null, selected: false, chatId: "9", unread: true, mentioned: false, detail: "Lesson 4 is ready", opensChat: true };
+    const html = await list([KITCHEN], { apps: [learn] });
+    const row = buttons(html).find((entry) => entry.label === "Learn to program");
+    expect(row.inside).toContain("Lesson 4 is ready");
+    expect(row.inside).toContain('aria-label="Unread"');
+  });
+});

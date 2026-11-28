@@ -446,3 +446,22 @@ test("an app's computer files are named files of text, and a public app has no c
   const withComputer = checkApp({ ...visible, computer }, tables).filter((error) => error.path === "computer");
   assert.deepEqual(withComputer, [{ path: "computer", message: "an app whose scripts run programs on its bot's computer stays inside the home: a public app can't have one." }]);
 });
+
+// What an app's bot is told for it and offers on each screen (D-147): a brief of a few plain sentences, and at most 4
+// short questions on each screen the app has.
+test("an app's brief is a few plain sentences, and its suggestions at most 4 short questions on screens it has", () => {
+  const good = { brief: "Help people keep their team list up to date.", suggestions: { list: ["Who joined this month?", "Who is on leave?"] } };
+  assert.deepEqual(checkApp({ ...app(), ...good }, tables), []);
+  const five = ["One?", "Two?", "Three?", "Four?", "Five?"];
+  assert.deepEqual(checkApp({ ...app(), brief: "x".repeat(1001), suggestions: { list: five, nowhere: ["Hi?"], edit: [""], sales: ["y".repeat(81)] } }, tables), [
+    { path: "brief", message: "is at most 1000 characters: a few sentences." },
+    { path: "suggestions.list", message: "has at most 4 questions." },
+    { path: "suggestions.nowhere", message: "screen \"nowhere\" doesn't exist." },
+    { path: "suggestions.edit[0]", message: "is a question in plain words." },
+    { path: "suggestions.sales[0]", message: "is at most 80 characters." }
+  ]);
+  assert.deepEqual(checkApp({ ...app(), brief: "  ", suggestions: ["Hi?"] }, tables), [
+    { path: "brief", message: "is a few plain sentences: what the app's bot is for in this app and how it helps." },
+    { path: "suggestions", message: "is { \"<screen>\": [\"A question people may ask there\"] }." }
+  ]);
+});

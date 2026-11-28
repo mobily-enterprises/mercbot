@@ -90,7 +90,10 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   };
   const faces = async () => [{ id: mainBot, name: "Otto", main: true, archived: false }, ...(learner ? [{ id: learner, name: "Learner", main: false, archived: false }] : [])];
   const records = { ...bots, directory: { ...bots.directory, homeBotFaces: faces } };
-  const home = await appsHome(cleanup, { slug: "apps-study", knex, records, extras: { inputs: { "mercbot.app-connected": { ...NO_CONNECTED_APPS, appBot } } } });
+  // What the app's scripts tell a person in their chat with its bot (D-147): the bots' side, kept to be read.
+  const told = [];
+  const telling = { members: async () => [home.userId], tellPerson: async (_call, message) => told.push(message) };
+  const home = await appsHome(cleanup, { slug: "apps-study", knex, records, extras: { inputs: { "mercbot.app-connected": { ...NO_CONNECTED_APPS, appBot, ...telling } } } });
   const { userId, workspaceId, options } = home;
   const { gate, apps, runtime, scripts, watches, jobs, registry } = home.apps;
   await knex("workspace_memberships").insert({ workspace_id: workspaceId, user_id: userId, role_sid: "member", status: "active" });
@@ -186,6 +189,8 @@ test("Study: a book read in parts, a course planned from it, a quiz taken, the c
   assert.match(planPrompt.item, /What I want to learn: How plants grow\\nHow much I know already: Just starting\\nThe book \\"Plants for Beginners\\" by Mira Green, part by part:\\n1\. Seeds wake up - Part 1 explains it simply\./u);
   const planned = await record("course", "course", { id: course.id });
   assert.deepEqual([planned.title, planned.status, planned.units, planned.lessons, planned.written], ["🌱 Plants 101", "Ready", 2, 3, 3]);
+  const ready = "Your course \"🌱 Plants 101\" is ready: every lesson is written. Open it whenever you like! 🎉";
+  assert.deepEqual(told, [{ appId: app.id, title: "Study", botId: learner, userId: home.userId, text: ready }], "its learner hears it once, in their chat with Learner");
   assert.deepEqual([planned.to_write, typeof planned.writing_started], [3, "string"], "the round's lessons to write, and when it started");
   assert.equal(planned.cover?.type, "image/png", "its cover is drawn");
   const units = await rows("course", "units", { id: course.id });

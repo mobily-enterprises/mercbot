@@ -83,3 +83,19 @@ test("each template's summary carries its picture, kinds of use and what its scr
   assert.ok(byKey.staff.abilities.includes("private"), "staff records keep salaries in a table meant to be private");
   assert.ok(templateSummaries().every((entry) => entry.icon !== "star" || TEMPLATES.find((template) => template.key === entry.key).glyph === "star"), "no template falls back to the star");
 });
+
+// Every app has a bot to talk to (D-147): the courses tell theirs how to help, and the most-used templates offer
+// questions on their main screens; the save check above holds each to plain words, at most 4 a screen of 80 characters.
+test("the courses brief their bot, and the most-used templates suggest questions on their main screens", () => {
+  const named = (key) => TEMPLATES.find((template) => template.key === key).definition;
+  for (const key of ["study", "learn_to_program", "llm_course"]) {
+    assert.ok(named(key).brief?.includes("hint before an answer"), `${key}: its bot gives hints before answers`);
+  }
+  assert.deepEqual(named("learn_to_program").suggestions.lesson, ["What's wrong with my code?", "Give me a hint", "Why did my test fail?", "Run my code"]);
+  assert.deepEqual(named("study").suggestions.lesson, ["Explain this lesson more simply", "Give me an example", "Quiz me on this"]);
+  const lessons = Object.keys(named("llm_course").screens).filter((screen) => /^l\d\d$/u.test(screen));
+  assert.deepEqual(lessons.filter((screen) => !named("llm_course").suggestions[screen]), [], "every lesson of Make your own LLM has its questions");
+  for (const key of ["shopping_list", "budget", "household_bills", "crm", "helpdesk", "recipes", "chores", "workouts"]) {
+    assert.ok(named(key).suggestions?.[named(key).home]?.length, `${key}: questions on its first screen`);
+  }
+});

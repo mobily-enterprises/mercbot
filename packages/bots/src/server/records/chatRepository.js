@@ -8,6 +8,7 @@ import { createSeatWindows } from "./seatWindows.js";
 import { createSectionRecords } from "./sectionRepository.js";
 import { roomsToVisit } from "./publicRoomRepository.js";
 import { PLACE, createSharedChatRepository } from "./sharedChatRepository.js";
+import { appBotChatOf } from "./appBotChats.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} ResourceHandle */
@@ -344,7 +345,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /**
    * A new chat, with its first people and bots, read back. Public unless `kind` is "private" (D15). The maker (the
    * caller's person, when there is one) is one of its people. In the caller's transaction, or one of its own.
-   * @param {{ kind?: string, title?: string | null, people?: string[], bots?: string[], appId?: string | null, everyone?: boolean, onboardingStep?: string | null, directBotId?: string | null }} chat
+   * @param {{ kind?: string, title?: string | null, people?: string[], bots?: string[], appId?: string | null, botAppId?: string | null, everyone?: boolean, onboardingStep?: string | null, directBotId?: string | null }} chat
    * @param {CallOptions} options
    */
   async function create(chat, options) {
@@ -363,6 +364,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
         title: chat.directBotId ? null : title,
         everyone: Boolean(chat.everyone),
         appId: chat.appId ?? null,
+        botAppId: chat.botAppId ?? null,
         onboardingStep: chat.onboardingStep ?? null,
         madeBy: maker,
         ...(chat.directBotId ? { directBotId: String(chat.directBotId), directUserId: maker } : {})
@@ -444,6 +446,8 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     const findIt = async (callOptions) => asRow(await firstOf(conversations, { appId: String(appId) }, callOptions), callOptions);
     return madeOnce(findIt, () => create({ kind: "public", appId: String(appId), title, bots: [String(botId)] }, options), options);
   }
+
+  const { appBotChat, appBotChatNews } = appBotChatOf(resources, { firstOf, asRow, personOf, madeOnce, create, seatBots, get });
 
   /** A chat that takes members: one the caller may read, not archived, not a direct chat. */
   async function openForMembers(chatId, txOptions) {
@@ -692,6 +696,8 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     everyoneChat,
     makeEveryoneChat,
     appChat,
+    appBotChat,
+    appBotChatNews,
     changeAppBuilder: builderChanger(conversations, chatBots, personOrNull),
     addPerson,
     joinByWriting,

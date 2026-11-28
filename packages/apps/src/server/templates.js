@@ -42,6 +42,9 @@ export const templateVersionNow = (key) => {
   return template ? templateVersionOf(template) : null;
 };
 
+/** What the template `key` is for, in its own words, or "" (the app guide's first line, D-147). */
+export const templateDescription = (key) => templateNamed(key)?.description ?? "";
+
 /** The tables a template needs, made or completed with the fields they lack: nothing removed or renamed. */
 async function prepareTables({ registry, catalog }, ctx, template) {
   const { options, actor } = ctx;
@@ -114,13 +117,14 @@ export async function installTemplate(parts, ctx, key, { sample = false, again =
   const app = await apps.createApp(actor, { name, icon: template.glyph || template.icon, color: template.color }, options);
   // Its scripts first: the draft's save check needs the scripts it calls.
   const scriptErrors = await saveScripts(scripts, actor, app.slug, template, options);
+  // The bot it comes with (D-144): the home's bot on that library template, made now if the home hasn't one.
+  const bot = template.bot ? await connected().appBot(template.bot, options) : null;
+  // It remembers its template, so the Builder can tell when the template changes (D-130), and its bot; first, so its
+  // draft's app guide says what it's for (D-147).
+  await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(named), botId: bot?.id, copy }, options);
   const summary = `From the ${template.name} template`;
   const { errors: draftErrors = [] } = await apps.saveDraft(actor, app.slug, template.definition, summary, options, { fromTemplate: true });
   const errors = [...scriptErrors, ...draftErrors];
-  // The bot it comes with (D-144): the home's bot on that library template, made now if the home hasn't one.
-  const bot = template.bot ? await connected().appBot(template.bot, options) : null;
-  // It remembers its template, so the Builder can tell when the template changes (D-130), and its bot.
-  await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(named), botId: bot?.id, copy }, options);
   let skipped = 0;
   if (sample) {
     const sampleCtx = { ...ctx, via: { kind: "template", template: template.key } };

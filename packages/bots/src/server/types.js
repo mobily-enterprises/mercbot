@@ -60,7 +60,7 @@
  * (`directPerson`, as the caller sees it: the one of the two who isn't them); a room has neither.
  * @typedef {{
  *   id: string, kind: "public" | "private", title: string | null, everyone: boolean, directBotId: string | null,
- *   directPerson: { userId: string, name: string } | null, appId: string | null, madeBy: string | null,
+ *   directPerson: { userId: string, name: string } | null, appId: string | null, botAppId: string | null, madeBy: string | null,
  *   onboardingStep: string | null, archivedAt: string | null,
  *   lastActivityAt: string, people: Array<{ userId: string, name: string }>,
  *   bots: Array<{

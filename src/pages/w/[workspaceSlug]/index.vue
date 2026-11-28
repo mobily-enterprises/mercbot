@@ -4,7 +4,7 @@ import MercbotAvatar from "@/components/mercbot/MercbotAvatar.vue";
 import MercbotIntro from "@/components/mercbot/MercbotIntro.vue";
 import MercbotShell from "@/components/mercbot/MercbotShell.vue";
 import extensions from "@/components/mercbot/extensions.js";
-import { showsIntroSlides } from "@/components/mercbot/shellChat.js";
+import { beforeShell, showsIntroSlides } from "@/components/mercbot/shellChat.js";
 import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import { chatsApi } from "@/components/mercbot/chatsApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
@@ -12,13 +12,15 @@ import { useHomes } from "@/components/mercbot/homesApi.js";
 // A person's first visit to a home (plan 4.1): with no chats yet, their welcome chat is made, their direct chat with the
 // home's main bot (POST /chats/welcome, which makes the main bot too in a new home), then the intro slides when this is
 // their first home and the copy hasn't first-run screens of its own (D-142), and a short pause on Mercbot's face. Anyone
-// who has chats goes straight to the shell.
+// who has chats goes straight to the shell. The shell waits, on the loading surface, for what the copy reads before it
+// (extensions.js beforeShell), read alongside the chats.
 const phase = ref("loading");
 const chats = ref([]);
 const sections = ref([]);
 const loadFailed = ref(false);
 const firstBot = { name: "Mercbot", color: ONBOARDING_BLACK };
 const { load: loadHomes } = useHomes();
+let ready = Promise.resolve();
 
 async function readList() {
   const listed = await chatsApi.list({ hidden: true, archived: true });
@@ -28,9 +30,11 @@ async function readList() {
 
 async function load() {
   loadFailed.value = false;
+  ready = beforeShell(extensions);
   try {
     await readList();
     if (chats.value.length) {
+      await ready;
       phase.value = "shell";
       return;
     }
@@ -47,7 +51,7 @@ async function load() {
 async function enter() {
   phase.value = "transition";
   try {
-    await Promise.all([readList(), new Promise((resolve) => setTimeout(resolve, 2000))]);
+    await Promise.all([readList(), ready, new Promise((resolve) => setTimeout(resolve, 2000))]);
     phase.value = "shell";
   } catch {
     phase.value = "loading";

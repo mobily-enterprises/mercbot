@@ -74,7 +74,7 @@ const screenTables = (tables) =>
  */
 export function registerRoutes(http, { appsRuntime, notices, streams, uploads }) {
   const { registry, gate, apps, icons, practices, views, runtime, scripts, watches, homePeople, recordUploads } = appsRuntime;
-  const { starterApps, followTemplates } = appsRuntime;
+  const { starterApps, followTemplates, appBots } = appsRuntime;
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   /** Routes for one app answer "not found" when the home has no such app. */
@@ -106,6 +106,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
   );
   // Ask Builder: the app's chat with the Builder, made the first time (D-41). Any member, as every app is everyone's.
   router.register("POST", `${base}/:slug/chat`, home, handle(async (request, ctx) => ({ chat: await apps.appChat(request.params.slug, ctx.options) })));
+  // The app's chat button: the person's own chat with the app's bot, made the first time (D-147). Any member.
+  router.register("POST", `${base}/:slug/bot-chat`, home, handle((request, ctx) => appBots.botChat(request.params.slug, ctx.options)));
   // Which bot changes everyone's apps is the owners' and admins' choice (owner, 2026-10-31).
   router.register("PUT", `${base}/builder`, home, handle(async (request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can choose the Builder.", "apps_builder_manage_forbidden");
@@ -139,6 +141,10 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       people: await homePeople(ctx.options),
       // The home's time zone, which "today" in its formulas is in (D-140).
       timeZone: await appsRuntime.homeZone.zoneOf(ctx.options),
+      // The bot its chat button opens a chat with (D-147): its own, else the home's main bot.
+      bot: app.kind === "view" ? null : await appBots.botFor(app, ctx.options),
+      // The person's chat with it, whose news the button shows: { chatId, unread }, or null before they have one.
+      botChat: app.kind === "view" ? null : await appBots.chatNews(app, ctx.options),
       ...(app.kind === "view" ? await views.details(app, ctx.options) : {})
     };
   }));

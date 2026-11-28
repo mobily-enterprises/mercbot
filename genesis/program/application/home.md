@@ -62,7 +62,10 @@ In-app links are resolved by `usePaths().page()`. The switcher at
 the top of the sidebar lists the person's homes with their role, and Create a home opens New home
 (`MercbotNewHomeDialog.vue`): only its name (D-109), and it opens on the person's welcome chat there. A person with
 no chats in a home sees the intro slides and a short transition while their welcome chat is made
-(`genesis/program/bots/onboarding.md`); everyone else lands in the Mercbot shell on their chats. The client waits
+(`genesis/program/bots/onboarding.md`); everyone else lands in the Mercbot shell on their chats. The shell waits on
+the page's loading surface, with the chats, for any read a copy built on Mercbot asks for before it (`extensions.js`
+`beforeShell`, `shellChat.js` `beforeShell`), so the copy's shell parts know what to show from their first frame; a
+read that fails doesn't hold it. The client waits
 each onboarding step's delay, then asks the server to advance; a reload resumes at the pending step.
 
 The chat shows rich bot replies (markdown with raw HTML disabled), accent

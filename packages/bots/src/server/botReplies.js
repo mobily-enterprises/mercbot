@@ -190,7 +190,7 @@ export function createBotReplies({
     // discussion's turn reads none of it, so the card's cap covers what it reads (D-115). Only the person's own turn
     // may ask to tell everyone in the home.
     const remembers = !routineRun && !briefOnly && !discussion;
-    const { run, isBuilder, builder, toolSwitches, template, knowledge: known } = await turns.turnTools(seat, {
+    const { run, isBuilder, builder, toolSwitches, template, knowledge: known, app } = await turns.turnTools(seat, {
       timeZone,
       language,
       turn,
@@ -213,7 +213,7 @@ export function createBotReplies({
         await tell(seat.chat_id, { type: "messages" }, call);
       }
     }, call);
-    const bot = { ...seat, isBuilder, template, additions: seat.additions || "", knowledge: known };
+    const bot = { ...seat, isBuilder, template, additions: seat.additions || "", knowledge: known, app };
     const { summary, history } = briefOnly
       ? { summary: "", history: [] }
       : routine
