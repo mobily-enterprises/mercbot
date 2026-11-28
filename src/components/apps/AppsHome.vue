@@ -5,12 +5,14 @@ import ShellUpButton from "@jskit-ai/shell-web/client/components/ShellUpButton";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import { botsApi } from "@/components/mercbot/botsApi.js";
+import AppIconPicker from "./AppIconPicker.vue";
 import AppsActivity from "./AppsActivity.vue";
 import AppsLook from "./AppsLook.vue";
 import AppsScripts from "./AppsScripts.vue";
 import AppsTemplates from "./AppsTemplates.vue";
 import { appsApi } from "./appsApi.js";
-import { appGlyph } from "./appRuntime.js";
+import AppTile from "./AppTile.vue";
+import { APP_COLOURS } from "@/theme/palettes.js";
 import { useAppExit } from "./useAppExit.js";
 import { useSnackbar } from "./useSnackbar.js";
 
@@ -69,6 +71,23 @@ async function bringBack(view) {
   }
 }
 onMounted(load);
+
+// A tile's picture and colour (D-141), changed from its menu.
+const picking = ref(null);
+const savingIcon = ref(false);
+async function saveIcon(look) {
+  savingIcon.value = true;
+  try {
+    await appsApi.setAppIcon(picking.value.slug, look);
+    picking.value = null;
+    window.dispatchEvent(new CustomEvent("mercbot:apps-changed"));
+    await load();
+  } catch (error) {
+    notify(error?.message || "The picture couldn't be saved.", "error");
+  } finally {
+    savingIcon.value = false;
+  }
+}
 
 async function togglePin(app) {
   const next = pinned.value.has(app.id) ? state.pins.filter((id) => id !== app.id) : [...state.pins, app.id];
@@ -147,7 +166,7 @@ async function chooseBuilder() {
         </v-chip-group>
         <div v-if="showing === 'retired'" class="apps-home__grid">
           <v-card v-for="view in state.retired" :key="view.view" flat class="pa-4 apps-home__tile">
-            <v-avatar :color="view.color" size="44" rounded="lg"><v-icon :icon="appGlyph(view.icon)" color="white" /></v-avatar>
+            <AppTile :icon="view.icon" :color="view.color" :picture="view.picture" :size="44" />
             <div class="text-subtitle-1 font-weight-medium mt-3">{{ view.title }}</div>
             <div class="d-flex align-center flex-wrap ga-2 mt-1">
               <v-chip size="x-small" variant="tonal">Retired</v-chip>
@@ -166,7 +185,7 @@ async function chooseBuilder() {
             :to="paths.page(`/apps/${app.slug}${!app.liveVersionId && app.draftVersionId ? '?version=draft' : ''}`)"
           >
             <div class="d-flex align-start ga-3">
-              <v-avatar :color="app.color" size="44" rounded="lg"><v-icon :icon="appGlyph(app.icon)" color="white" /></v-avatar>
+              <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="44" />
               <v-spacer />
               <v-menu>
                 <template #activator="{ props: menuProps }">
@@ -175,6 +194,7 @@ async function chooseBuilder() {
                 <v-list density="compact">
                   <v-list-item :prepend-icon="pinned.has(app.id) ? '$keepOffFilled' : '$keepFilled'" :title="pinned.has(app.id) ? 'Unpin from sidebar' : 'Pin to sidebar'" @click="togglePin(app)" />
                   <v-list-item v-if="app.draftVersionId" title="Preview the draft" :to="paths.page(`/apps/${app.slug}?version=draft`)" />
+                  <v-list-item prepend-icon="$edit" title="Change picture" @click="picking = app" />
                 </v-list>
               </v-menu>
             </div>
@@ -228,6 +248,18 @@ async function chooseBuilder() {
         </div>
       </v-card>
     </v-dialog>
+
+    <AppIconPicker
+      :open="Boolean(picking)"
+      :name="picking?.name || ''"
+      :slug="picking?.slug || ''"
+      :icon="picking?.icon || 'apps'"
+      :color="picking?.color || APP_COLOURS[0].value"
+      :saving="savingIcon"
+      @update:open="(open) => { if (!open) picking = null; }"
+      @save="saveIcon"
+      @failed="(message) => notify(message, 'error')"
+    />
 
     <v-snackbar v-model="snackbar.open" :color="snackbar.color" timeout="3000">{{ snackbar.text }}</v-snackbar>
   </div>

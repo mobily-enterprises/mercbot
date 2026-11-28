@@ -60,6 +60,10 @@ export const fieldInput = z.object({
     )
 });
 
+/** The refusal of a private chat's file for an app's tile, which the whole home sees. */
+const PRIVATE_PICTURE =
+  "That file is in this private chat, and an app's tile is the whole home's: draw the picture with make_picture here, or copy the file to /files/shared with transfer_file first, which asks the person.";
+
 /**
  * The Builder's tools, given what they share with the rest of the apps tools.
  * @param {object} shared
@@ -70,8 +74,10 @@ export const fieldInput = z.object({
  * @param {import("./types.js").ToolFailure} shared.failed
  * @param {object[]} shared.after the messages the reply adds after its text (draft and removal cards)
  * @param {(prompt: string) => Promise<object>} shared.scriptModel asks for a script and its tests
+ * @param {(path: string) => Promise<{ real: string, folder: string }>} shared.fileAt one of the bot's files by its path
+ * @param {boolean} shared.privateChat whether the turn's chat is private
  */
-export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scriptModel }) {
+export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scriptModel, fileAt, privateChat }) {
   const { registry, gate, apps: appStore, scripts, runtime, trial } = apps;
 
   /** Each screen's queries run on the saved draft, as its preview runs them (D-48), on its practice copy (D-71). */
@@ -218,6 +224,23 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
     try {
       const app = await appStore.createApp(await actor(), input, call);
       return { status: "created", slug: app.slug };
+    } catch (error) {
+      return failed(error);
+    }
+  }
+  /**
+   * An app's picture and colour (D-141): a set picture, or a picture the bot drew (make_picture's path) kept as the app's
+   * own. In a private chat only the bot's own pictures (/files/chat/Pictures) go on a tile, which is the whole home's.
+   */
+  async function appSetIcon({ app, icon, color, picture }) {
+    try {
+      if (!picture) return { status: "changed", ...(await apps.icons.set(await actor(), app, { icon, color }, call)) };
+      const own = /^\/files\/chat\/Pictures\/[^/]+$/u.test(String(picture));
+      if (privateChat && /^\/files\/chat(?:\/|$)/u.test(String(picture)) && !own) return { error: PRIVATE_PICTURE };
+      const { real, folder } = await fileAt(picture);
+      if (privateChat && folder === "chat" && !own) return { error: PRIVATE_PICTURE };
+      if (color) await apps.icons.set(await actor(), app, { color }, call);
+      return { status: "changed", ...(await apps.icons.putPicture(await actor(), app, { source: real, name: picture.split("/").pop() }, call)) };
     } catch (error) {
       return failed(error);
     }
@@ -465,6 +488,19 @@ ${SCRIPT_GUIDE}`,
             .optional()
         }),
         execute: (input, options) => appCreate(input, options)
+      })
+    ),
+    appSetIcon: createTool(
+      Object.freeze({
+        id: "app_set_icon",
+        description: "Builder: give an app or a view a picture that fits what it does (one of the app icons, or a picture you drew with make_picture first, by its path) and a colour for its tile. People can also change both in the app's details.",
+        inputSchema: z.object({
+          app: z.string().min(1).max(64).describe("The app's or view's slug"),
+          icon: z.enum(APP_ICON_NAMES).optional().describe("A picture from the app icons in your skill"),
+          color: z.string().regex(/^#[0-9a-fA-F]{6}$/u).optional().describe("The tile's colour, #RRGGBB; white must read on it"),
+          picture: z.string().min(8).max(500).optional().describe("A picture you drew with make_picture (its path), kept as the app's own picture on its tile in place of the set one")
+        }),
+        execute: (input, options) => appSetIcon(input, options)
       })
     ),
     appSaveDraft: createTool(

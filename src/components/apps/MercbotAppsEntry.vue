@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { appsApi } from "./appsApi.js";
-import { appGlyph } from "./appRuntime.js";
+import AppTile from "./AppTile.vue";
 import MercbotIconButton from "../mercbot/MercbotIconButton.vue";
 import MercbotTooltip from "../mercbot/MercbotTooltip.vue";
 
@@ -40,7 +40,7 @@ onBeforeUnmount(() => window.removeEventListener("mercbot:apps-changed", load));
     <MercbotTooltip v-for="app in pinned()" :key="app.id" :text="app.name">
       <template #default="{ props: tooltipProps }">
         <v-btn v-bind="tooltipProps" :to="paths.page(`/apps/${app.slug}`)" icon variant="text" class="mb-apps-entry__app" :aria-label="app.name">
-          <v-avatar :color="app.color" size="22" rounded="md"><v-icon :icon="appGlyph(app.icon)" size="14" color="white" /></v-avatar>
+          <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="22" />
         </v-btn>
       </template>
     </MercbotTooltip>
@@ -59,7 +59,7 @@ onBeforeUnmount(() => window.removeEventListener("mercbot:apps-changed", load));
       class="mb-apps-entry__app"
       :aria-label="app.name"
     >
-      <v-avatar :color="app.color" size="22" rounded="md"><v-icon :icon="appGlyph(app.icon)" size="14" color="white" /></v-avatar>
+      <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="22" />
       <span v-if="!rail" class="ml-3 text-truncate">{{ app.name }}</span>
     </v-btn>
   </div>

@@ -88,6 +88,8 @@ const AppsFeature = defineFeature({
         registry: apps.registry,
         gate: apps.gate,
         apps: apps.apps,
+        // An app's picture and colour (D-141): set(actor, app, { icon, color }, options).
+        icons: apps.icons,
         practices: apps.practices,
         views: apps.views,
         runtime: apps.runtime,

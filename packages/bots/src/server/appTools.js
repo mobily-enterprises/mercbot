@@ -39,6 +39,7 @@ export const APP_ACTIONS = [
   "watch_resume",
   "watch_remove",
   "app_create",
+  "app_set_icon",
   "app_save_draft",
   // Trying a draft saves and changes records in its practice data (D-71).
   "app_try",
@@ -427,7 +428,7 @@ export function buildAppTools({
 
   Object.assign(tools, buildTableTools({ apps, call, actor, ctx, failed, postLead, attempt }));
   Object.assign(tools, buildViewTools({ views: apps.views, call, botId, userId, isBuilder, ctx, failed, after }));
-  if (isBuilder) Object.assign(tools, buildBuilderTools({ apps, call, actor, ctx, failed, after, scriptModel }));
+  if (isBuilder) Object.assign(tools, buildBuilderTools({ apps, call, actor, ctx, failed, after, scriptModel, fileAt, privateChat }));
   return tracked(tools);
 
   /** Each mutating tool notes that it ran, for the reply check in botsService. */

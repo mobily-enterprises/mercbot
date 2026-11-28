@@ -87,6 +87,7 @@ export const appsApi = {
   setTheme: (theme) => requestInHome(client, "/apps-theme", { method: "PUT", body: { theme } }),
   setTimeZone: (timeZone) => requestInHome(client, "/apps-time-zone", { method: "PUT", body: { timeZone } }),
   setAppTheme: (slug, theme) => request(`${app(slug)}/theme`, { method: "PUT", body: { theme } }),
+  setAppIcon: (slug, look) => request(`${app(slug)}/icon`, { method: "PUT", body: look }),
   scripts: (slug) => request(`${app(slug)}/scripts`),
   setScriptEnabled: (slug, key, enabled) => request(`${app(slug)}/scripts/${encodeURIComponent(key)}/enabled`, { method: "PUT", body: { enabled } }),
   allowConnected: (slug, apps) => request(`${app(slug)}/connected-access`, { method: "PUT", body: { apps } }),

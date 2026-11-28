@@ -6,7 +6,7 @@ import { fence, refuse } from "./visitorAccess.js";
 import { GateError, STORED_FILE } from "./validate.js";
 
 /** The pictures an image field takes, by the start of their bytes. */
-function pictureKind(head) {
+export function pictureKind(head) {
   const bytes = Buffer.from(head || []);
   if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";

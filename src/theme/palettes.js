@@ -28,6 +28,26 @@ export const BRAND_ORANGE = "#FD690F";
 // A computer, drawn without a colour of its own.
 export const COMPUTER_GREY = "#9A9A9A";
 
+// The colours an app's tile can take (its picture is drawn white on it, ON_IDENTITY): each at least 4.9:1 against white.
+export const APP_COLOURS = Object.freeze([
+  Object.freeze({ name: "Ink", value: "#1C1C1C" }),
+  Object.freeze({ name: "Blue", value: "#1E5BD8" }),
+  Object.freeze({ name: "Sky", value: "#0A6FB8" }),
+  Object.freeze({ name: "Indigo", value: "#3F4FB8" }),
+  Object.freeze({ name: "Teal", value: "#00796B" }),
+  Object.freeze({ name: "Green", value: "#0B7A5B" }),
+  Object.freeze({ name: "Olive", value: "#5A7A16" }),
+  Object.freeze({ name: "Gold", value: "#8F6A00" }),
+  Object.freeze({ name: "Amber", value: "#A15C00" }),
+  Object.freeze({ name: "Orange", value: "#C24A0C" }),
+  Object.freeze({ name: "Red", value: "#B3261E" }),
+  Object.freeze({ name: "Rose", value: "#C2185B" }),
+  Object.freeze({ name: "Purple", value: "#7E3FB2" }),
+  Object.freeze({ name: "Plum", value: "#8E2C8E" }),
+  Object.freeze({ name: "Brown", value: "#7A4E2D" }),
+  Object.freeze({ name: "Slate", value: "#4A5B68" })
+]);
+
 // White drawn on an identity colour: a bot's eye whites and initial, an app's glyph, a home tile's initial.
 export const ON_IDENTITY = "#FFFFFF";
 

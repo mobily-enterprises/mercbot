@@ -1,10 +1,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
+import AppIconPicker from "./AppIconPicker.vue";
 import AppLogic from "./AppLogic.vue";
 import AppsActivity from "./AppsActivity.vue";
 import { appsApi, errorText } from "./appsApi.js";
 import { actorName, whenText as when } from "./appRuntime.js";
+import AppTile from "./AppTile.vue";
 import { toYaml } from "./yaml.js";
 import extensions from "../mercbot/extensions.js";
 
@@ -87,6 +89,23 @@ async function saveLook() {
   }
 }
 
+// The app's picture and colour on its tile (D-141), chosen in the picker.
+const picking = ref(false);
+const savingIcon = ref(false);
+async function saveIcon(look) {
+  savingIcon.value = true;
+  try {
+    await appsApi.setAppIcon(app.value.slug, look);
+    picking.value = false;
+    window.dispatchEvent(new CustomEvent("mercbot:apps-changed"));
+    emit("themed");
+  } catch (error) {
+    emit("failed", errorText(error, "The picture couldn't be saved."));
+  } finally {
+    savingIcon.value = false;
+  }
+}
+
 const by = (version) => actorName(version.by, "");
 
 async function restore() {
@@ -130,6 +149,13 @@ async function restore() {
         <div class="text-body-2 text-medium-emphasis">Screens</div>
         <div class="text-body-1 mb-4">{{ screens.length }}</div>
 
+        <v-divider class="mb-3" />
+        <div class="text-body-2 text-medium-emphasis mb-2">Picture</div>
+        <div class="d-flex align-center ga-3 mb-4">
+          <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="48" />
+          <v-btn size="small" variant="text" @click="picking = true">Change</v-btn>
+        </div>
+        <AppIconPicker v-model:open="picking" :name="app.name" :slug="app.slug" :icon="app.icon" :color="app.color" :saving="savingIcon" @save="saveIcon" @failed="(message) => emit('failed', message)" />
         <v-divider class="mb-3" />
         <div class="text-body-2 text-medium-emphasis">Look</div>
         <div class="text-body-2 mb-2">The home's look (Apps → Look), with this app's own colour and spacing if you set them.</div>

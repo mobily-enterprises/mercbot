@@ -5,11 +5,12 @@ import { useDisplay } from "vuetify";
 import ShellUpButton from "@jskit-ai/shell-web/client/components/ShellUpButton";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import AppDetailsPanel from "@/components/apps/AppDetailsPanel.vue";
+import AppTile from "@/components/apps/AppTile.vue";
 import AppNode from "@/components/apps/AppNode.vue";
 import AppTheme from "@/components/apps/AppTheme.vue";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
-import { ICON_PATHS, appGlyph, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
+import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
 import { expandLines, useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
 import { browserFunctions } from "@/components/apps/scriptFunctions.js";
 import { askBuilder as openBuilderChat } from "@/components/apps/askInChat.js";
@@ -269,7 +270,7 @@ async function publish() {
         <ShellUpButton />
         <template v-if="loaded?.app">
           <v-img v-if="loaded.theme?.logo" :src="loaded.theme.logo" alt="" width="28" height="28" max-width="28" contain />
-          <v-avatar v-else :color="loaded.app.color" size="28" rounded="lg"><v-icon :icon="appGlyph(loaded.app.icon)" size="18" color="white" /></v-avatar>
+          <AppTile v-else :icon="loaded.app.icon" :color="loaded.app.color" :picture="loaded.app.picture" :size="28" />
           <span class="text-subtitle-1 font-weight-medium">{{ loaded.app.name }}</span>
           <v-spacer />
           <ViewActions

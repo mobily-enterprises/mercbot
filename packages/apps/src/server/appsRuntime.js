@@ -1,4 +1,5 @@
 import { createAppConnectedAccess } from "./appConnectedAccess.js";
+import { createAppIcon } from "./appIcon.js";
 import { createApps } from "./apps.js";
 import { createAppsRepository } from "./appsRepository.js";
 import { createDataGate } from "./dataGate.js";
@@ -79,6 +80,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     recordFiles: () => recordFiles
   }), ["read", "get", "getMany", "create", "update", "markObsolete", "restore", "totals", "grandTotal", "count", "importRecords", "attachFile", "makeDocument", "related"]);
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
+  const icons = createAppIcon({ resources, apps, files: () => recordFiles });
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);
   // Someone's role in the home is also a script's `people.me()`'s and a rule's actor's (D-140).
@@ -101,6 +103,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     registry,
     gate,
     apps,
+    icons,
     practices,
     views,
     runtime,

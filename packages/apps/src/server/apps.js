@@ -38,6 +38,8 @@ const toApp = (record) => ({
   kind: record.kind ?? "app",
   name: record.name,
   icon: record.icon,
+  // A bot's picture on its tile, in place of the set one (D-141); null shows the set picture.
+  picture: record.picture ?? null,
   color: record.color,
   visibility: record.visibility,
   liveVersionId: record.liveVersionId ? String(record.liveVersionId) : null,

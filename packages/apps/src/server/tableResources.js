@@ -19,6 +19,7 @@ export const appResource = defineTableResource({
     createdAt: { type: "dateTime" },
     draftVersionId: { type: "id", nullable: true, search: true },
     icon: { type: "string", maxLength: 40, noTrim: true },
+    picture: { type: "string", maxLength: 500, noTrim: true, nullable: true },
     kind: { type: "string", maxLength: 8, noTrim: true, search: true },
     liveVersionId: { type: "id", nullable: true, search: true },
     madeByBotId: { type: "id", nullable: true, search: true },

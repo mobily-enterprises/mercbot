@@ -72,7 +72,7 @@ const screenTables = (tables) =>
  * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file, uploaded
  */
 export function registerRoutes(http, { appsRuntime, notices, streams, uploads }) {
-  const { registry, gate, apps, practices, views, runtime, scripts, watches, homePeople, recordUploads, starterApps } = appsRuntime;
+  const { registry, gate, apps, icons, practices, views, runtime, scripts, watches, homePeople, recordUploads, starterApps } = appsRuntime;
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   /** Routes for one app answer "not found" when the home has no such app. */
@@ -471,6 +471,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can change how apps look.", "apps_style_manage_forbidden");
     return { theme: await apps.setHomeTheme(ctx.actor, body(request).theme, ctx.options) };
   }));
+  // An app's picture and colour (D-141): anyone in the home, as its screens are.
+  router.register("PUT", `${base}/:slug/icon`, home, appRoute((request, ctx) => icons.set(ctx.actor, request.params.slug, body(request), ctx.options)));
   router.register("PUT", `${base}/:slug/theme`, home, appRoute(async (request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can change how apps look.", "apps_style_manage_forbidden");
     return { theme: await apps.setAppTheme(ctx.actor, request.params.slug, body(request).theme, ctx.options) };

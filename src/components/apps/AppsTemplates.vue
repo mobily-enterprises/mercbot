@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { appsApi, errorText } from "./appsApi.js";
-import { appGlyph } from "./appRuntime.js";
+import AppTile from "./AppTile.vue";
 import { TEMPLATE_AUDIENCES, matchesTemplate } from "./templateFilter.js";
 
 // Ready-made apps (D-35, stage 3). Installing one adds its tables (reusing any this home already
@@ -103,7 +103,7 @@ async function install(template, sample) {
     <div class="apps-templates">
       <v-card v-for="template in shown" :key="template.key" flat class="pa-4 d-flex flex-column" :data-template="template.key">
         <div class="d-flex align-center ga-3 mb-2">
-          <v-avatar :color="template.color" size="44" rounded="lg"><v-icon :icon="appGlyph(template.icon)" color="white" size="26" /></v-avatar>
+          <AppTile :icon="template.icon" :color="template.color" :size="44" />
           <span class="text-subtitle-1 apps-templates__name">{{ template.name }}</span>
           <v-chip v-if="template.public" size="x-small" variant="tonal">Public</v-chip>
         </div>
