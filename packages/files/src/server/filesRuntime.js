@@ -11,6 +11,7 @@ import { createOfficeApps } from "./officeApps.js";
 import { createPages } from "./pages.js";
 import { createRemoteMounts } from "./remoteMounts.js";
 import { sandboxUser } from "./gvisor.js";
+import { createPrograms } from "./programs.js";
 import { createShell } from "./shell.js";
 import { createShellRuns } from "./shellRuns.js";
 import { createStorageSettings } from "./storageSettings.js";
@@ -57,6 +58,8 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
     internetDays: resources.internetDays, internetMinutes: resources.internetMinutes, systemContext, limits: internetLimits(env)
   });
   const shell = createShell({ store, runs, env, meter, media, internet });
+  // Apps' programs on their bot's computer (D-146), in the same sandboxes.
+  const programs = createPrograms({ env, meter, internet });
   const pages = createPages({ store, resources, systemContext, env });
   return Object.freeze({
     store,
@@ -66,6 +69,7 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
     mounts,
     moves,
     shell,
+    programs,
     pages,
     media,
     internet,

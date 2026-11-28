@@ -4872,6 +4872,8 @@ template's bot pairs back, and its scripts check with it) and `templateChecks.te
 
 ## D-145 — Tables that are each person's own (2026-11-28)
 
+*Amended by D-146 (2026-11-28): an app's job watching a personal table hears every person's changes.*
+
 The owner, on Study: "the courses are everyone's, but at least the attempts and the progress, that is per user", then:
 "This is a VERY CRUCIAL feature in general… apps have to be able to do this EASILY, make sure the builder doesn't use
 tricks or workarounds". So it is the data gate's, not each app's: a table can be **each person's own**.
@@ -4912,3 +4914,70 @@ Proved by `appsPersonalTables.integration.js` (another person's id sent, another
 totalled, a script writing someone else's, a job without whose, a visitor, a roll-up onto a shared table, the field's
 removal, Activity, a watch, and a read's cost with 40 other records), `appsStudy.integration.js` (two people on one
 course), `appsTemplates.test.js` and `builderInstructions.test.js`.
+
+## D-146 — Apps run programs on their bot's computer; Learn to program and Make your own LLM (2026-11-28)
+
+*Amends D-145: an app's job watching a personal table hears every person's changes, as its run already reads them.*
+
+The owner asked for two courses: "Learn Javascript, C++, or Python. A full course on how to program them" and "Make
+your own LLM. The user picks Python or Javascript … to which they can upload a book and use that to have 'somewhat' of
+a conversation", then: "The computer here is used for two things: 1) Learn python or js: to run the tests to see if the
+answer is correct … 2) LLM: to actually show the code etc. Large textboxes are ok for now"; the language course "should
+be TOTALLY OPEN", the bot writing it to the person's wishes with the guidance to write its tests; the LLM course
+"we create … beforehand completely. Users can fork it and change it". C++ is left for later: the toolbox has Python
+(with numpy) and Node, no C++ compiler.
+
+- **`computer.run({ command, files, recordFiles, seconds, bring, keep })`**, for a button's and a job's scripts (a
+  screen's would run one on every view): a fresh gVisor sandbox of the bots' command line (`programs.js`, the files
+  feature's, plugged into apps at start as `useComputer`), with a command's limits on memory, processes, files and
+  output (the first and last 8 KB), on the computer of the app's own bot (D-144), else the home's main bot, its
+  computation recorded through the meter as a command's (D-73). It answers `{ exitCode, output, seconds, timedOut,
+  files, kept }`. The program sees only its folder, `/work`: the script's text files (`files`, 40 files and 2,000,000
+  characters a run), records' files copied in through the gate as the run (`recordFiles`, 3), `bring`'s text files
+  read back (5, 2 MB) and `keep`'s files put on a record's file field (3, 25 MB each; not in a draft's preview), never
+  through a link out of the folder. None of the home's files: an app's program is the app's, not a chat's.
+- **The app's own files** are its definition's `computer.files` (`{ "name": "text" }`, 30 files and 1,000,000
+  characters, checked on save), each mounted read-only in its place in `/work` beside the script's (a run giving a file
+  of the same name is refused). In the definition they are versioned with the app's screens, follow its template and
+  fork with it (D-141); the screens get their names only. Chosen over files only a template brings, which a fork
+  couldn't change, and over records, which don't follow a template.
+- **No internet** unless the definition says `computer.internet: true`; then a gateway of its own, as a command's
+  (D-126, D-127). Neither template asks for it.
+- **Time:** 1 to 20 s a run for a button and 1 to 300 s for a job (10 by default); a script's wall clock stands still
+  while the computer runs (`scriptPool.js` `untimed`), so the program's own limit is the one that counts. At most 3 runs
+  a button's run and 10 a job's. At most `MERCBOT_APP_RUNS` (4) at once per server, apart from the bots' commands; one
+  more waits up to 30 s for a turn, then is refused as busy.
+- **Members only:** a public app's visitor never runs one (refused at run), and an app whose definition has a computer
+  can't be public (the save check). Where the server has no sandbox, a run is refused in words (503
+  `apps_computer_unavailable`), as on a development machine without the tools. A run inside a script's all-or-nothing
+  transaction (D-140) holds it while it runs: scripts read first, run, then write, as the templates do.
+- **A watching job on a personal table** (D-145 said it could; nothing did): the watch's matching read the changed
+  records with no person, so the gate hid them all and the job never ran. A job's changes are now matched as everyone,
+  as its run reads (`matchChanges` `everyone`); a bot's watch still can't follow one.
+- **Learn to program** (`learn_to_program.json`, Small business, Family, Personal, with its bot **Coach**,
+  `bot-templates/coach.json`): the person says what they want to learn and make, in Python or JavaScript, and their
+  level; Coach plans the course (units and up to 10 lessons) and writes each lesson with a quiz and one exercise (its
+  starting code, a solution and the tests), told exactly how to write small exercises and tests for the template's two
+  test runners (`harness/run.py`, plain asserts; `harness/run.js`, a tiny `test`/`expect` runner). **No lesson opens
+  until its solution passes its tests on the computer and its starting code fails one**; one that doesn't goes back to
+  Coach with what the computer said, at most twice, then shows a problem with Write it again. The person's answer, in
+  a large text box, is checked against the lesson's tests on the computer; a pass celebrates, a failure is explained by
+  Coach in plain words (`ai.work` into the attempt). Courses, units, lessons and questions are everyone's; attempts,
+  progress and answers are each person's own (D-145). Changing the course keeps lessons by title, as Study does.
+- **Make your own LLM** (`llm_course.json`, Family, Personal): 14 lessons written in the template, from lists and loops
+  through counting, probabilities and sampling, vectors, matrices, softmax, loss and a gradient step, to characters as
+  tokens, a bigram model, sampling text, a tiny neural model and attention with a context of 8, each with its checks
+  (`course/tests.py`, `course/tests.js`) and the course's own solutions (`course/reference.*`). Each person's code of
+  the lessons they've passed is their library: the checks load it before their answer, and their model is made of it,
+  the course's code standing in for lessons they haven't passed. The end: a book on their record, a job trains a model
+  on it on the computer (numpy in Python, plain loops in JavaScript, a minute at most, fewer steps for a short text),
+  kept as a file on their record, and a chat runs it with their own functions to continue what they write. The app says
+  plainly that it's tiny and continues words rather than understanding them. Learners, work and messages are each
+  person's own.
+
+Proved by `appsComputer.integration.js` (a program's output, exit code and files; the app's files read-only; no
+internet; the time limit; records' files in and out; a visitor; no sandbox; 3 and 10 runs), `appsSandbox.test.js` (the
+wall clock), `appsCheck.test.js` (the save check), `appsPersonalTables.integration.js` (a job watching a personal table),
+`appsLlmCourse.integration.js` (every lesson's solution passes and its starting code fails, in both languages; a lesson
+checked, a model trained and a chat in both), `appsLearnToProgram.integration.js` (a course written, a broken lesson
+fixed before it opens, an answer checked and explained, its quiz) and the template tests.

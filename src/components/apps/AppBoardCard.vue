@@ -49,7 +49,7 @@ function moveTo(to) {
         <div v-if="subtitle && !dense" class="text-body-small text-on-surface-variant">{{ subtitle }}</div>
       </template>
     </div>
-    <v-menu v-if="movable" :model-value="menu" :close-on-content-click="false" @update:model-value="openMenu">
+    <v-menu content-class="mb-popover" v-if="movable" :model-value="menu" :close-on-content-click="false" @update:model-value="openMenu">
       <template #activator="{ props: menuProps }">
         <v-btn v-bind="menuProps" icon="$moreVert" variant="text" size="x-small" :aria-label="`Move ${title}`" @click.stop />
       </template>

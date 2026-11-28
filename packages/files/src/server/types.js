@@ -10,5 +10,6 @@
 /** @typedef {ReturnType<typeof import("./shellRuns.js").createShellRuns>} ShellRuns */
 /** @typedef {ReturnType<typeof import("@local/account/media-check").createMediaGuard>} MediaGuard A copy's checker, never throwing (D-90) */
 /** @typedef {ReturnType<typeof import("./mediaChecks.js").createMediaChecks>} MediaChecks */
+/** @typedef {ReturnType<typeof import("./internetUsage.js").createInternetUsage>} InternetUsage What commands and programs use of the internet (D-127) */
 
 export {};

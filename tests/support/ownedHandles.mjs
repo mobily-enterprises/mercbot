@@ -5,6 +5,7 @@ import { WorkspaceRecordsFeature } from "@jskit-ai/workspaces-core/test/Workspac
 import { BotRecordsFeature } from "../../packages/bots/src/server/records/BotRecordsFeature.js";
 import { FILES_OWNS } from "../../packages/files/src/server/FilesFeature.js";
 import { createInternetUsage, internetLimits } from "../../packages/files/src/server/internetUsage.js";
+import { createPrograms } from "../../packages/files/src/server/programs.js";
 import { createShell } from "../../packages/files/src/server/shell.js";
 import { createShellRuns } from "../../packages/files/src/server/shellRuns.js";
 import { createAccounts } from "../../packages/integrations/src/server/accounts.js";
@@ -66,8 +67,8 @@ export async function startIntegrations(knex, context, { catalogue, connections 
 const FREE_BLOCKS = Object.freeze({ startComputation: async () => ({ blockSeconds: 600, renew: async () => true, settle: async () => true }) });
 
 /**
- * The bots' command line as the files feature builds it, on the test's Knex and `store`: `{ shell, commandOutput,
- * inHome }`. `inHome(homeId)` is a job's call options in one home, as a bot's tools carry them.
+ * The bots' command line as the files feature builds it, on the test's Knex and `store`: `{ shell, programs,
+ * commandOutput, inHome }` (programs: apps' programs, D-146). `inHome(homeId)` is a job's call options in one home, as a bot's tools carry them.
  * @param {import("knex").Knex} knex
  * @param {{ after: (work: () => unknown) => void }} context
  * @param {{ store: object, env?: Record<string, unknown>, limits?: object, meter?: object }} options `meter` records
@@ -85,6 +86,8 @@ export async function startShell(knex, context, { store, env = process.env, limi
   });
   return {
     shell: createShell({ store, runs, env, meter, internet, ...(limits ? { limits } : {}) }),
+    // Apps' programs (D-146), on the same meter and internet.
+    programs: createPrograms({ env, meter, internet }),
     commandOutput: runs.commandOutput,
     inHome: (homeId) => ({ context: systemContext("a bot's tools, in the home their turn runs in").forWorkspace(String(homeId)) })
   };

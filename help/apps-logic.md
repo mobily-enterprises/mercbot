@@ -99,12 +99,13 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 - The home's tables, and only through the same checks as everyone else. Its changes are recorded in the activity trail under the script's name, and rules on saving apply to them.
 - Outside web services, only at addresses the home's owners and admins have listed (below).
 - Connected apps, bots and pictures, only those the home's owners and admins allowed for the app (below).
+- A program of the app's own, run on its bot's computer, from buttons and jobs (below).
 
 **What a script can't reach**
 
 - your account, your chats, your files or your vault
 - connected accounts, unless the home's owners and admins allowed the app to use them (above)
-- the bots' computers and browsers
+- the bots' computers and browsers, beyond running a program of its own (below)
 - any other website or service, and any private network address
 - anything left over from an earlier run: every run starts fresh
 
@@ -118,6 +119,7 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 | Record calls | 50 reads and writes | 200 reads and writes | 20 reads (rules only read) |
 | Web calls | 5 | 5 | None |
 | Connected-app calls | 5 | 5 | None |
+| Programs on the computer | 3 a button, of up to 20 seconds each (none for screens' data) | 10, of up to 5 minutes each | None |
 
 A job that runs when records change gets up to 100 of the changes since its last run, and how many more there were. It isn't given the others again, so a job that must handle every record reads the table itself.
 
@@ -172,6 +174,12 @@ With **AI: bots and pictures** on, a button's or a job's script can hand records
 - **Make a picture.** The script describes a picture, which is made with the home's picture model and saved into a record's file or picture field. Pictures are checked as a bot's pictures are.
 
 This is the same as a bot's work for that person: it goes through the home's usage and spending like any other. A screen's script can't use bots or pictures, since it would run every time someone opens the screen. Each run may hand over one list of up to 100 items, and ask for up to 5 pictures; an app has at most 3 lists waiting or in progress at once. The Logic tab lists the app's recent work: waiting, working with how many are done, done, or failed with the reason.
+
+### Running code on the bot's computer
+
+A button's or a job's script can run a **program**: a Python or JavaScript program, or any command, on the computer of the app's bot (its own bot when it came with one, else the home's main bot). This is how a course checks a learner's answer against its tests, or trains a small model on a book. Each run starts in a fresh, sealed-off folder with only what the script gives it: its own files, records' files it names, and the app's own files (such as test runners), which the program can read but never change. It has no internet and sees none of the home's files, chats or bots' files. Afterwards the script reads what it printed and whether it succeeded, can read back small files it wrote, and can keep a file it wrote on a record, such as a trained model.
+
+A button's program runs for up to 20 seconds, a job's for up to 5 minutes; one that takes longer is stopped and the script is told. Its computing time counts in the home's usage like a bot's commands. Programs are for the home's people: a public app can't run them. A server without the bots' command line can't run programs, and says so.
 
 ### Example: an "Urgent mail" app
 

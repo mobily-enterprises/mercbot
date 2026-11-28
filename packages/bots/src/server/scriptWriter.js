@@ -53,6 +53,14 @@ Records are by field name: links are the linked record's id, ` +
 - await docs.text({ record: { table, id }, field }) → { name, text, more }: the words of a record's file (text, Markdown, ` +
   `Word, spreadsheet, presentation or PDF; buttons and jobs, 3 a run), at most 1,000,000 characters, more when there were ` +
   `others; a file of another kind is an error saying so. A test gives it as docs: { text: answer }.
+- await computer.run({ command, files, recordFiles, seconds, bring, keep }) → { exitCode, output, seconds, timedOut, files, kept }: ` +
+  `runs command (bash, such as "python3 main.py" or "node main.js") in a fresh sandbox on the app's bot's computer (buttons ` +
+  `and jobs; Python 3 with numpy, Node, no internet), in a folder holding files ({ "main.py": "text" }), records' files ` +
+  `(recordFiles: { "book.txt": { table, id, field } }) and the app's own files (its definition's computer.files), read-only. ` +
+  `seconds: a button's 1 to 20, a job's 1 to 300 (default 10); output is what it printed (long output cut in the middle); ` +
+  `bring: ["out.json"] reads small text files back into files; keep: { "model.json": { table, id, field } } puts a file it ` +
+  `wrote on a record's file field. A button runs 3 a run, a job 10. Read records first, run, then write. A test gives it as ` +
+  `computer: { run: answer }.
 - A personal table (marked each person's own) needs nothing from you: a button's or screen's script reaches only the ` +
   `pressing person's records and what it adds is theirs; a job reaches everyone's. A job adding to a personal table sets whose ` +
   `(a person's id) on each record, or it's refused.
@@ -74,8 +82,8 @@ What main returns, by kind:
 Tests: [{ name, input, expect }] or [{ name, input, expectError: "part of the message" }]; for a ` +
   `function, input is the list of arguments.
 A test may give records: { table: [records] } (in-memory, ids "1", "2", … unless ` +
-  `given), web: { "https://…exact url": answer JSON }, connected: { "app.action": answer JSON, "actions": [...] } and ai: ` +
-  `{ "bots" | "work" | "picture": answer JSON }.
+  `given), web: { "https://…exact url": answer JSON }, connected: { "app.action": answer JSON, "actions": [...] }, ai: ` +
+  `{ "bots" | "work" | "picture": answer JSON }, docs: { "pdf" | "text": answer JSON } and computer: { "run": answer JSON }.
 \`expect\` must equal main's result exactly (as JSON).`;
 
 /**

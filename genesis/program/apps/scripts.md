@@ -25,6 +25,7 @@ everything they read or write goes through the data gate, audited as the script.
 - `packages/apps/src/server/scriptPeople.js`
 - `packages/apps/src/server/scriptSchedule.js`
 - `packages/apps/src/server/scriptDocs.js`
+- `packages/apps/src/server/scriptComputer.js`
 - `packages/apps/src/shared/schedules.js`
 - `migrations/20261205130000_app_scripts_drafts.cjs`
 
@@ -91,6 +92,19 @@ everything they read or write goes through the data gate, audited as the script.
   `docs.text({ record, field })` (D-143), 3 a run: the record's file read as the run (`gate.recordFileText`), text,
   Markdown and CSV as they are, documents, spreadsheets, presentations and PDFs by the files feature's `text` plug-in;
   `{ name, text, more }`, at most 1,000,000 characters; another kind is 415 `apps_file_not_text`.
+- **Programs on the bot's computer (D-146, `scriptComputer.js`):** `computer.run({ command, files, recordFiles, seconds,
+  bring, keep })` for buttons (1 to 20 s, 3 a run) and jobs (1 to 300 s, 10 a run), on the computer of the app's bot
+  (else the home's main bot), through the files feature's `programs.js` (`useComputer`, shell.md): `/work` holds the
+  script's text files, records' files copied in through the gate (`recordFiles`, 3) and the app's own files (its
+  definition's `computer.files`, the draft's in a preview) read-only in their place; no internet unless the definition
+  says `computer.internet`. Answers `{ exitCode, output, seconds, timedOut, files, kept }`: `bring`'s text files back,
+  `keep`'s files on a record's file field (`gate.attachFile`, as the run; only pretended in a preview). The pool's wall
+  clock stands still while it runs (`scriptPool.js` `untimed`). Refused for a visitor, and 503
+  `apps_computer_unavailable` where the server has no sandbox; the save check refuses `computer` on a public app and
+  checks its files' names and sizes (`check.js` `checkComputer`). Script tests answer it as `computer: { run }`; the
+  browser gets the files' names only (`GET …/apps/:slug`).
+- **Watching jobs on personal tables (D-146):** a job's changes are matched as everyone (`matchChanges` `everyone`), so
+  each person's change sets it off.
 - `notify.member` and `notify.email` for jobs are sending.md's.
 
 ## Proved by
@@ -104,3 +118,7 @@ everything they read or write goes through the data gate, audited as the script.
 - `tests/server/appsDocs.test.js`
 - `tests/server/appsDocs.integration.js`
 - `tests/server/appsStudy.integration.js`
+- `tests/server/appsComputer.integration.js`
+- `tests/server/appsPersonalTables.integration.js`
+- `tests/server/appsLlmCourse.integration.js`
+- `tests/server/appsLearnToProgram.integration.js`

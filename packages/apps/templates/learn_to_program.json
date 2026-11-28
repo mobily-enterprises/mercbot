@@ -1,0 +1,2043 @@
+{
+  "key": "learn_to_program",
+  "name": "Learn to program",
+  "icon": "star",
+  "glyph": "code",
+  "color": "#1D4ED8",
+  "audiences": [
+    "business",
+    "family",
+    "personal"
+  ],
+  "description": "Learn Python or JavaScript your way: say what you want to learn, how much you know and what you'd like to make, and its coach writes you a course of short lessons, quizzes and exercises. Your code is checked by tests on a real computer, and when it fails the coach explains why.",
+  "bot": "coach",
+  "needs": {
+    "ai": true,
+    "words": "Comes with Coach, a coding coach bot, added to the home (or the one it has) to do its AI work. Needs AI switched on for the app by an owner or admin in its Logic tab (AI: bots and pictures); it writes courses and explains failed answers once it's published. Answers are checked on the computer of the server, which needs gVisor and its toolbox."
+  },
+  "tables": [
+    {
+      "key": "prog_courses",
+      "fields": [
+        {
+          "key": "goal",
+          "type": "longtext",
+          "required": true,
+          "label": "What I want to learn"
+        },
+        {
+          "key": "language",
+          "type": "choice",
+          "choices": [
+            "Python",
+            "JavaScript"
+          ],
+          "required": true,
+          "label": "Language"
+        },
+        {
+          "key": "level",
+          "type": "choice",
+          "choices": [
+            "I've never programmed",
+            "I know a little",
+            "I'm quite good"
+          ],
+          "label": "How much I know"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": "Title"
+        },
+        {
+          "key": "learner",
+          "type": "person",
+          "label": "Made for"
+        },
+        {
+          "key": "started",
+          "type": "date",
+          "label": "Started"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Planning",
+            "Writing",
+            "Ready",
+            "Problem"
+          ],
+          "label": "Status"
+        },
+        {
+          "key": "note",
+          "type": "text",
+          "label": "Note"
+        },
+        {
+          "key": "changes",
+          "type": "longtext",
+          "label": "What to change"
+        },
+        {
+          "key": "plan",
+          "type": "longtext",
+          "label": "Plan"
+        },
+        {
+          "key": "lessons",
+          "type": "number",
+          "label": "Lessons",
+          "rollup": {
+            "from": "prog_lessons",
+            "link": "course",
+            "measure": "count",
+            "where": "=status != \"Put away\""
+          }
+        },
+        {
+          "key": "ready",
+          "type": "number",
+          "label": "Lessons ready",
+          "rollup": {
+            "from": "prog_lessons",
+            "link": "course",
+            "measure": "count",
+            "where": "=status == \"New\""
+          }
+        }
+      ]
+    },
+    {
+      "key": "prog_units",
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "prog_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Position"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Unit"
+        },
+        {
+          "key": "about",
+          "type": "text",
+          "label": "About"
+        }
+      ]
+    },
+    {
+      "key": "prog_lessons",
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "prog_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "unit",
+          "type": "link",
+          "target": "prog_units",
+          "required": true,
+          "label": "Unit"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Position"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "goal",
+          "type": "text",
+          "label": "What it teaches"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Writing",
+            "Fixing",
+            "New",
+            "Problem",
+            "Put away"
+          ],
+          "label": "Status"
+        },
+        {
+          "key": "request",
+          "type": "text",
+          "label": "What should be different"
+        },
+        {
+          "key": "material",
+          "type": "longtext",
+          "label": "The bot's answer"
+        },
+        {
+          "key": "text",
+          "type": "longtext",
+          "label": "Lesson"
+        },
+        {
+          "key": "exercise",
+          "type": "longtext",
+          "label": "Exercise"
+        },
+        {
+          "key": "starter",
+          "type": "longtext",
+          "label": "Starting code"
+        },
+        {
+          "key": "solution",
+          "type": "longtext",
+          "label": "Solution"
+        },
+        {
+          "key": "tests",
+          "type": "longtext",
+          "label": "Tests"
+        },
+        {
+          "key": "check",
+          "type": "longtext",
+          "label": "What the computer said"
+        },
+        {
+          "key": "fixes",
+          "type": "number",
+          "label": "Fixes"
+        },
+        {
+          "key": "questions",
+          "type": "number",
+          "label": "Questions",
+          "rollup": {
+            "from": "prog_questions",
+            "link": "lesson",
+            "measure": "count"
+          }
+        }
+      ]
+    },
+    {
+      "key": "prog_questions",
+      "fields": [
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "prog_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "position",
+          "type": "number",
+          "label": "Position"
+        },
+        {
+          "key": "question",
+          "type": "text",
+          "required": true,
+          "label": "Question"
+        },
+        {
+          "key": "choice_a",
+          "type": "text",
+          "label": "A"
+        },
+        {
+          "key": "choice_b",
+          "type": "text",
+          "label": "B"
+        },
+        {
+          "key": "choice_c",
+          "type": "text",
+          "label": "C"
+        },
+        {
+          "key": "choice_d",
+          "type": "text",
+          "label": "D"
+        },
+        {
+          "key": "answer",
+          "type": "choice",
+          "choices": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "label": "Answer"
+        },
+        {
+          "key": "why",
+          "type": "text",
+          "label": "Why"
+        }
+      ]
+    },
+    {
+      "key": "prog_attempts",
+      "personal": true,
+      "fields": [
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "prog_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "code",
+          "type": "longtext",
+          "label": "Code"
+        },
+        {
+          "key": "passed",
+          "type": "yesno",
+          "label": "Passed"
+        },
+        {
+          "key": "output",
+          "type": "longtext",
+          "label": "What the tests said"
+        },
+        {
+          "key": "explanation",
+          "type": "longtext",
+          "label": "Coach's explanation"
+        },
+        {
+          "key": "at",
+          "type": "datetime",
+          "label": "At"
+        }
+      ]
+    },
+    {
+      "key": "prog_progress",
+      "personal": true,
+      "fields": [
+        {
+          "key": "course",
+          "type": "link",
+          "target": "prog_courses",
+          "required": true,
+          "label": "Course"
+        },
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "prog_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "code",
+          "type": "longtext",
+          "label": "My code"
+        },
+        {
+          "key": "done",
+          "type": "yesno",
+          "label": "Done"
+        },
+        {
+          "key": "tries",
+          "type": "number",
+          "label": "Tries"
+        },
+        {
+          "key": "last",
+          "type": "link",
+          "target": "prog_attempts",
+          "label": "Last attempt"
+        },
+        {
+          "key": "finished",
+          "type": "datetime",
+          "label": "Finished"
+        }
+      ]
+    },
+    {
+      "key": "prog_answers",
+      "personal": true,
+      "fields": [
+        {
+          "key": "lesson",
+          "type": "link",
+          "target": "prog_lessons",
+          "required": true,
+          "label": "Lesson"
+        },
+        {
+          "key": "question",
+          "type": "link",
+          "target": "prog_questions",
+          "required": true,
+          "label": "Question"
+        },
+        {
+          "key": "picked",
+          "type": "choice",
+          "choices": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "label": "Answer"
+        },
+        {
+          "key": "correct",
+          "type": "yesno",
+          "label": "Right"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "key": "plan_course",
+      "kind": "job",
+      "summary": "When a course is new or planned again, has the app's bot plan its units and lessons from what the person wants, their language and level.",
+      "settings": {
+        "watch": {
+          "table": "prog_courses",
+          "on": "any",
+          "condition": "=row.status == \"Planning\" && \"status\" in changed"
+        }
+      },
+      "code": "// A course to plan (new, or Plan again): the app's bot (Coach) plans it from what the person wants to learn, their\n// language and level, what to change and the course so far, into its plan.\nconst TASK = \"Plan a complete, fun programming course that teaches the person the language they chose, for what they want to do, at their level, step by step from easy to harder. Answer only in this format, one item a line, no other text:\\nCOURSE: <one emoji> <a short, catchy course title>\\nUNIT: <one emoji> <unit title> | <one line on what the unit covers>\\nLESSON: <one emoji> <lesson title> | <one line: the one thing they'll learn and the function they'll write, like: write is_even(n)>\\nGive 3 or 4 units, each with 2 or 3 lessons, at most 10 lessons in all; every LESSON line belongs to the UNIT line above it. Every lesson ends with a small exercise: writing one function. Someone who has never programmed starts with values, printing, variables and simple functions, one idea a lesson; someone who knows a little starts with lists, loops and dictionaries; someone quite good gets real problems (text, data, algorithms). If the course so far is given, change it only as asked and keep the exact titles of the lessons that stay.\";\nfunction changedIds(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  return ids;\n}\n\nfunction planText(course, units, lessons) {\n  const lines = [\"Language: \" + course.language, \"What I want to learn and do: \" + course.goal];\n  if (course.level) lines.push(\"How much I know already: \" + course.level);\n  if (course.changes) lines.push(\"What to change this time: \" + course.changes);\n  if (lessons.length) {\n    lines.push(\"The course so far (keep the exact titles of the lessons that stay):\");\n    for (const unit of units) {\n      lines.push(\"UNIT: \" + unit.title + \" | \" + (unit.about || \"\"));\n      for (const lesson of lessons.filter((entry) => entry.unit === unit.id)) lines.push(\"LESSON: \" + lesson.title + \" | \" + (lesson.goal || \"\"));\n    }\n  }\n  return lines.join(\"\\n\").slice(0, 7900);\n}\n\nasync function main(input) {\n  for (const id of changedIds(input)) {\n    const course = await records.get(\"prog_courses\", id);\n    if (!course || course.status !== \"Planning\") continue;\n    const units = await records.list(\"prog_units\", { where: \"=course == params.course\", params: { course: id }, sort: \"position\", limit: 100 });\n    const lessons = await records.list(\"prog_lessons\", { where: \"=course == params.course && status != \\\"Put away\\\"\", params: { course: id }, sort: \"position\", limit: 100 });\n    await records.update(\"prog_courses\", id, { plan: \"\", note: \"\" });\n    await ai.work({ bot: \"default\", task: TASK, items: [{ record: { table: \"prog_courses\", id }, text: planText(course, units, lessons) }], into: \"plan\" });\n    return { planning: id };\n  }\n  return { planning: null };\n}",
+      "tests": [
+        {
+          "name": "a new course is planned",
+          "input": {
+            "changes": [
+              {
+                "action": "create",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Make small games",
+                "language": "Python",
+                "level": "I've never programmed",
+                "status": "Planning"
+              }
+            ]
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "planning": "1"
+          }
+        },
+        {
+          "name": "a course not waiting for a plan is left alone",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "title"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Ready"
+              }
+            ]
+          },
+          "expect": {
+            "planning": null
+          }
+        }
+      ]
+    },
+    {
+      "key": "build_course",
+      "kind": "job",
+      "summary": "Makes the bot's plan into units and lessons to write, keeping the lessons whose title stays the same with everyone's progress.",
+      "settings": {
+        "watch": {
+          "table": "prog_courses",
+          "on": "update",
+          "condition": "=\"plan\" in changed && row.plan != \"\""
+        }
+      },
+      "code": "// The bot's plan made into units and lessons. A lesson or unit whose title stays the same (emoji, case and punctuation\n// aside) is kept with its text, exercise and everyone's progress, moved to its new place; a new one is to be written; one\n// the plan leaves out is put away.\nfunction changedIds(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  return ids;\n}\nconst keyOf = (title) => String(title || \"\").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, \" \").trim();\n\nfunction parsePlan(text) {\n  const plan = { title: \"\", units: [] };\n  for (const raw of String(text || \"\").split(\"\\n\")) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    const found = /^(COURSE|UNIT|LESSON)\\s*:\\s*(.+)$/i.exec(line);\n    if (!found) continue;\n    const [title = \"\", second = \"\"] = found[2].split(\"|\").map((part) => part.trim());\n    const kind = found[1].toUpperCase();\n    if (kind === \"COURSE\") plan.title = title.slice(0, 200);\n    else if (kind === \"UNIT\" && title) plan.units.push({ title: title.slice(0, 200), about: second.slice(0, 300), lessons: [] });\n    else if (kind === \"LESSON\" && title && plan.units.length) plan.units[plan.units.length - 1].lessons.push({ title: title.slice(0, 200), goal: second.slice(0, 300) });\n  }\n  plan.units = plan.units.filter((unit) => unit.lessons.length).slice(0, 6);\n  return plan;\n}\n\nconst byKey = (rows) => {\n  const map = new Map();\n  for (const row of rows) map.set(keyOf(row.title), [...(map.get(keyOf(row.title)) || []), row]);\n  return map;\n};\nconst take = (left, title) => {\n  const found = left.get(keyOf(title));\n  return found && found.length ? found.shift() : null;\n};\n\nasync function main(input) {\n  const built = [];\n  for (const id of changedIds(input)) {\n    const course = await records.get(\"prog_courses\", id);\n    if (!course || !course.plan) continue;\n    const plan = parsePlan(course.plan);\n    if (!plan.units.length) {\n      await records.update(\"prog_courses\", id, { status: \"Problem\", note: \"The plan came back in a shape I can't use. Press Plan again.\" });\n      continue;\n    }\n    const units = byKey(await records.list(\"prog_units\", { where: \"=course == params.course\", params: { course: id }, limit: 100 }));\n    const lessons = byKey(await records.list(\"prog_lessons\", { where: \"=course == params.course && status != \\\"Put away\\\"\", params: { course: id }, limit: 100 }));\n    let writing = 0;\n    let kept = 0;\n    let stillWriting = 0;\n    for (let place = 0; place < plan.units.length; place += 1) {\n      const spec = plan.units[place];\n      const position = place + 1;\n      let unit = take(units, spec.title);\n      if (!unit) unit = await records.create(\"prog_units\", { course: id, title: spec.title, about: spec.about, position });\n      else if (unit.position !== position) await records.update(\"prog_units\", unit.id, { position });\n      for (let step = 0; step < spec.lessons.length; step += 1) {\n        const wanted = spec.lessons[step];\n        const at = position * 100 + step + 1;\n        const same = take(lessons, wanted.title);\n        if (!same) {\n          await records.create(\"prog_lessons\", { course: id, unit: unit.id, position: at, title: wanted.title, goal: wanted.goal, status: \"Writing\", fixes: 0 });\n          writing += 1;\n          continue;\n        }\n        kept += 1;\n        if (same.status === \"Writing\" || same.status === \"Fixing\") stillWriting += 1;\n        if (same.unit !== unit.id || same.position !== at) await records.update(\"prog_lessons\", same.id, { unit: unit.id, position: at });\n      }\n    }\n    for (const rows of units.values()) for (const row of rows) await records.markObsolete(\"prog_units\", row.id);\n    const leftOut = [...lessons.values()].flat();\n    for (const row of leftOut) await records.update(\"prog_lessons\", row.id, { status: \"Put away\" });\n    const status = writing + stillWriting ? \"Writing\" : \"Ready\";\n    await records.update(\"prog_courses\", id, { title: plan.title || course.title || course.goal.slice(0, 80), status, changes: \"\", note: \"\" });\n    built.push({ course: id, units: plan.units.length, writing, kept, putAway: leftOut.length, status });\n  }\n  return { built };\n}",
+      "tests": [
+        {
+          "name": "a plan becomes units and lessons to write",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Planning",
+                "plan": "COURSE: 🎮 Python for games\nUNIT: 🧱 Basics | Values and printing\nLESSON: 👋 Hello | write greet(name)\nLESSON: ➕ Sums | write add(a, b)\n**UNIT: 🔁 Loops | Doing things again**\n- LESSON: 🔢 Counting | write count_to(n)"
+              }
+            ]
+          },
+          "expect": {
+            "built": [
+              {
+                "course": "1",
+                "units": 2,
+                "writing": 3,
+                "kept": 0,
+                "putAway": 0,
+                "status": "Writing"
+              }
+            ]
+          }
+        },
+        {
+          "name": "planned again, a lesson that keeps its title stays and one left out is put away",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "plan"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Planning",
+                "plan": "COURSE: 🎮 Games\nUNIT: 🧱 Basics | Values\nLESSON: 👋 hello! | write greet(name)"
+              }
+            ],
+            "prog_units": [
+              {
+                "course": "1",
+                "title": "Basics",
+                "position": 1
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Hello",
+                "position": 101,
+                "status": "New"
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Sums",
+                "position": 102,
+                "status": "New"
+              }
+            ]
+          },
+          "expect": {
+            "built": [
+              {
+                "course": "1",
+                "units": 1,
+                "writing": 0,
+                "kept": 1,
+                "putAway": 1,
+                "status": "Ready"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "key": "write_lessons",
+      "kind": "job",
+      "summary": "Has the app's bot write each new lesson: its explanation, quiz, and an exercise with starting code, a solution and tests.",
+      "settings": {
+        "watch": {
+          "table": "prog_lessons",
+          "on": "any",
+          "condition": "=row.status == \"Writing\" && \"status\" in changed"
+        }
+      },
+      "code": "// Lessons to write (new ones, and ones someone asked to write again): the app's bot writes each with its quiz and its\n// exercise (starting code, a solution and the tests), following the format and the rules of tests for its language.\n// verify_lessons runs the solution against the tests on the computer before the lesson is ready.\nconst TASK = \"Write one short, fun lesson of a programming course for the person learning it, with a quiz and a small coding exercise with its starting code, a solution and the tests that check it. Follow the format and the rules in the text exactly: the app runs your solution against your tests on a computer, and the lesson is only ready once every test passes. Answer only in that format.\";\nconst FORMAT = \"Answer in exactly this format, each marker alone on its line, nothing before LESSON or after END, and no markdown code fences anywhere:\\nLESSON\\n(3 to 6 short paragraphs, at most 300 words, plain text, friendly and clear; show one tiny example of code, each of its lines starting with 4 spaces)\\nQUIZ\\n(3 questions on the lesson, each exactly: a line Q: the question, then lines A:, B:, C:, D: with one choice each, then ANSWER: the right letter, then WHY: one short sentence. Only one choice is right; vary which letter.)\\nEXERCISE\\n(2 to 4 sentences for the learner: the one function to write, its exact name and arguments, what it returns, and one example call with its result)\\nSTARTER\\n(the code they start from: the function's first line, a comment saying what to do, and a placeholder return that does NOT pass the tests)\\nSOLUTION\\n(a correct, simple solution, written the way a learner at this level would)\\nTESTS\\n(the test file, following the rules below)\\nEND\";\nconst TEST_RULES = {\"Python\":\"Rules for the code and tests (Python): the exercise is ONE function with a clear name. STARTER and SOLUTION define it with def. TESTS starts with the line: from solution import *\\nthen 3 to 6 test functions, each named test_<what it checks in words, with underscores> and taking no arguments, each checking one thing with plain assert and a message that says what was expected, like: assert double(2) == 4, \\\"double(2) should be 4\\\". Test the normal cases from the exercise and one edge case (an empty list, zero, a negative number) the EXERCISE mentions. Compare floats with round(x, 2). Use only the standard library; no input(), no files, no network, no printing, no randomness; each test takes well under a second. The SOLUTION must pass every test and the STARTER must fail at least one.\",\"JavaScript\":\"Rules for the code and tests (JavaScript): the exercise is ONE function with a clear name, written as function name(args) { ... } in STARTER and SOLUTION (never const name = ...). TESTS has 3 to 6 tests, each exactly: test(\\\"what it checks, in words\\\", () => { expect(value).toBe(expected); }); Available in tests: expect(x).toBe(y) (numbers, text, true/false), expect(x).toEqual(y) (lists and objects), expect(x).toBeCloseTo(y) (decimals), expect(x).toBeTruthy(), expect(x).toBeFalsy(), expect(x).toContain(y), expect(() => f()).toThrow(), and assert(condition, \\\"message\\\"). Test the normal cases from the exercise and one edge case (an empty list, zero, a negative number) the EXERCISE mentions. No require or import, no prompt(), no files, no network, no console.log, no Math.random; each test takes well under a second. The SOLUTION must pass every test and the STARTER must fail at least one.\"};\nfunction changedIds(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  return ids;\n}\n\nfunction lessonText(course, unit, lesson, before) {\n  return [\n    \"The course: \" + (course.title || course.goal) + \", in \" + course.language + \", for someone who wants to: \" + course.goal + (course.level ? \" (\" + course.level + \")\" : \"\"),\n    \"Unit: \" + (unit ? unit.title + (unit.about ? \" - \" + unit.about : \"\") : \"\"),\n    \"This lesson: \" + lesson.title,\n    \"They will learn: \" + (lesson.goal || lesson.title),\n    ...(before.length ? [\"Lessons before it (they know these): \" + before.join(\"; \")] : [\"This is the first lesson.\"]),\n    ...(lesson.request ? [\"Change this time: \" + lesson.request] : []),\n    \"\",\n    FORMAT,\n    \"\",\n    TEST_RULES[course.language] || TEST_RULES.Python\n  ].join(\"\\n\").slice(0, 7900);\n}\n\nasync function main(input) {\n  const courses = {};\n  const items = [];\n  for (const id of changedIds(input)) {\n    const lesson = await records.get(\"prog_lessons\", id);\n    if (!lesson || lesson.status !== \"Writing\") continue;\n    if (!(lesson.course in courses)) {\n      courses[lesson.course] = {\n        course: await records.get(\"prog_courses\", lesson.course),\n        lessons: await records.list(\"prog_lessons\", { where: \"=course == params.course && status != \\\"Put away\\\"\", params: { course: lesson.course }, sort: \"position\", limit: 100 }),\n        units: await records.list(\"prog_units\", { where: \"=course == params.course\", params: { course: lesson.course }, limit: 100 })\n      };\n    }\n    const { course, lessons, units } = courses[lesson.course];\n    if (!course) continue;\n    const before = lessons.filter((entry) => entry.position < lesson.position).map((entry) => entry.title + (entry.goal ? \" (\" + entry.goal + \")\" : \"\"));\n    items.push({ record: { table: \"prog_lessons\", id }, text: lessonText(course, units.find((unit) => unit.id === lesson.unit), lesson, before) });\n  }\n  if (items.length) await ai.work({ bot: \"default\", task: TASK, items: items.slice(0, 100), into: \"material\" });\n  return { writing: items.length };\n}",
+      "tests": [
+        {
+          "name": "a lesson to write goes to the bot with its course and the format",
+          "input": {
+            "changes": [
+              {
+                "action": "create",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "title": "Python for games",
+                "goal": "Games",
+                "language": "Python",
+                "status": "Writing"
+              }
+            ],
+            "prog_units": [
+              {
+                "course": "1",
+                "title": "Basics",
+                "position": 1
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Hello",
+                "goal": "write greet(name)",
+                "position": 101,
+                "status": "Writing"
+              }
+            ]
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "writing": 1
+          }
+        },
+        {
+          "name": "a lesson already written isn't written again",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "status"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Hello",
+                "status": "New"
+              }
+            ]
+          },
+          "expect": {
+            "writing": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "verify_lessons",
+      "kind": "job",
+      "summary": "Runs each written lesson's solution against its tests on the computer: a lesson whose tests pass is ready, one that fails goes back to the bot to fix, at most twice.",
+      "settings": {
+        "watch": {
+          "table": "prog_lessons",
+          "on": "update",
+          "condition": "=\"material\" in changed && row.material != \"\""
+        }
+      },
+      "code": "// No lesson ships with broken tests: once the bot has written one (its material), its solution runs against its tests\n// on the computer, and so does its starting code, which must fail one. Passing, the lesson is ready (its text, exercise,\n// code and quiz on it); failing, the bot fixes it with what the computer said, at most FIXES times, then the lesson shows\n// a problem and can be written again. A course whose lessons are all ready is ready.\nconst FIXES = 2;\nconst TASK = \"Your solution and tests for a programming exercise didn't work on the computer: the text says what it said. Find the mistake (in the solution, the tests or both, and make sure the starting code fails at least one test) and answer with the whole lesson again, fixed, in exactly the same format and following the same rules.\";\nconst FORMAT = \"Answer in exactly this format, each marker alone on its line, nothing before LESSON or after END, and no markdown code fences anywhere:\\nLESSON\\n(3 to 6 short paragraphs, at most 300 words, plain text, friendly and clear; show one tiny example of code, each of its lines starting with 4 spaces)\\nQUIZ\\n(3 questions on the lesson, each exactly: a line Q: the question, then lines A:, B:, C:, D: with one choice each, then ANSWER: the right letter, then WHY: one short sentence. Only one choice is right; vary which letter.)\\nEXERCISE\\n(2 to 4 sentences for the learner: the one function to write, its exact name and arguments, what it returns, and one example call with its result)\\nSTARTER\\n(the code they start from: the function's first line, a comment saying what to do, and a placeholder return that does NOT pass the tests)\\nSOLUTION\\n(a correct, simple solution, written the way a learner at this level would)\\nTESTS\\n(the test file, following the rules below)\\nEND\";\nconst TEST_RULES = {\"Python\":\"Rules for the code and tests (Python): the exercise is ONE function with a clear name. STARTER and SOLUTION define it with def. TESTS starts with the line: from solution import *\\nthen 3 to 6 test functions, each named test_<what it checks in words, with underscores> and taking no arguments, each checking one thing with plain assert and a message that says what was expected, like: assert double(2) == 4, \\\"double(2) should be 4\\\". Test the normal cases from the exercise and one edge case (an empty list, zero, a negative number) the EXERCISE mentions. Compare floats with round(x, 2). Use only the standard library; no input(), no files, no network, no printing, no randomness; each test takes well under a second. The SOLUTION must pass every test and the STARTER must fail at least one.\",\"JavaScript\":\"Rules for the code and tests (JavaScript): the exercise is ONE function with a clear name, written as function name(args) { ... } in STARTER and SOLUTION (never const name = ...). TESTS has 3 to 6 tests, each exactly: test(\\\"what it checks, in words\\\", () => { expect(value).toBe(expected); }); Available in tests: expect(x).toBe(y) (numbers, text, true/false), expect(x).toEqual(y) (lists and objects), expect(x).toBeCloseTo(y) (decimals), expect(x).toBeTruthy(), expect(x).toBeFalsy(), expect(x).toContain(y), expect(() => f()).toThrow(), and assert(condition, \\\"message\\\"). Test the normal cases from the exercise and one edge case (an empty list, zero, a negative number) the EXERCISE mentions. No require or import, no prompt(), no files, no network, no console.log, no Math.random; each test takes well under a second. The SOLUTION must pass every test and the STARTER must fail at least one.\"};\nconst RUN = {\n  Python: { solution: \"solution.py\", tests: \"test_lesson.py\", command: \"python3 ../harness/run.py\" },\n  JavaScript: { solution: \"solution.js\", tests: \"test_lesson.js\", command: \"node ../harness/run.js\" }\n};\nfunction changedIds(input) {\n  const ids = [];\n  for (const change of (input && input.changes) || []) {\n    const id = String((change.record && change.record.id) || \"\");\n    if (id && !ids.includes(id)) ids.push(id);\n  }\n  return ids;\n}\n// A lesson's answer in its sections (LESSON, QUIZ, EXERCISE, STARTER, SOLUTION, TESTS), code fences taken away.\nfunction sectionsOf(material) {\n  const out = {};\n  let at = null;\n  for (const raw of String(material || \"\").replace(/\\r/g, \"\").split(\"\\n\")) {\n    const marker = /^[\\s*#]*(LESSON|QUIZ|EXERCISE|STARTER|SOLUTION|TESTS|END)[\\s*:#]*$/.exec(raw);\n    if (marker) {\n      at = marker[1] === \"END\" ? null : marker[1];\n      if (at) out[at] = [];\n      continue;\n    }\n    if (at && !/^\\s*```/.test(raw)) out[at].push(raw);\n  }\n  const text = (key) => (out[key] || []).join(\"\\n\").replace(/^\\n+|\\s+$/g, \"\");\n  return { lesson: text(\"LESSON\"), quiz: text(\"QUIZ\"), exercise: text(\"EXERCISE\"), starter: text(\"STARTER\"), solution: text(\"SOLUTION\"), tests: text(\"TESTS\") };\n}\n\nfunction questionsOf(quiz) {\n  const questions = [];\n  let question = null;\n  for (const raw of String(quiz || \"\").split(\"\\n\")) {\n    const line = raw.replace(/^[\\s*#>-]+/, \"\").replace(/\\*\\*/g, \"\").trim();\n    let found;\n    if ((found = /^Q(?:uestion)?\\s*\\d*\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question = { question: found[1], choices: {}, answer: \"\", why: \"\" };\n      questions.push(question);\n    } else if (!question) {\n      continue;\n    } else if ((found = /^ANSWER\\s*[:.)-]?\\s*\\(?([ABCD])\\b/i.exec(line))) {\n      question.answer = found[1].toUpperCase();\n    } else if ((found = /^WHY\\s*[:.)-]?\\s*(.+)$/i.exec(line))) {\n      question.why = found[1];\n    } else if ((found = /^\\(?([ABCD])\\s*[:.)]\\s*(.+)$/i.exec(line))) {\n      question.choices[found[1].toUpperCase()] = found[2];\n    }\n  }\n  return questions.filter((entry) => entry.question && entry.answer && [\"A\", \"B\", \"C\", \"D\"].every((letter) => entry.choices[letter])).slice(0, 5);\n}\n\n/** The solution against the tests, then the starting code: what the computer said, or why it isn't ready. */\nasync function verify(lesson, parts, language) {\n  const missing = [\"lesson\", \"exercise\", \"starter\", \"solution\", \"tests\"].filter((key) => !parts[key]);\n  if (missing.length) return { ok: false, said: \"The answer had no \" + missing.join(\", \") + \" section.\" };\n  const run = RUN[language] || RUN.Python;\n  const files = { [\"solution/\" + run.solution]: parts.solution, [\"solution/\" + run.tests]: parts.tests, [\"start/\" + run.solution]: parts.starter, [\"start/\" + run.tests]: parts.tests };\n  const command = \"cd solution && \" + run.command + \"; echo \\\"SOLUTION EXIT $?\\\"; cd ../start && \" + run.command + \" > /dev/null; echo \\\"START EXIT $?\\\"\";\n  const result = await computer.run({ command, files, seconds: 30 });\n  const solutionExit = (/SOLUTION EXIT (\\d+)/.exec(result.output) || [])[1];\n  const startExit = (/START EXIT (\\d+)/.exec(result.output) || [])[1];\n  const said = result.output.replace(/\\n?(SOLUTION|START) EXIT \\d+/g, \"\").trim();\n  if (result.timedOut) return { ok: false, said: said + \"\\nIt ran for more than 30 seconds and was stopped.\" };\n  if (solutionExit !== \"0\") return { ok: false, said: \"The solution didn't pass the tests:\\n\" + said };\n  if (startExit === \"0\") return { ok: false, said: \"The starting code passes every test already, so the tests don't check the exercise:\\n\" + said };\n  return { ok: true, said };\n}\n\nasync function main(input) {\n  const ids = changedIds(input);\n  // Any lesson written while this job wasn't told (more than one run's worth at once), so none waits for ever.\n  for (const lesson of await records.list(\"prog_lessons\", { where: \"=(status == \\\"Writing\\\" || status == \\\"Fixing\\\") && material != \\\"\\\"\", limit: 10 })) {\n    if (!ids.includes(lesson.id)) ids.push(lesson.id);\n  }\n  const courses = {};\n  const fixes = [];\n  const done = { ready: [], fixing: [], problem: [] };\n  for (const id of ids.slice(0, 10)) {\n    const lesson = await records.get(\"prog_lessons\", id);\n    if (!lesson || !lesson.material || ![\"Writing\", \"Fixing\"].includes(lesson.status)) continue;\n    if (!(lesson.course in courses)) courses[lesson.course] = await records.get(\"prog_courses\", lesson.course);\n    const course = courses[lesson.course];\n    if (!course) continue;\n    const parts = sectionsOf(lesson.material);\n    const { ok, said } = await verify(lesson, parts, course.language);\n    if (ok) {\n      for (const old of await records.list(\"prog_questions\", { where: \"=lesson == params.lesson\", params: { lesson: id }, limit: 20 })) await records.markObsolete(\"prog_questions\", old.id);\n      const questions = questionsOf(parts.quiz);\n      for (let index = 0; index < questions.length; index += 1) {\n        const entry = questions[index];\n        await records.create(\"prog_questions\", { lesson: id, position: index + 1, question: entry.question.slice(0, 1000), choice_a: entry.choices.A.slice(0, 500), choice_b: entry.choices.B.slice(0, 500), choice_c: entry.choices.C.slice(0, 500), choice_d: entry.choices.D.slice(0, 500), answer: entry.answer, why: entry.why.slice(0, 1000) });\n      }\n      await records.update(\"prog_lessons\", id, { status: \"New\", text: parts.lesson, exercise: parts.exercise, starter: parts.starter, solution: parts.solution, tests: parts.tests, check: said.slice(0, 20000), request: \"\" });\n      done.ready.push(id);\n    } else if ((lesson.fixes || 0) < FIXES) {\n      fixes.push({ id, text: (\"The lesson you wrote:\\n\" + lesson.material.slice(0, 5000) + \"\\n\\nWhat the computer said:\\n\" + said.slice(0, 1200) + \"\\n\\n\" + FORMAT + \"\\n\\n\" + (TEST_RULES[course.language] || TEST_RULES.Python)).slice(0, 7900), fixes: (lesson.fixes || 0) + 1, said });\n    } else {\n      await records.update(\"prog_lessons\", id, { status: \"Problem\", check: said.slice(0, 20000), material: \"\" });\n      done.problem.push(id);\n    }\n  }\n  if (fixes.length) {\n    // One batch for every lesson to fix; when the bot is busy, they wait for the next lesson the job hears of.\n    let queued = true;\n    try {\n      await ai.work({ bot: \"default\", task: TASK, items: fixes.map((fix) => ({ record: { table: \"prog_lessons\", id: fix.id }, text: fix.text })), into: \"material\" });\n    } catch (error) {\n      queued = false;\n      console.log(\"Fixing waits: \" + error.message);\n    }\n    if (queued) {\n      for (const fix of fixes) {\n        await records.update(\"prog_lessons\", fix.id, { status: \"Fixing\", fixes: fix.fixes, check: fix.said.slice(0, 20000), material: \"\" });\n        done.fixing.push(fix.id);\n      }\n    }\n  }\n  for (const courseId of Object.keys(courses)) {\n    const waiting = await records.list(\"prog_lessons\", { where: \"=course == params.course && (status == \\\"Writing\\\" || status == \\\"Fixing\\\")\", params: { course: courseId }, limit: 1 });\n    if (!waiting.length && courses[courseId] && courses[courseId].status === \"Writing\") await records.update(\"prog_courses\", courseId, { status: \"Ready\" });\n  }\n  return done;\n}",
+      "tests": [
+        {
+          "name": "a lesson whose solution passes and whose start fails is ready",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "material"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Writing"
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "Writing",
+                "fixes": 0,
+                "material": "LESSON\nA function is a named recipe.\n\n    def double(n):\n        return n * 2\nQUIZ\nQ: What does return do?\nA: Gives a value back\nB: Prints\nC: Stops Python\nD: Nothing\nANSWER: A\nWHY: return hands the value back.\nEXERCISE\nWrite double(n), which gives back n times 2: double(3) is 6.\nSTARTER\n```python\ndef double(n):\n    # give back n times 2\n    return 0\n```\nSOLUTION\ndef double(n):\n    return n * 2\nTESTS\nfrom solution import *\n\ndef test_doubles_three():\n    assert double(3) == 6, \"double(3) should be 6\"\nEND"
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "✅ doubles three\n\n🎉 1 of 1 tests passed.\nSOLUTION EXIT 0\nSTART EXIT 1\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {
+            "ready": [
+              "1"
+            ],
+            "fixing": [],
+            "problem": []
+          }
+        },
+        {
+          "name": "a lesson whose solution fails goes back to the bot",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "material"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Writing"
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "Writing",
+                "fixes": 0,
+                "material": "LESSON\nA function is a named recipe.\n\n    def double(n):\n        return n * 2\nQUIZ\nQ: What does return do?\nA: Gives a value back\nB: Prints\nC: Stops Python\nD: Nothing\nANSWER: A\nWHY: return hands the value back.\nEXERCISE\nWrite double(n), which gives back n times 2: double(3) is 6.\nSTARTER\n```python\ndef double(n):\n    # give back n times 2\n    return 0\n```\nSOLUTION\ndef double(n):\n    return n * 2\nTESTS\nfrom solution import *\n\ndef test_doubles_three():\n    assert double(3) == 6, \"double(3) should be 6\"\nEND"
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "❌ doubles three: double(3) should be 6\n\n0 of 1 tests passed.\nSOLUTION EXIT 1\nSTART EXIT 1\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "ready": [],
+            "fixing": [
+              "1"
+            ],
+            "problem": []
+          }
+        },
+        {
+          "name": "after two fixes it shows a problem",
+          "input": {
+            "changes": [
+              {
+                "action": "update",
+                "changed": [
+                  "material"
+                ],
+                "record": {
+                  "id": "1"
+                }
+              }
+            ]
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python",
+                "status": "Writing"
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "Fixing",
+                "fixes": 2,
+                "material": "LESSON\nA function is a named recipe.\n\n    def double(n):\n        return n * 2\nQUIZ\nQ: What does return do?\nA: Gives a value back\nB: Prints\nC: Stops Python\nD: Nothing\nANSWER: A\nWHY: return hands the value back.\nEXERCISE\nWrite double(n), which gives back n times 2: double(3) is 6.\nSTARTER\n```python\ndef double(n):\n    # give back n times 2\n    return 0\n```\nSOLUTION\ndef double(n):\n    return n * 2\nTESTS\nfrom solution import *\n\ndef test_doubles_three():\n    assert double(3) == 6, \"double(3) should be 6\"\nEND"
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "SOLUTION EXIT 1\nSTART EXIT 1\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {
+            "ready": [],
+            "fixing": [],
+            "problem": [
+              "1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "key": "open",
+      "kind": "action",
+      "summary": "Opens a lesson (or the next one the person hasn't done) with their own code for it, starting from the lesson's starting code.",
+      "code": "// A lesson's page shows the person's own progress in it (each person's own), made the first time with the lesson's\n// starting code. With a course and no lesson, the first ready lesson they haven't done.\nasync function main(input) {\n  let lessonId = String((input && input.lesson) || \"\");\n  if (!lessonId && input && input.course) {\n    const course = String(input.course);\n    const lessons = await records.list(\"prog_lessons\", { where: \"=course == params.course && status == \\\"New\\\"\", params: { course }, sort: \"position\", limit: 100 });\n    const done = new Set((await records.list(\"prog_progress\", { where: \"=course == params.course && done == true\", params: { course }, limit: 100 })).map((row) => row.lesson));\n    const next = lessons.find((row) => !done.has(row.id));\n    if (!next) return { notify: lessons.length ? \"You've done every lesson of this course! 🏆\" : \"Its lessons are still being written.\" };\n    lessonId = next.id;\n  }\n  const lesson = await records.get(\"prog_lessons\", lessonId);\n  if (!lesson) return { notify: \"That lesson is no longer there.\" };\n  if (lesson.status !== \"New\") return { notify: \"That lesson isn't ready yet.\" };\n  const [mine] = await records.list(\"prog_progress\", { where: \"=lesson == params.lesson\", params: { lesson: lesson.id }, limit: 1 });\n  const id = mine ? mine.id : (await records.create(\"prog_progress\", { course: lesson.course, lesson: lesson.id, code: lesson.starter, done: false, tries: 0 })).id;\n  return { go: { screen: \"lesson\", params: { id: lesson.id, mine: id } } };\n}",
+      "tests": [
+        {
+          "name": "a first visit makes the person's progress from the starting code",
+          "input": {
+            "lesson": "1"
+          },
+          "records": {
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "New",
+                "starter": "def double(n):\n    return 0"
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "1",
+                "mine": "1001"
+              }
+            }
+          }
+        },
+        {
+          "name": "the next lesson is the first ready one not done",
+          "input": {
+            "course": "1"
+          },
+          "records": {
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "A",
+                "position": 101,
+                "status": "New"
+              },
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "B",
+                "position": 102,
+                "status": "New"
+              }
+            ],
+            "prog_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "done": true
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "lesson",
+              "params": {
+                "id": "2",
+                "mine": "1001"
+              }
+            }
+          }
+        },
+        {
+          "name": "a lesson being written can't be opened",
+          "input": {
+            "lesson": "1"
+          },
+          "records": {
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "A",
+                "status": "Writing"
+              }
+            ]
+          },
+          "expect": {
+            "notify": "That lesson isn't ready yet."
+          }
+        }
+      ]
+    },
+    {
+      "key": "check",
+      "kind": "action",
+      "summary": "Runs the person's code with the lesson's tests on the computer, keeps the attempt, celebrates a pass, and has the bot explain a failure in plain words.",
+      "code": "// \"Check my answer\": the person's code and the lesson's tests run on the computer. The attempt (each person's own)\n// keeps their code and what the tests said; their progress keeps their code and whether they've done it. A failure goes\n// to the app's bot, which explains it in plain words into the attempt (when the app may use AI and the bot isn't busy).\nconst TASK = \"A learner's code didn't pass a programming exercise; the text has the exercise, their code and what the tests said. In 2 to 4 short, kind sentences in plain words, explain what went wrong and give one hint for fixing it. Don't write the corrected code for them. No markdown.\";\nconst RUN = {\n  Python: { solution: \"solution.py\", tests: \"test_lesson.py\", command: \"python3 ../harness/run.py\" },\n  JavaScript: { solution: \"solution.js\", tests: \"test_lesson.js\", command: \"node ../harness/run.js\" }\n};\n\nasync function main(input) {\n  const mine = await records.get(\"prog_progress\", String(input.mine));\n  if (!mine) return { notify: \"That lesson's progress is no longer there.\" };\n  const lesson = await records.get(\"prog_lessons\", mine.lesson);\n  const course = lesson && (await records.get(\"prog_courses\", lesson.course));\n  if (!lesson || !course || !lesson.tests) return { notify: \"That lesson has no tests yet.\" };\n  const code = String(input.code ?? mine.code ?? \"\");\n  const run = RUN[course.language] || RUN.Python;\n  const result = await computer.run({ command: \"cd lesson && \" + run.command, files: { [\"lesson/\" + run.solution]: code, [\"lesson/\" + run.tests]: lesson.tests }, seconds: 15 });\n  const passed = result.exitCode === 0 && !result.timedOut;\n  const output = (result.timedOut ? result.output + \"\\n⏱️ Your code ran for more than 15 seconds, so it was stopped: is there a loop that never ends?\" : result.output).slice(0, 20000);\n  const attempt = await records.create(\"prog_attempts\", { lesson: lesson.id, code, passed, output, at: new Date().toISOString() });\n  await records.update(\"prog_progress\", mine.id, { code, done: passed || mine.done === true, tries: (mine.tries || 0) + 1, last: attempt.id, ...(passed && !mine.done ? { finished: new Date().toISOString() } : {}) });\n  if (passed) return { celebrate: \"🎉 Every test passed!\" };\n  let explaining = true;\n  try {\n    await ai.work({ bot: \"default\", task: TASK, items: [{ record: { table: \"prog_attempts\", id: attempt.id }, text: (\"The exercise: \" + lesson.exercise + \"\\n\\nTheir code:\\n\" + code.slice(0, 4000) + \"\\n\\nWhat the tests said:\\n\" + output.slice(0, 2500)).slice(0, 7900) }], into: \"explanation\" });\n  } catch (error) {\n    explaining = false;\n  }\n  const last = output.trim().split(\"\\n\").pop() || \"\";\n  return { notify: (/tests passed/.test(last) ? last : \"Not yet.\") + (explaining ? \" Coach is looking at what went wrong…\" : \" See below what the tests said.\") };\n}",
+      "tests": [
+        {
+          "name": "a pass celebrates",
+          "input": {
+            "mine": "1",
+            "code": "def double(n):\n    return n * 2"
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python"
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "New",
+                "tests": "from solution import *",
+                "exercise": "Write double(n)."
+              }
+            ],
+            "prog_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "code": "",
+                "done": false,
+                "tries": 0
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 0,
+              "output": "✅ doubles three\n\n🎉 1 of 1 tests passed.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "expect": {
+            "celebrate": "🎉 Every test passed!"
+          }
+        },
+        {
+          "name": "a failure goes to the bot to explain",
+          "input": {
+            "mine": "1",
+            "code": "def double(n):\n    return n"
+          },
+          "records": {
+            "prog_courses": [
+              {
+                "goal": "Games",
+                "language": "Python"
+              }
+            ],
+            "prog_lessons": [
+              {
+                "course": "1",
+                "unit": "1",
+                "title": "Doubles",
+                "status": "New",
+                "tests": "from solution import *",
+                "exercise": "Write double(n)."
+              }
+            ],
+            "prog_progress": [
+              {
+                "course": "1",
+                "lesson": "1",
+                "code": "",
+                "done": false,
+                "tries": 0
+              }
+            ]
+          },
+          "computer": {
+            "run": {
+              "exitCode": 1,
+              "output": "❌ doubles three: double(3) should be 6\n\n0 of 1 tests passed.\n",
+              "seconds": 1,
+              "timedOut": false,
+              "files": {},
+              "kept": {}
+            }
+          },
+          "ai": {
+            "work": {}
+          },
+          "expect": {
+            "notify": "0 of 1 tests passed. Coach is looking at what went wrong…"
+          }
+        }
+      ]
+    },
+    {
+      "key": "answer",
+      "kind": "action",
+      "summary": "Keeps the person's own answer to a quiz question, and whether it's right.",
+      "code": "// The person's first answer to a question, kept as their own with whether it's right.\nasync function main(input) {\n  const question = await records.get(\"prog_questions\", String(input.question));\n  if (!question) return { notify: \"That question is no longer there.\" };\n  const [had] = await records.list(\"prog_answers\", { where: \"=question == params.question\", params: { question: question.id }, limit: 1 });\n  if (had) return {};\n  const pick = String(input.pick || \"\");\n  await records.create(\"prog_answers\", { lesson: question.lesson, question: question.id, picked: pick, correct: pick === question.answer });\n  return {};\n}",
+      "tests": [
+        {
+          "name": "keeps a first answer",
+          "input": {
+            "question": "1",
+            "pick": "B"
+          },
+          "records": {
+            "prog_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "answer": "B"
+              }
+            ]
+          },
+          "expect": {}
+        },
+        {
+          "name": "an answered question keeps its first answer",
+          "input": {
+            "question": "1",
+            "pick": "A"
+          },
+          "records": {
+            "prog_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "What?",
+                "answer": "B"
+              }
+            ],
+            "prog_answers": [
+              {
+                "lesson": "1",
+                "question": "1",
+                "picked": "B",
+                "correct": true
+              }
+            ]
+          },
+          "expect": {}
+        }
+      ]
+    },
+    {
+      "key": "quiz",
+      "kind": "action",
+      "summary": "Opens the person's next quiz question of a lesson, or the lesson once they've answered every one; again starts the quiz afresh.",
+      "code": "// The quiz, one question at a time: the first the person hasn't answered, or back to the lesson. Again puts their\n// answers away (kept, not counted) and starts from the first question.\nasync function main(input) {\n  const lesson = String(input.lesson);\n  const questions = await records.list(\"prog_questions\", { where: \"=lesson == params.lesson\", params: { lesson }, sort: \"position\", limit: 20 });\n  if (!questions.length) return { notify: \"This lesson has no quiz.\" };\n  const answers = await records.list(\"prog_answers\", { where: \"=lesson == params.lesson\", params: { lesson }, limit: 40 });\n  if (input.again) for (const answer of answers) await records.markObsolete(\"prog_answers\", answer.id);\n  const answered = new Set(input.again ? [] : answers.map((row) => row.question));\n  const question = questions.find((row) => !answered.has(row.id));\n  return question ? { go: { screen: \"quiz\", params: { lesson, id: question.id, mine: String(input.mine || \"\") } } } : { go: { screen: \"lesson\", params: { id: lesson, mine: String(input.mine || \"\") } } };\n}",
+      "tests": [
+        {
+          "name": "the first question not answered",
+          "input": {
+            "lesson": "1",
+            "mine": "5"
+          },
+          "records": {
+            "prog_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "One?"
+              },
+              {
+                "lesson": "1",
+                "position": 2,
+                "question": "Two?"
+              }
+            ],
+            "prog_answers": [
+              {
+                "lesson": "1",
+                "question": "1",
+                "picked": "A",
+                "correct": true
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "quiz",
+              "params": {
+                "lesson": "1",
+                "id": "2",
+                "mine": "5"
+              }
+            }
+          }
+        },
+        {
+          "name": "again starts from the first",
+          "input": {
+            "lesson": "1",
+            "mine": "5",
+            "again": true
+          },
+          "records": {
+            "prog_questions": [
+              {
+                "lesson": "1",
+                "position": 1,
+                "question": "One?"
+              }
+            ],
+            "prog_answers": [
+              {
+                "lesson": "1",
+                "question": "1",
+                "picked": "A",
+                "correct": true
+              }
+            ]
+          },
+          "expect": {
+            "go": {
+              "screen": "quiz",
+              "params": {
+                "lesson": "1",
+                "id": "1",
+                "mine": "5"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "learn",
+    "formulas": {
+      "of": {
+        "params": [
+          "done",
+          "all"
+        ],
+        "formula": "=string(int(done)) + \" of \" + string(int(all))"
+      },
+      "group_count": {
+        "params": [
+          "groups",
+          "key"
+        ],
+        "formula": "=groups.exists(g, g.key == key) ? groups.filter(g, g.key == key)[0].count : 0.0"
+      },
+      "course_state": {
+        "params": [
+          "status",
+          "lessons",
+          "ready"
+        ],
+        "formula": "=status == \"Planning\" ? \"🧠 Planning…\" : status == \"Writing\" ? \"✍️ \" + of(ready, lessons) + \" lessons ready\" : status == \"Problem\" ? \"😕 Problem\" : \"✅ Ready\""
+      },
+      "lesson_state": {
+        "params": [
+          "status",
+          "mine",
+          "lesson"
+        ],
+        "formula": "=status == \"Writing\" ? \"✍️ Being written\" : status == \"Fixing\" ? \"🔧 Testing\" : status == \"Problem\" ? \"😕 Problem\" : mine.exists(p, p.lesson == lesson && p.done == true) ? \"✅ Done\" : mine.exists(p, p.lesson == lesson) ? \"✏️ Started\" : \"✨ New\""
+      },
+      "right_answer": {
+        "params": [
+          "answer",
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "formula": "=answer == \"A\" ? a : answer == \"B\" ? b : answer == \"C\" ? c : d"
+      }
+    },
+    "screens": {
+      "learn": {
+        "data": {
+          "courses": {
+            "from": "prog_courses",
+            "sort": "-started",
+            "limit": 50
+          },
+          "done": {
+            "from": "prog_progress",
+            "where": "=done == true",
+            "groupBy": "course"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Let's learn to program! 💻",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "Say what you'd like to learn, Python or JavaScript, how much you know and what you'd like to make, and Coach writes you a whole course: short lessons, a quiz for each, and an exercise your code must pass, checked on a real computer.",
+            "size": "body",
+            "class": "hero-sub"
+          },
+          {
+            "type": "form",
+            "class": "new-course",
+            "table": "prog_courses",
+            "fields": [
+              {
+                "field": "goal",
+                "label": "I want to learn… (and make…)"
+              },
+              {
+                "field": "language",
+                "label": "In"
+              },
+              {
+                "field": "level",
+                "label": "How much I know already"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Write my course 🚀",
+                "emphasis": "primary",
+                "disabled": "=!form.valid",
+                "do": [
+                  {
+                    "create": {
+                      "table": "prog_courses",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Planning",
+                        "started": "=today()",
+                        "learner": "=me.id"
+                      }
+                    }
+                  },
+                  {
+                    "celebrate": "Coach is planning your course: it's ready in a few minutes! 🧠"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Courses",
+            "size": "title",
+            "showIf": "=size(data.courses) > 0"
+          },
+          {
+            "type": "table",
+            "class": "course-cards",
+            "showIf": "=size(data.courses) > 0",
+            "rows": "=data.courses",
+            "columns": [
+              {
+                "label": "Course",
+                "value": "=row.title != \"\" ? row.title : row.goal"
+              },
+              {
+                "label": "Language",
+                "value": "=row.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\""
+              },
+              {
+                "label": "Done",
+                "value": "=of(group_count(data.done, row.id), row.lessons)",
+                "display": "chip"
+              },
+              {
+                "label": "Status",
+                "value": "=course_state(row.status, row.lessons, row.ready)",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "course",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "course": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "course": {
+            "record": "prog_courses",
+            "id": "=params.id"
+          },
+          "units": {
+            "from": "prog_units",
+            "where": "=course == params.id",
+            "sort": "position"
+          },
+          "lessons": {
+            "from": "prog_lessons",
+            "where": "=course == params.id && status != \"Put away\"",
+            "sort": "position"
+          },
+          "mine": {
+            "from": "prog_progress",
+            "where": "=course == params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "=course_state(data.course.status, data.course.lessons, data.course.ready)",
+                "tone": "primary"
+              },
+              {
+                "type": "chip",
+                "value": "=data.course.language == \"Python\" ? \"🐍 Python\" : \"🟨 JavaScript\"",
+                "tone": "neutral"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "All courses",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "learn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=data.course.title != \"\" ? data.course.title : data.course.goal",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "=\"For: \" + data.course.goal + (data.course.level != \"\" ? \" · \" + data.course.level : \"\")",
+            "size": "body",
+            "class": "hero-sub"
+          },
+          {
+            "type": "text",
+            "value": "🧠 Coach is planning the units and lessons. They appear here by themselves.",
+            "size": "body",
+            "class": "working",
+            "showIf": "=data.course.status == \"Planning\""
+          },
+          {
+            "type": "text",
+            "value": "=\"✍️ Writing and testing the lessons: \" + of(data.course.ready, data.course.lessons) + \" ready. Each is checked on the computer before it opens.\"",
+            "size": "body",
+            "class": "working",
+            "showIf": "=data.course.status == \"Writing\""
+          },
+          {
+            "type": "text",
+            "value": "=\"😕 \" + data.course.note",
+            "size": "body",
+            "showIf": "=data.course.status == \"Problem\""
+          },
+          {
+            "type": "progress",
+            "value": "=double(size(data.mine.filter(p, p.done == true)))",
+            "max": "=data.course.lessons > 0.0 ? data.course.lessons : 1.0",
+            "label": "Lessons you've done",
+            "class": "big-progress",
+            "showIf": "=data.course.lessons > 0.0"
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Continue ▶️",
+                "emphasis": "primary",
+                "disabled": "=data.course.ready == 0.0",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "course": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Change the course",
+                "icon": "edit",
+                "disabled": "=data.course.status == \"Planning\"",
+                "do": [
+                  {
+                    "openDialog": "change"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "class": "lesson-list",
+            "rows": "=data.lessons",
+            "columns": [
+              {
+                "label": "Lesson",
+                "value": "=row.title"
+              },
+              {
+                "label": "Learn",
+                "value": "=row.goal"
+              },
+              {
+                "label": "",
+                "value": "=lesson_state(row.status, data.mine, row.id)"
+              }
+            ],
+            "onRowClick": [
+              {
+                "runScript": {
+                  "script": "open",
+                  "input": {
+                    "lesson": "=row.id"
+                  }
+                }
+              }
+            ],
+            "rowActions": [
+              {
+                "type": "button",
+                "label": "Write it again",
+                "icon": "edit",
+                "showIf": "=row.status == \"Problem\"",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=row",
+                      "set": {
+                        "status": "Writing",
+                        "fixes": 0,
+                        "material": ""
+                      }
+                    }
+                  },
+                  {
+                    "notify": "Coach is writing it again."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "😕 A lesson that shows a problem couldn't be made to pass its own tests: press Write it again beside it.",
+            "size": "body",
+            "showIf": "=data.lessons.exists(l, l.status == \"Problem\")"
+          },
+          {
+            "type": "dialog",
+            "key": "change",
+            "title": "Change the course",
+            "content": [
+              {
+                "type": "text",
+                "value": "Say what should be different (easier, harder, more on lists, a project at the end…) and Coach plans it again. Lessons that stay keep everyone's progress; new ones are written and tested.",
+                "size": "body"
+              },
+              {
+                "type": "form",
+                "record": "=data.course",
+                "fields": [
+                  {
+                    "field": "changes",
+                    "label": "What should change?"
+                  }
+                ],
+                "buttons": [
+                  {
+                    "type": "button",
+                    "label": "Plan it again 🧠",
+                    "emphasis": "primary",
+                    "disabled": "=!form.changed",
+                    "do": [
+                      {
+                        "update": {
+                          "record": "=data.course",
+                          "set": {
+                            "changes": "=form.changes",
+                            "status": "Planning"
+                          }
+                        }
+                      },
+                      {
+                        "closeDialog": "change"
+                      },
+                      {
+                        "notify": "Coach is planning it again."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "lesson": {
+        "params": {
+          "id": {
+            "type": "string"
+          },
+          "mine": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "lesson": {
+            "record": "prog_lessons",
+            "id": "=params.id"
+          },
+          "mine": {
+            "record": "prog_progress",
+            "id": "=params.mine"
+          },
+          "attempts": {
+            "from": "prog_attempts",
+            "where": "=lesson == params.id",
+            "sort": "-at",
+            "limit": 1
+          },
+          "answers": {
+            "from": "prog_answers",
+            "where": "=lesson == params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "chip",
+                "value": "=data.mine.done ? \"✅ Done\" : \"✨ To do\"",
+                "tone": "success"
+              },
+              {
+                "type": "chip",
+                "value": "=\"🧩 \" + string(int(data.mine.tries)) + (data.mine.tries == 1.0 ? \" try\" : \" tries\")",
+                "tone": "neutral",
+                "showIf": "=data.mine.tries > 0.0"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Back to the course",
+                "icon": "back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "course",
+                      "params": {
+                        "id": "=data.lesson.course"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=data.lesson.title",
+            "size": "headline",
+            "class": "hero-title"
+          },
+          {
+            "type": "text",
+            "value": "=data.lesson.text",
+            "size": "body",
+            "class": "lesson-text"
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Take the quiz 🎯",
+                "emphasis": "primary",
+                "showIf": "=data.lesson.questions > 0.0 && size(data.answers) < data.lesson.questions",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "quiz",
+                      "input": {
+                        "lesson": "=params.id",
+                        "mine": "=params.mine"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=\"Quiz again 🔁 (⭐ \" + string(size(data.answers.filter(a, a.correct == true))) + \" of \" + string(int(data.lesson.questions)) + \")\"",
+                "showIf": "=data.lesson.questions > 0.0 && size(data.answers) >= data.lesson.questions",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "quiz",
+                      "input": {
+                        "lesson": "=params.id",
+                        "mine": "=params.mine",
+                        "again": true
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=\"🧩 Your exercise. \" + data.lesson.exercise",
+            "size": "body",
+            "class": "task"
+          },
+          {
+            "type": "form",
+            "record": "=data.mine",
+            "class": "code",
+            "fields": [
+              {
+                "field": "code",
+                "label": "Your code"
+              }
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Check my answer ▶️",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "check",
+                      "input": {
+                        "mine": "=params.mine",
+                        "code": "=form.code"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "=data.attempts[0].passed == true ? \"🎉 Passed! Here is what the tests said:\" : \"What the tests said:\"",
+            "size": "title",
+            "showIf": "=size(data.attempts) > 0"
+          },
+          {
+            "type": "text",
+            "value": "=data.attempts[0].output",
+            "size": "body",
+            "class": "output",
+            "showIf": "=size(data.attempts) > 0"
+          },
+          {
+            "type": "text",
+            "value": "=\"💬 Coach: \" + data.attempts[0].explanation",
+            "size": "body",
+            "class": "explain",
+            "showIf": "=size(data.attempts) > 0 && data.attempts[0].passed != true && data.attempts[0].explanation != \"\""
+          },
+          {
+            "type": "text",
+            "value": "💬 Coach is looking at what went wrong…",
+            "size": "body",
+            "class": "working",
+            "showIf": "=size(data.attempts) > 0 && data.attempts[0].passed != true && data.attempts[0].explanation == \"\""
+          },
+          {
+            "type": "row",
+            "class": "continue",
+            "content": [
+              {
+                "type": "button",
+                "label": "Next lesson →",
+                "emphasis": "primary",
+                "showIf": "=data.mine.done",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "open",
+                      "input": {
+                        "course": "=data.lesson.course"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "quiz": {
+        "params": {
+          "lesson": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mine": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "lesson": {
+            "record": "prog_lessons",
+            "id": "=params.lesson"
+          },
+          "q": {
+            "record": "prog_questions",
+            "id": "=params.id"
+          },
+          "answers": {
+            "from": "prog_answers",
+            "where": "=lesson == params.lesson"
+          },
+          "answer": {
+            "from": "prog_answers",
+            "where": "=question == params.id",
+            "limit": 1
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Stop",
+                "icon": "close",
+                "emphasis": "subtle",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "lesson",
+                      "params": {
+                        "id": "=params.lesson",
+                        "mine": "=params.mine"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "chip",
+                "value": "=\"⭐ \" + string(size(data.answers.filter(a, a.correct == true)))",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "type": "progress",
+            "label": "=\"Question \" + string(int(data.q.position)) + \" of \" + string(int(data.lesson.questions))",
+            "value": "=double(size(data.answers))",
+            "max": "=data.lesson.questions",
+            "class": "quiz-progress"
+          },
+          {
+            "type": "text",
+            "value": "=data.q.question",
+            "size": "headline",
+            "class": "question"
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "class": "choices",
+            "showIf": "=size(data.answer) == 0",
+            "content": [
+              {
+                "type": "button",
+                "label": "=data.q.choice_a",
+                "class": "choice choice-a",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "A"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"A\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! 🎉"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_b",
+                "class": "choice choice-b",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "B"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"B\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! 🎉"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_c",
+                "class": "choice choice-c",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "C"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"C\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! 🎉"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "=data.q.choice_d",
+                "class": "choice choice-d",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "answer",
+                      "input": {
+                        "question": "=params.id",
+                        "pick": "D"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "when": "=data.q.answer == \"D\"",
+                      "then": [
+                        {
+                          "celebrate": "Right! 🎉"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "grid",
+            "columns": 1,
+            "class": "verdict",
+            "showIf": "=size(data.answer) > 0",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.answer[0].correct == true ? \"🎉 Right!\" : \"💡 Not quite.\"",
+                "size": "headline",
+                "class": "verdict-title"
+              },
+              {
+                "type": "text",
+                "value": "=\"The answer is \" + data.q.answer + \": \" + right_answer(data.q.answer, data.q.choice_a, data.q.choice_b, data.q.choice_c, data.q.choice_d) + \". \" + data.q.why",
+                "size": "body"
+              },
+              {
+                "type": "button",
+                "label": "Next →",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "runScript": {
+                      "script": "quiz",
+                      "input": {
+                        "lesson": "=params.lesson",
+                        "mine": "=params.mine"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "style": ":root {\n  font-family: ui-rounded, \"SF Pro Rounded\", \"Nunito\", \"Quicksand\", \"Segoe UI\", system-ui, sans-serif;\n  background:\n    radial-gradient(circle at 4% 0%, rgba(45, 212, 191, 0.26), transparent 38%),\n    radial-gradient(circle at 96% 6%, rgba(129, 140, 248, 0.30), transparent 42%),\n    radial-gradient(circle at 50% 100%, rgba(250, 204, 21, 0.18), transparent 50%),\n    rgb(var(--v-theme-surface));\n}\n.v-btn { text-transform: none; letter-spacing: 0; border-radius: 999px; font-weight: 700; }\n.v-btn--variant-flat {\n  background: linear-gradient(90deg, #1D4ED8, #7C3AED) !important;\n  color: #fff !important;\n  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.28);\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.v-btn--variant-flat:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 22px rgba(124, 58, 237, 0.32); }\n.v-btn--disabled.v-btn--variant-flat { opacity: 0.45; box-shadow: none; }\n.v-chip { font-weight: 700; }\n.x-hero-title > span {\n  display: inline-block;\n  font-size: clamp(1.6rem, 4.2vw, 2.5rem);\n  line-height: 1.15;\n  font-weight: 800;\n  background: linear-gradient(90deg, #1D4ED8, #7C3AED 60%, #DB2777);\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n}\n.x-hero-sub > span { display: block; max-width: 66ch; opacity: 0.85; font-size: 1.05rem; line-height: 1.6; }\n.x-lesson-text > span {\n  display: block;\n  max-width: 70ch;\n  white-space: pre-wrap;\n  font-size: 1.08rem;\n  line-height: 1.7;\n  padding: 20px 24px;\n  border-radius: 22px;\n  background: rgba(var(--v-theme-surface), 0.88);\n  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);\n}\n.x-example > span, .x-output > span {\n  display: block;\n  max-width: 100%;\n  overflow-x: auto;\n  white-space: pre;\n  font-family: ui-monospace, \"SFMono-Regular\", \"JetBrains Mono\", Menlo, Consolas, monospace;\n  font-size: 0.92rem;\n  line-height: 1.55;\n  padding: 16px 18px;\n  border-radius: 16px;\n  background: #10172A;\n  color: #E2E8F0;\n}\n.x-output > span { white-space: pre-wrap; background: #0B3B36; color: #ECFDF5; }\n.x-task > span {\n  display: block;\n  max-width: 70ch;\n  font-weight: 700;\n  font-size: 1.05rem;\n  line-height: 1.6;\n  padding: 14px 18px;\n  border-radius: 16px;\n  background: rgba(124, 58, 237, 0.10);\n  border-left: 6px solid #7C3AED;\n}\n.x-code textarea {\n  font-family: ui-monospace, \"SFMono-Regular\", \"JetBrains Mono\", Menlo, Consolas, monospace !important;\n  font-size: 0.95rem !important;\n  line-height: 1.5 !important;\n  min-height: 14em;\n  tab-size: 4;\n}\n.x-working > span { display: block; font-weight: 700; color: rgb(var(--v-theme-primary)); animation: x-pulse 1.6s ease-in-out infinite; }\n@keyframes x-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }\n@media (prefers-reduced-motion: reduce) { .x-working > span { animation: none; } }\n.app-node--progress .v-progress-linear { border-radius: 999px; }\n.app-node--progress .v-progress-linear__determinate { background: linear-gradient(90deg, #1D4ED8, #7C3AED, #DB2777) !important; border-radius: 999px; }\n.x-big-progress .v-progress-linear { height: 18px !important; }\n.x-continue .v-btn { height: auto !important; min-height: 52px; padding: 10px 26px; font-size: 1.05rem; }\n.x-continue .v-btn__content { white-space: normal; }\n.x-lesson-list tbody { counter-reset: lesson; }\n.x-lesson-list tbody tr { counter-increment: lesson; background: rgb(var(--v-theme-surface)); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07); transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer; }\n.x-lesson-list tbody tr:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(124, 58, 237, 0.16); }\n.x-lesson-list td { border: none !important; padding: 12px 14px !important; }\n.x-lesson-list td:first-child { border-radius: 16px 0 0 16px; font-weight: 800; }\n.x-lesson-list td:last-child { border-radius: 0 16px 16px 0; white-space: nowrap; }\n.x-lesson-list td:first-child::before {\n  content: counter(lesson);\n  display: inline-grid;\n  place-items: center;\n  width: 28px;\n  height: 28px;\n  margin-right: 12px;\n  border-radius: 50%;\n  background: rgba(29, 78, 216, 0.14);\n  color: #1D4ED8;\n  font-weight: 800;\n  font-size: 0.85rem;\n}\n.x-lesson-list td:nth-child(2) { opacity: 0.7; font-size: 0.92rem; }\n@media (max-width: 600px) {\n  .x-lesson-list td:nth-child(2) { display: none; }\n  .x-lesson-text > span { padding: 16px; font-size: 1rem; }\n}\n.x-new-course > .v-card { border-radius: 24px; background: rgba(var(--v-theme-surface), 0.9); box-shadow: 0 12px 30px rgba(29, 78, 216, 0.12); }\n.x-course-cards .v-card, .x-course-cards .v-table { background: transparent; }\n.x-course-cards thead { display: none; }\n.x-course-cards table { border-collapse: separate; border-spacing: 0 10px; }\n.x-course-cards tbody tr { background: rgb(var(--v-theme-surface)); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); cursor: pointer; }\n.x-course-cards td { border: none !important; padding: 14px 16px !important; }\n.x-course-cards td:first-child { border-radius: 18px 0 0 18px; box-shadow: inset 6px 0 0 #1D4ED8; font-weight: 800; font-size: 1.05rem; }\n.x-course-cards td:last-child { border-radius: 0 18px 18px 0; }\n.x-explain > span { display: block; max-width: 70ch; font-size: 1.05rem; line-height: 1.6; padding: 14px 18px; border-radius: 16px; background: rgba(219, 39, 119, 0.08); border-left: 6px solid #DB2777; }\n.x-question > span { display: block; max-width: 40ch; font-weight: 800; }\n.x-quiz-progress .v-progress-linear { height: 14px !important; }\n.x-choices .v-btn { width: 100%; height: auto !important; min-height: 64px; white-space: normal; font-size: 1.02rem; border-radius: 20px; }\n.x-choices .v-btn__content { white-space: normal; }\n.x-choice-a .v-btn { background: rgba(29, 78, 216, 0.12); }\n.x-choice-b .v-btn { background: rgba(124, 58, 237, 0.12); }\n.x-choice-c .v-btn { background: rgba(219, 39, 119, 0.12); }\n.x-choice-d .v-btn { background: rgba(202, 138, 4, 0.14); }\n.x-verdict-title > span { font-weight: 800; }\n@media (max-width: 600px) {\n  .x-course-cards td:nth-child(2) { display: none; }\n}\n.x-lesson-list .v-card, .x-lesson-list .v-table { background: transparent; }\n.x-lesson-list thead { display: none; }\n.x-lesson-list table { border-collapse: separate; border-spacing: 0 8px; }\n",
+    "computer": {
+      "files": {
+        "harness/run.js": "// Runs a lesson's tests on the computer: node harness/run.js\n// solution.js is the code being checked (its functions written as `function name(…) { … }`); test_lesson.js has the\n// lesson's tests, each test(\"what it checks\", () => { … }) using expect(value).toBe(…), .toEqual(…), .toBeCloseTo(…),\n// .toThrow() or assert(condition, message), and the solution's functions by name. Every test runs, even after one fails.\nconst fs = require(\"node:fs\");\nconst util = require(\"node:util\");\nconst vm = require(\"node:vm\");\n\nconst shown = (value) => util.inspect(value, { depth: 4, breakLength: Infinity });\nconst deepEqual = (a, b) => util.isDeepStrictEqual(a, b);\n\nfunction expect(actual) {\n  const fail = (message) => {\n    throw Object.assign(new Error(message), { name: \"TestFailure\" });\n  };\n  return {\n    toBe: (expected) => Object.is(actual, expected) || fail(`expected ${shown(expected)}, got ${shown(actual)}`),\n    toEqual: (expected) => deepEqual(JSON.parse(JSON.stringify(actual ?? null)), JSON.parse(JSON.stringify(expected ?? null))) || fail(`expected ${shown(expected)}, got ${shown(actual)}`),\n    toBeCloseTo: (expected, digits = 2) => Math.abs(actual - expected) < 10 ** -digits / 2 || fail(`expected about ${shown(expected)}, got ${shown(actual)}`),\n    toBeTruthy: () => Boolean(actual) || fail(`expected something true, got ${shown(actual)}`),\n    toBeFalsy: () => !actual || fail(`expected something false, got ${shown(actual)}`),\n    toContain: (item) => (actual?.includes?.(item) ?? false) || fail(`expected ${shown(actual)} to contain ${shown(item)}`),\n    toThrow: () => {\n      try {\n        actual();\n      } catch {\n        return true;\n      }\n      return fail(\"expected it to throw an error, and it didn't\");\n    }\n  };\n}\n\nfunction main() {\n  const tests = [];\n  const context = vm.createContext({\n    console,\n    test: (name, run) => tests.push({ name: String(name), run }),\n    expect,\n    assert: (condition, message = \"this wasn't true\") => {\n      if (!condition) throw Object.assign(new Error(message), { name: \"TestFailure\" });\n    }\n  });\n  try {\n    vm.runInContext(fs.readFileSync(\"solution.js\", \"utf8\"), context, { filename: \"solution.js\", timeout: 5000 });\n  } catch (error) {\n    console.log(error?.name === \"SyntaxError\"\n      ? `❌ JavaScript can't read the code: ${error.message}.`\n      : `❌ The code stopped before the tests could run: ${error?.name || \"Error\"}: ${error?.message || error}`);\n    return 1;\n  }\n  try {\n    vm.runInContext(fs.readFileSync(\"test_lesson.js\", \"utf8\"), context, { filename: \"test_lesson.js\" });\n  } catch (error) {\n    console.log(`❌ The lesson's tests couldn't start: ${error?.name || \"Error\"}: ${error?.message || error}`);\n    return 2;\n  }\n  if (!tests.length) {\n    console.log(\"❌ The lesson has no tests (test(\\\"…\\\", () => { … })).\");\n    return 2;\n  }\n  let passed = 0;\n  for (const { name, run } of tests) {\n    try {\n      vm.runInContext(\"__run()\", Object.assign(context, { __run: run }), { timeout: 5000 });\n      passed += 1;\n      console.log(`✅ ${name}`);\n    } catch (error) {\n      const why = error?.name === \"TestFailure\" ? error.message : `the code stopped with ${error?.name || \"Error\"}: ${error?.message || error}`;\n      console.log(`❌ ${name}: ${why}`);\n    }\n  }\n  console.log(\"\");\n  console.log(`${passed === tests.length ? \"🎉 \" : \"\"}${passed} of ${tests.length} tests passed.`);\n  return passed === tests.length ? 0 : 1;\n}\n\nprocess.exitCode = main();\n",
+        "harness/run.py": "# Runs a lesson's tests on the computer: python3 harness/run.py\n# solution.py is the code being checked; test_lesson.py has the lesson's tests, each a function test_…() that uses\n# plain assert and the solution's functions (from solution import *). Every test runs, even after one fails.\nimport importlib\nimport os\nimport sys\nimport traceback\n\nsys.dont_write_bytecode = True\nsys.path.insert(0, os.getcwd())\n\n\ndef main():\n    try:\n        importlib.import_module(\"solution\")\n    except SyntaxError as error:\n        print(f\"❌ Python can't read the code: {error.msg} (line {error.lineno}).\")\n        return 1\n    except Exception as error:  # noqa: BLE001 - the learner's mistake is shown, never raised\n        print(f\"❌ The code stopped before the tests could run: {type(error).__name__}: {error}\")\n        return 1\n    try:\n        tests = importlib.import_module(\"test_lesson\")\n    except Exception as error:  # noqa: BLE001\n        print(f\"❌ The lesson's tests couldn't start: {type(error).__name__}: {error}\")\n        return 2\n    names = [name for name in vars(tests) if name.startswith(\"test_\") and callable(getattr(tests, name))]\n    if not names:\n        print(\"❌ The lesson has no tests (functions named test_…).\")\n        return 2\n    passed = 0\n    for name in names:\n        label = name[5:].replace(\"_\", \" \")\n        try:\n            getattr(tests, name)()\n            passed += 1\n            print(f\"✅ {label}\")\n        except AssertionError as error:\n            frame = traceback.extract_tb(error.__traceback__)[-1]\n            print(f\"❌ {label}: {error}\" if str(error) else f\"❌ {label}: this wasn't true: {frame.line}\")\n        except Exception as error:  # noqa: BLE001\n            print(f\"❌ {label}: the code stopped with {type(error).__name__}: {error}\")\n    print(\"\")\n    print(f\"{'🎉 ' if passed == len(names) else ''}{passed} of {len(names)} tests passed.\")\n    return 0 if passed == len(names) else 1\n\n\nsys.exit(main())\n"
+      },
+      "internet": false
+    }
+  }
+}

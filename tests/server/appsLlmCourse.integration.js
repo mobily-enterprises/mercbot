@@ -36,7 +36,7 @@ for (const [language, { ext, check, solutions: answers }] of Object.entries(LANG
   test(`every lesson's own solution passes its checks in ${language}, and its starting code doesn't`, { skip: SKIP }, async (context) => {
     const knex = await connectTestDatabase();
     context.after(() => knex.destroy());
-    const { shell } = await startShell(knex, context, { store: null, meter });
+    const { programs: computer } = await startShell(knex, context, { store: null, meter });
     assert.deepEqual(Object.keys(answers), KEYS, "a solution for every lesson");
     const files = Object.fromEntries(KEYS.flatMap((key) => [
       [`solution/${key}.${ext}`, (language === "Python" ? "import math\n" : "") + answers[key]],
@@ -46,7 +46,7 @@ for (const [language, { ext, check, solutions: answers }] of Object.entries(LANG
       `cp solution/${key}.${ext} answer.${ext}; ${check} ${key} > out.txt && echo "${key} solution passes" || { echo "${key} solution fails"; cat out.txt; }`,
       `cp start/${key}.${ext} answer.${ext}; ${check} ${key} > out.txt && echo "${key} start passes" || echo "${key} start fails"`
     ].join("; ")).join("; ");
-    const result = await shell.runProgram({ workspaceId: "1", botId: "1", command, files, readOnlyFiles: FILES, seconds: 120 });
+    const result = await computer.run({ workspaceId: "1", botId: "1", command, files, readOnlyFiles: FILES, seconds: 120 });
     assert.equal(result.output, KEYS.map((key) => `${key} solution passes\n${key} start fails\n`).join(""));
   });
 }
@@ -79,8 +79,8 @@ test("the course in use: a lesson checked wrong then right, a model trained on a
     remove: store.removeRecordFile,
     real: async (homeId, virtualPath) => (await store.existingFile(store.homePlace(homeId), virtualPath)).real
   });
-  const { shell } = await startShell(knex, cleanup, { store, meter });
-  home.apps.useComputer({ available: () => shell.available(), run: (request) => shell.runProgram(request) });
+  const { programs: computer } = await startShell(knex, cleanup, { store, meter });
+  home.apps.useComputer(computer);
 
   const actor = { type: "person", id: userId, name: "Pat" };
   const ctx = home.ctx(actor);

@@ -5,7 +5,7 @@ import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 import { isCalculated } from "../shared/calculated.js";
 import { isFileField } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
-import { LIMITS, PAGE, UNTIMED, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
+import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
 import { createScriptComputer } from "./scriptComputer.js";
 import { asDrafted } from "./scriptDrafts.js";
@@ -97,8 +97,8 @@ async function wholeRun(gate, ctx, start) {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {import("./types.js").ScriptPool} [dependencies.pool]
  * @param {import("./types.js").WebAccess} [dependencies.web] The addresses scripts may call (tests pass their own).
- * @param {() => ({ available: () => boolean, run: Function } | null)} [dependencies.computer] the files feature's programs
- *   for `computer.run` (D-146), read at call time; none: refused as on a server without a sandbox
+ * @param {() => ({ available: () => boolean, run: Function } | null)} dependencies.computer the files feature's programs
+ *   for `computer.run` (D-146), read at call time (null before it plugs in: refused as on a server without a sandbox)
  */
 export function createScripts({
   resources,
@@ -113,7 +113,7 @@ export function createScripts({
   roleOf,
   pool = createScriptPool(),
   web = createWebAccess({ resources, env }),
-  computer = () => null
+  computer
 }) {
   const { apps: appRows, appScripts, appScriptRuns, appScriptRounds, auditEvents } = resources;
   const connectedApps = createScriptConnected({ resources, systemContext, connected });
@@ -441,7 +441,6 @@ export function createScripts({
       cpuMs: limits.cpuMs,
       memory: limits.memory,
       wallMs: limits.wallMs,
-      untimed: UNTIMED,
       host: hostFor(row.kind),
       call: realHost(ctx, limits, row)
     });
@@ -645,7 +644,6 @@ export function createScripts({
         condition: watch.condition,
         skip: (event) => event.via?.scriptId === row.id,
         keep: 100,
-        // A job works for everyone (D-145): each person's change to a personal table sets it off.
         everyone: true
       });
       return count ? { row, input: { changes: matches, more: count - matches.length } } : { row: null };

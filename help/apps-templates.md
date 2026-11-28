@@ -9,7 +9,7 @@ Open **Apps** and choose the **Templates** tab. There are 63 templates. Each one
 - its picture, colour and name
 - a **Public** badge if it's made to be used by people outside your home
 - a sentence on what it's for, and what it can do (**Line items**, **Board**, **Calendar**, **Timeline**, **Public page**, **Sends email**)
-- what an owner or admin has to switch on for it, when it needs something (Canary needs Gmail and AI, Study needs AI)
+- what an owner or admin has to switch on for it, when it needs something (Canary needs Gmail and AI, Study and Learn to program need AI)
 - how many screens it has and which tables it uses
 
 The chips at the top keep the templates for one kind of use: **Corporate** (27), **Small business** (39), **Family** (24) or **Personal** (24); many templates are for more than one. **Search templates** finds the ones whose name, description or tables have every word you type. Both stay as they are when you come back to the tab.
@@ -60,6 +60,7 @@ Each template is listed once, under the kind of use it's mainly for.
 | **Customer orders** | Orders from your customers, line by line from your product list, moved from New to Delivered. | — |
 | **Daily takings** | Cash up at the end of each day: card and cash takings, the float, and the trend week by week. | — |
 | **Invoices** | Invoices with their lines and totals, from draft to sent to paid, with the overdue ones flagged. | — |
+| **Learn to program** | Say what you want to learn, Python or JavaScript, and how much you know: its coach writes you a course of lessons, quizzes and exercises, your code checked by tests on a real computer. Needs AI. | Family, Personal |
 | **Jobs and work orders** | Jobs for your crews on a timeline and a board, each with its address, parts and before and after photos. | — |
 | **Members and renewals** | Your members, their plans and renewal dates; see who renews this month and renew them in one press. | — |
 | **Quotes** | Quotes with their lines and totals; move them from Draft to Sent to Accepted and see what's still open. | — |
@@ -80,6 +81,7 @@ Each template is listed once, under the kind of use it's mainly for.
 | **Gift ideas** | Gift ideas for the people in your contacts, from idea to bought, wrapped and given, and what you spent. | Personal |
 | **Home maintenance** | Boiler service, gutters, smoke alarms: what's due when, who does it, what it cost. Press Done to plan the next. | Personal |
 | **Household bills** | Rent, energy, phone and insurance: what each costs, when it's due, and a Paid button that moves it on. | Personal |
+| **Make your own LLM** | A full course from your first line of Python or JavaScript, through counting, chance and the maths, to a tiny language model you train on a book and talk to. | Personal |
 | **Meal planner and shopping list** | Plan the week's meals on a calendar; what each needs goes onto the home's one shopping list, ticked off in the shop. | Personal |
 | **Packing list** | What to pack for each trip, and for whom: tick things off as they go in the bag. | Personal |
 | **Pet care** | Your pets, their vet visits, jabs, flea and worm treatments and weight, with what's due next. | Personal |
@@ -121,7 +123,7 @@ Everyone else in the home can ask the Builder instead: "Install the Leave reques
 - **Screens and navigation**: lists, forms for adding and editing, single records, and charts or totals where they help
 - **Visitor access** for the public templates, such as letting visitors add enquiries but read nothing
 - **Totals that keep themselves up to date**, such as an invoice's total of its lines or an expense claim's total of its items, shown on its list
-- **Scripts**, for the templates that need them: invoices, quotes and orders keep each line's amount as its quantity times its price, Canary reads new email every hour and has a bot judge it, and Study reads your books and writes your courses with its own bot, Learner. They go into the app's draft with it, and are live once you publish.
+- **Scripts**, for the templates that need them: invoices, quotes and orders keep each line's amount as its quantity times its price, Canary reads new email every hour and has a bot judge it, Study reads your books and writes your courses with its own bot, Learner, and the two programming courses check your code on the computer. They go into the app's draft with it, and are live once you publish.
 - **Sample records**, only if you choose **With sample data**, for most templates
 
 ## Study: courses from your books
@@ -134,6 +136,19 @@ Everyone else in the home can ask the Builder instead: "Install the Leave reques
 4. **Change it any time.** On the course's **Change the course** tab, change what you want to learn or say what should change, and press **Plan again**: lessons that keep their title keep everyone's progress, new ones are written for you and show as **New**, and ones the new plan leaves out are put away. You can also change one lesson (it's written again with a new quiz and starts fresh as New for everyone), add a lesson (on its unit's page, **Add a lesson**) or a unit (**Add a unit**), move them up or down, or put them away.
 
 Study keeps its books in the same **Books** table as **Reading list**, so a book on your reading list can be studied too once you add its file.
+
+## Learn to program and Make your own LLM
+
+Both courses check your code by running it on the computer of the app's bot, in a sealed-off sandbox with no internet. They need a server with the bots' command line; without it, **Check my answer** says the server can't run programs. Your code, your attempts and your progress are your own: nobody else in the home sees them.
+
+**Learn to program** comes with its own bot, **Coach**, a patient coding coach (installing it adds Coach to your home's bots, or uses the Coach your home already has). Once an owner or admin has switched on **AI: bots and pictures** for it in its **Logic** tab and it's published:
+
+1. **Say what you want.** What you'd like to learn and make, **Python** or **JavaScript**, and how much you know already, from never having programmed to quite good. Press **Write my course**.
+2. **Coach writes it.** First the units and lessons, then each lesson: a short explanation, a quiz, and an exercise with its starting code and the tests that check it. Before a lesson opens, Coach's own solution has to pass its tests on the computer, and the starting code has to fail them; a lesson that doesn't is sent back to Coach with what the computer said, up to twice. One that still can't be made to pass shows a problem, with **Write it again**.
+3. **Your turn.** Each lesson has your code in a large box, starting from the lesson's starting code. **Check my answer** runs it against the lesson's tests and shows which passed. A pass celebrates; when something fails, Coach explains what went wrong in plain words, with a hint rather than the answer.
+4. **Change it.** **Change the course** on the course page plans it again with what you say should change; lessons that keep their title keep everyone's progress.
+
+**Make your own LLM** is a complete course, written in the app, that needs no AI. Pick **Python** or **JavaScript**, then work through 14 short lessons: lists and loops, counting, probabilities and sampling, vectors and matrices, softmax, loss and a step downhill, characters as tokens, a bigram model, writing text by sampling, a tiny neural model, and attention with a context of 8 characters. Each lesson's exercise has checks your code must pass, and every function you get right joins your own library. At the end, give your model a book (a text, Word or PDF file), press **Train my model** (about a minute), and talk to it: it continues what you write in the book's style. It's tiny, so expect something that looks like the book from far away, with real words now and then: it continues your words rather than understanding them. As with any app, changing its lessons makes it your own fork.
 
 ## What a template leaves out
 

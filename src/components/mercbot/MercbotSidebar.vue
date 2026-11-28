@@ -9,6 +9,7 @@ import { chatTitle } from "./chatView.js";
 import { initialsOf } from "./messageAuthors.js";
 import MercbotHomeSwitcher from "./MercbotHomeSwitcher.vue";
 import MercbotAppsEntry from "../apps/MercbotAppsEntry.vue";
+import { usePinnedApps } from "../apps/usePinnedApps.js";
 import MercbotFilesEntry from "../files/MercbotFilesEntry.vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
@@ -50,6 +51,9 @@ const footerHovered = ref(false);
 const appsFocused = ref(false);
 const appsWide = computed(() => footerHovered.value || appsFocused.value);
 const appIcons = ["$calendarToday", "$mail", "$description"];
+// The person's pinned apps, the list's Apps section above People (the person, 28 Nov: not in the top row, which keeps
+// the home's name its room).
+const { pinned: pinnedApps, open: openApp } = usePinnedApps();
 
 </script>
 
@@ -89,6 +93,8 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
         :folded="folded"
         :people-actions="peopleActions"
         :home-name="homeName"
+        :apps="pinnedApps"
+        @open-app="openApp"
         @select="emit('select', $event)"
         @command="emit('command', $event)"
         @new-room="emit('new-chat')"
@@ -221,7 +227,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
 /* The home switcher takes the room left of Search, Files and Apps (D-36). */
 .mb-sidebar__home {
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   margin-right: auto;
 }

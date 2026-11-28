@@ -25,8 +25,6 @@ const READS = { list: true, get: true, totals: true };
 const WRITES = { create: true, update: true, markObsolete: true };
 // The host groups a test answers by operation, from its own `ai`, `notify`, `docs` and `computer`.
 const ANSWERED = new Set(["ai", "notify", "docs", "computer"]);
-// Host calls whose time a run's wall clock doesn't count: a program on the computer keeps its own limit (D-146).
-export const UNTIMED = Object.freeze(["computer"]);
 
 const typeOf = (value) => (typeof value === "number" ? "double" : typeof value === "boolean" ? "bool" : "string");
 

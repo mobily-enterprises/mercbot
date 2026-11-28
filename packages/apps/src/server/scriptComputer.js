@@ -14,7 +14,8 @@ import { GateError } from "./validate.js";
 export const COMPUTER_LIMITS = Object.freeze({
   // A button's person is waiting; a job may train a small model.
   seconds: Object.freeze({ action: 20, job: 300 }),
-  perRun: 3,
+  // A job may check many things at once, such as a course's new lessons.
+  perRun: Object.freeze({ action: 3, job: 10 }),
   recordFiles: 3
 });
 
@@ -68,7 +69,8 @@ export function createScriptComputer({ resources, gate, homeBots, computer }) {
     let settings = null;
     async function run(request = {}) {
       if (ctx.visitor) throw refused("programs are for the home's people: a public app's visitors can't run them");
-      if ((runs += 1) > COMPUTER_LIMITS.perRun) throw refused(`at most ${COMPUTER_LIMITS.perRun} computer.run a run`);
+      const allowed = COMPUTER_LIMITS.perRun[script.kind] ?? COMPUTER_LIMITS.perRun.action;
+      if ((runs += 1) > allowed) throw refused(`at most ${allowed} computer.run a run`);
       const most = COMPUTER_LIMITS.seconds[script.kind] ?? COMPUTER_LIMITS.seconds.action;
       const seconds = request.seconds === undefined ? Math.min(10, most) : Number(request.seconds);
       if (!Number.isFinite(seconds) || seconds < 1 || seconds > most) throw refused(`seconds is 1 to ${most} for a ${script.kind === "job" ? "job" : "button"}`);

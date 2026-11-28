@@ -7,6 +7,7 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 ## Sources
 
 - Main: `packages/files/src/server/shell.js`
+- `packages/files/src/server/programs.js`
 - `packages/files/src/server/gateway.js`
 - `packages/files/src/server/internetUsage.js`
 - `packages/files/src/server/secretMask.js`
@@ -195,6 +196,19 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
     shutdown stopped it, or its home's work was paused: the meter refused its next block, which Mercbot's own recorder
     never does; `stopped?` says why for every stop). A run still going after `foregroundSeconds` (120)
     answers `{status: "running", run}` and carries on up to `maxSeconds` (1800).
+- **Apps' programs (D-146, `programs.js` `createPrograms`, the files runtime's `programs`, plugged into apps as
+  `useComputer`):** `run({ workspaceId, botId, userId, command, files, readOnlyFiles, inputs, seconds, internet, bring,
+  keep })` runs `bash -c command` in a fresh sandbox made as a command's (`commandParts`: the same bundle, limits, output
+  cut and stop reasons) but with no place: only `/work` (a mount point of every toolbox), the server's scratch folder of
+  the run, holding `files` and `inputs` (records' files), with each of `readOnlyFiles` mounted read-only over an empty
+  file in its place. No network unless `internet` (then a gateway of its own and its meter, as a command's). Its
+  computation is recorded for the bot, home and person through the meter, a block at a time, stopped when a block is
+  refused. At most `MERCBOT_APP_RUNS` (4) at once per server, apart from the commands' slots; one more waits up to 30 s,
+  then is refused as busy. Names are letters, digits, `_ . -` and up to 3 folders, never starting with a dot; 40 files
+  and 2,000,000 characters, 160 MB of inputs. Afterwards `bring`'s text files (5, 2 MB) are read back and each of
+  `keep`'s handed to its handler (25 MB each), never through a link out of the folder, before the folder goes. A refusal
+  is an error with `programRefusal` (`unavailable`, `busy`, `refused`, `invalid`). `drain()` stops the running ones on
+  shutdown.
 - **Records:** every run is a `shell_runs` row. The running server heartbeats it every 20 s with
   the output so far. `shell.sweep()` (every 30 s on each serving server) marks a running row whose
   heartbeat is older than 90 s `stopped`, once, and (at most hourly) deletes run logs over a week old.
@@ -258,6 +272,7 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 ## Proved by
 
 - `tests/server/shell.integration.js`
+- `tests/server/appsComputer.integration.js`
 - `tests/server/commandInternet.test.js`
 - `tests/server/commandGithub.test.js`
 - `tests/server/githubCommands.integration.js`

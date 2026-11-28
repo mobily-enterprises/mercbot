@@ -48,8 +48,8 @@ async function runner(context, { computer = undefined, programs = "real", slug =
   const meter = {
     startComputation: async (work) => ({ blockSeconds: 600, renew: async () => true, settle: async (seconds) => metered.push({ ...work, seconds }) })
   };
-  const { shell } = await startShell(home.knex, cleanup, { store, meter });
-  const real = { available: () => shell.available(), run: (request) => shell.runProgram(request) };
+  const { programs: sandbox } = await startShell(home.knex, cleanup, { store, meter });
+  const real = sandbox;
   const { resources, repository, registry, gate, apps, systemContext, roleOf } = parts;
   scripts = createScripts({
     roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => BOTS,
@@ -65,7 +65,7 @@ async function runner(context, { computer = undefined, programs = "real", slug =
   await apps.publish(owner, "runner", {}, home.options);
   const app = await apps.find("runner", home.options);
   const press = (input, reach = null) => scripts.runNamed("action", app.id, "run", input, { kind: "button" }, reach, home.options);
-  return { home, app, apps, gate, registry, owner, press, metered, store, dir };
+  return { home, app, apps, gate, registry, owner, press, metered, store, dir, scripts };
 }
 
 test("a button's script runs a program on the computer and reads its output, exit code and the files it brings back", { skip: SKIP }, async (context) => {
@@ -136,4 +136,25 @@ test("a public app's visitor never runs a program", { skip: SKIP }, async (conte
 test("where the server has no sandbox, a program is refused in words", async (context) => {
   const { press } = await runner(context, { programs: { available: () => false, run: async () => assert.fail("never runs") }, slug: "apps-computer-none" });
   await assert.rejects(press({ command: "true" }), /Apps can't run programs on this server: it has no computer for them/u);
+});
+
+// A button's person is waiting, so it runs at most 3 programs a run; a job, such as one checking a course's new lessons,
+// may run 10.
+test("a button runs at most 3 programs a run, and a job 10", async (context) => {
+  const programs = { available: () => true, run: async () => ({ exitCode: 0, output: "", seconds: 0, timedOut: false, files: {}, kept: {} }) };
+  const { scripts, apps, owner, home, app } = await runner(context, { programs, slug: "apps-computer-many" });
+  const many = (count) => `async function main() { for (let i = 0; i < ${count}; i += 1) await computer.run({ command: "true" }); return ${count}; }`;
+  assert.equal(await scripts.runNamed("action", app.id, "run", { command: "true" }, { kind: "button" }, null, home.options).then((result) => result.exitCode), 0);
+  const saved = await scripts.save(owner, "runner", { key: "four", kind: "action", summary: "Runs four", code: many(4), tests: [{ name: "runs", input: null, computer: { run: {} }, expect: 4 }] }, home.options);
+  assert.deepEqual(saved.errors, []);
+  for (const [key, count] of [["ten", 10], ["eleven", 11]]) {
+    const job = await scripts.save(owner, "runner", { key, kind: "job", summary: `Runs ${count}`, code: many(count), settings: { every: "hour" }, tests: [{ name: "runs", input: {}, computer: { run: {} }, expect: count }] }, home.options);
+    assert.deepEqual(job.errors, []);
+  }
+  await apps.publish(owner, "runner", {}, home.options);
+  await assert.rejects(scripts.runNamed("action", app.id, "four", null, { kind: "button" }, null, home.options), /at most 3 computer\.run a run/u);
+  await home.knex("app_scripts").where({ app_id: app.id, kind: "job", draft: false }).update({ next_run_at: new Date(Date.now() - 1000) });
+  await scripts.runDue({ matchChanges: async () => ({ matches: [], count: 0 }) });
+  const runs = await home.knex("app_script_runs as r").join("app_scripts as s", "s.id", "r.script_id").where("s.app_id", app.id).where("s.kind", "job").select("s.key", "r.ok", "r.error");
+  assert.deepEqual(runs.map((run) => [run.key, run.ok, run.error]).sort(), [["eleven", false, "Error: at most 10 computer.run a run"], ["ten", true, null]]);
 });

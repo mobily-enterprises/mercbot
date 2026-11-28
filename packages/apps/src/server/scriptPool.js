@@ -3,6 +3,8 @@ import { Worker } from "node:worker_threads";
 import { ScriptError } from "../shared/sandbox.js";
 
 const inScript = new AsyncLocalStorage();
+// Host calls whose wait a run's wall clock doesn't count: a program on the computer keeps its own limit (D-146).
+const UNTIMED = Object.freeze(["computer"]);
 
 /**
  * The worker threads scripts run in.
@@ -57,7 +59,7 @@ export function createScriptPool({ warm = 2, size = 4 } = {}) {
    * Runs `code` with `input`; the script's host calls are answered by `call(group, name, args)`. The wall clock stops
    * while a call of an `untimed` group is answered (a program on the computer, which keeps its own limit, D-146).
    */
-  async function run({ code, input, cpuMs, memory, host, call, wallMs, untimed = [] }) {
+  async function run({ code, input, cpuMs, memory, host, call, wallMs, untimed = UNTIMED }) {
     const nested = Boolean(inScript.getStore());
     const worker = await take(nested);
     return new Promise((resolve, reject) => {

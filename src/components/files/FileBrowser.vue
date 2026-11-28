@@ -291,7 +291,7 @@ function endDrag() {
               <span class="mb-files__name">{{ nameOf(entry.path) }}</span>
               <span v-if="!entry.folder" class="mb-files__meta">{{ formatSize(entry.size) }} · {{ when(entry.modified) }}</span>
             </button>
-            <v-menu location="bottom end">
+            <v-menu content-class="mb-popover" location="bottom end">
               <template #activator="{ props: menu }">
                 <v-btn v-bind="menu" icon="$moreVert" size="x-small" variant="text" :loading="moving" :aria-label="`More for ${nameOf(entry.path)}`" />
               </template>

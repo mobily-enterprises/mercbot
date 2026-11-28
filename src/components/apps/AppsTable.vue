@@ -231,7 +231,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       <v-btn v-if="canManage" variant="text" :disabled="!table" data-testid="apps-table-access" @click="openAccess">Who can see it</v-btn>
       <v-btn variant="text" :disabled="!table" @click="Object.assign(fieldsDialog, { open: true, removing: null })">Fields</v-btn>
       <v-btn variant="text" :disabled="!table" prepend-icon="$uploadArrow" @click="openImport">Import</v-btn>
-      <v-menu>
+      <v-menu content-class="mb-popover">
         <template #activator="{ props: menuProps }">
           <v-btn v-bind="menuProps" variant="text" :disabled="!table || exporting" prepend-icon="$download">{{ exporting ? "Exporting…" : "Export" }}</v-btn>
         </template>
@@ -284,7 +284,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
           <template #[`item.actions`]="{ item }">
             <div class="d-flex align-center justify-end ga-1">
               <v-chip v-if="item.obsolete" size="x-small" variant="tonal">Obsolete</v-chip>
-              <v-menu>
+              <v-menu content-class="mb-popover">
                 <template #activator="{ props: menuProps }">
                   <v-btn v-bind="menuProps" icon="$moreVert" variant="text" size="small" aria-label="Record menu" @click.stop />
                 </template>

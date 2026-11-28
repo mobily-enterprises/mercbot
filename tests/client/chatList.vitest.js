@@ -19,6 +19,12 @@ vi.mock("../../src/components/mercbot/MercbotHomeSwitcher.vue", async () => stub
 vi.mock("../../src/components/mercbot/MercbotAccountMenu.vue", async () => stub(await import("vue"), "MercbotAccountMenu"));
 vi.mock("../../src/components/files/MercbotFilesEntry.vue", async () => stub(await import("vue"), "MercbotFilesEntry"));
 vi.mock("../../src/components/apps/MercbotAppsEntry.vue", async () => stub(await import("vue"), "MercbotAppsEntry"));
+// The person's pinned apps, as the sidebar reads them (usePinnedApps), in pin order.
+vi.mock("../../src/components/apps/usePinnedApps.js", async () => {
+  const { ref } = await import("vue");
+  const app = (id, name, icon) => ({ id, name, slug: name.toLowerCase().replace(/ /gu, "-"), icon, color: "#335599", picture: null, selected: false });
+  return { usePinnedApps: () => ({ pinned: ref([app("a1", "Pet care", "pets"), app("a2", "Budget", "savings")]), open: () => {} }) };
+});
 
 const { default: MercbotChatList } = await import("../../src/components/mercbot/MercbotChatList.vue");
 const { default: MercbotSidebar } = await import("../../src/components/mercbot/MercbotSidebar.vue");
@@ -232,6 +238,16 @@ describe("the sidebar", () => {
     expect([...top.matchAll(/data-stub="([^"]*)"|aria-label="([^"]*)"/gu)].map(([, stub, label]) => stub || label))
       .toEqual(["MercbotHomeSwitcher", "Search", "MercbotFilesEntry", "MercbotAppsEntry"]);
     for (const gone of ["Team", "New chat or bots", "No chats yet."]) expect(html).not.toContain(gone);
+  });
+
+  // Pinned apps are a list of their own, above People (the person, 28 Nov): the header keeps only the Apps link, so the
+  // home's name has room.
+  it("lists pinned apps as their own section between Rooms and People, each a row with its picture and name", async () => {
+    const order = outline(await sidebar([KITCHEN]));
+    const at = (entry) => order.indexOf(entry);
+    expect(at("section Apps")).toBeGreaterThan(at("section Rooms"));
+    expect(at("section Apps")).toBeLessThan(at("section People"));
+    expect(order.slice(at("section Apps") + 1, at("section Apps") + 3)).toEqual(["row Pet care", "row Budget"]);
   });
 
   it("keeps a face for each room, person and bot shown in the compact rail, with no + of its own", async () => {

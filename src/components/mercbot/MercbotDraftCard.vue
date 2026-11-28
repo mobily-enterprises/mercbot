@@ -69,7 +69,7 @@ function send() {
       <textarea v-if="pending" v-model="text" class="mb-draft__text" rows="7" aria-label="Message" />
       <p v-else class="mb-draft__sent">{{ body.text }}</p>
       <div v-if="pending" class="mb-draft__actions">
-        <v-menu location="top start">
+        <v-menu content-class="mb-popover" location="top start">
           <template #activator="{ props: menu }">
             <button type="button" class="mb-draft__approval" v-bind="menu">Needs approval<v-icon icon="$expand" size="14" /></button>
           </template>

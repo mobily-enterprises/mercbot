@@ -174,7 +174,8 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   draft's system prompt lists how Mercbot's own templates are written.
 - **A ready-made app's bot (D-144):** `botTeams.js` `appBot(slug)` answers the home's bot on that library template, a
   working one first (`newBotRepository.js` `onTemplate`, one read), or makes one through `make` as Add bots does (a
-  race that made it first is used); apps reach it on `mercbot.app-connected`. `bot-templates/learner.json` is Study's.
+  race that made it first is used); apps reach it on `mercbot.app-connected`. `bot-templates/learner.json` is Study's,
+  and `bot-templates/coach.json` is Learn to program's (D-146).
 - **Teams (D-105):** `bot-templates/teams.json` (not a template: `templateFiles()` leaves it out) lists twelve teams,
   each `{ id, for, name, description, templates }`, checked at start (`teams.js` `checkTeams`: `for` home or work
   (D-109), every slug a library template, once per team; ids and names distinct). `GET /api/templates` lists them as `teams`. `GET

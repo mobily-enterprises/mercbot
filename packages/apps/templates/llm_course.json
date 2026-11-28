@@ -3615,7 +3615,7 @@
           },
           {
             "type": "text",
-            "value": "A text, Word or PDF file: a story, a book out of copyright, your own writing. Longer is better (it reads up to 150,000 characters).",
+            "value": "A text, Word or PDF file: a story, a book out of copyright, your own writing. Longer is better (it reads up to 150,000 characters). It's kept as soon as you choose it.",
             "size": "body"
           },
           {
@@ -3627,24 +3627,7 @@
                 "label": "The book"
               }
             ],
-            "buttons": [
-              {
-                "type": "button",
-                "label": "Save the book",
-                "disabled": "=!form.changed",
-                "do": [
-                  {
-                    "update": {
-                      "record": "=data.learner",
-                      "set": "=form.values"
-                    }
-                  },
-                  {
-                    "notify": "Saved: now train your model on it."
-                  }
-                ]
-              }
-            ]
+            "buttons": []
           },
           {
             "type": "text",

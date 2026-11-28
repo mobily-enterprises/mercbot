@@ -123,7 +123,7 @@ in a UI pass.
   another way (a `v-card`, or a layout of their own) move onto this frame when they are next touched.
 - **Lists, chips, fields, tabs, menus:** Vuetify's `v-list-item`, `v-chip` (8px corners), `v-text-field` /
   `SelectField` (outlined, `comfortable` density where set, 8px corners), `v-tabs`, `v-menu` with the `mb-popover`
-  content class.
+  content class (lint refuses a `v-menu` without it: `vue/no-restricted-syntax` in `eslint.config.mjs`).
 - **Icons:** `$`-named aliases (Material Symbols through JSKIT, plus `src/theme/icons.js`); 16 to 18px in buttons and
   rows, 11px for the Public or Private mark beside a name.
 - **Avatars:** bots are drawn faces in their colour (`MercbotAvatar.vue`), people are initials on

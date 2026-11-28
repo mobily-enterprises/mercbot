@@ -107,7 +107,7 @@ const FilesFeature = defineFeature({
       text: (homeId, virtualPath) => files.apps.textOf(files.store.homePlace(homeId), virtualPath)
     });
     // Apps' scripts run programs on their bot's computer (D-146), in the command line's sandboxes.
-    apps.useComputer({ available: () => files.shell.available(), run: (request) => files.shell.runProgram(request) });
+    apps.useComputer(files.programs);
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
     // so this server carries on moves whose server stopped only once it listens.
@@ -140,6 +140,7 @@ const FilesFeature = defineFeature({
     outputs.files.moves.stopAll();
     // Media checks this server took go to another once their lease runs out (D-90).
     outputs.files.media.stop();
+    await outputs.files.programs.drain();
     await outputs.files.shell.drain();
     await outputs.files.mounts.closeAll();
     // Everything written here reaches the files bucket before the server stops (D-19, D-91).

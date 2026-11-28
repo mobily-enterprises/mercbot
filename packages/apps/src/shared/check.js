@@ -119,7 +119,8 @@ export function checkApp(definition, tables, { bots = null, scripts = null, view
   }
 
   // The app's own files for its programs on its bot's computer (D-146), never on a public app.
-  if (definition.computer !== undefined) checkComputer(definition.computer, { report, isPublic: definition.public !== undefined || publicScreens.length > 0 });
+  const isPublic = definition.public !== undefined || publicScreens.length > 0;
+  if (definition.computer !== undefined) checkComputer(definition.computer, { report, isPublic });
 
   // The app's named formulas (D-78), callable like its script functions from every formula below.
   checkNamedFormulas(definition, { scripts, report });

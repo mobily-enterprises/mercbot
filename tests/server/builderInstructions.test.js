@@ -109,3 +109,15 @@ test("the Builder makes each person's own data a personal table, never a filter 
   const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
   assert.ok(SCRIPT_GUIDE.includes("A job adding to a personal table sets whose"), "script guide: personal tables");
 });
+
+// Programs on the app's bot's computer (D-146): the skill says how and when, with the app's own files read-only, the
+// instructions name it among the patterns, and the script writer knows computer.run. No model is called.
+test("the Builder knows how an app runs a program on its bot's computer", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const skill = await readFile(new URL("../../packages/bots/skills/building-apps.md", import.meta.url), "utf8");
+  for (const phrase of ["computer.run({ command, files", "\"computer\": { \"files\""]) assert.ok(skill.includes(phrase), `skill: ${phrase}`);
+  const builder = instructionsFor({ id: "1", name: "Bea", isBuilder: true });
+  assert.ok(builder.includes("computer.run"), "rules: computer.run");
+  const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
+  assert.ok(SCRIPT_GUIDE.includes("await computer.run({ command, files, recordFiles, seconds, bring, keep }) → { exitCode, output, seconds, timedOut, files, kept }"), "script guide: computer.run");
+});

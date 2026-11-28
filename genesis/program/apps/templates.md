@@ -77,7 +77,7 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 
 ## Public contract
 
-- 63 templates (D-141, D-143), each passing the app check against its own tables and the shared tables it `uses` (D-130),
+- 65 templates (D-141, D-143, D-146), each passing the app check against its own tables and the shared tables it `uses` (D-130),
   which installing makes with `ensureTable`; a table of its own with a shared table's key adds its fields to that
   table (Meal planner's `meal` on `list_items`). Each has `glyph` (its picture, `APP_ICON_NAMES`) and `audiences`
   (`corporate`, `business`, `family`, `personal`), optionally `needs` (what an owner or admin must switch on: its
@@ -104,6 +104,14 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
   `appBot`), and the app remembers it (`apps.bot_id`, `migrations/20261207140000_apps_bot.cjs`). Study comes with
   Learner. Each person's answers and progress are theirs (`study_progress`, `study_answers`, personal tables, D-145); its
   button scripts never say whose, and its jobs put away everyone's progress in a lesson written again or put away.
+- **Courses checked on the computer (D-146):** a template's definition may bring files for its scripts' programs
+  (`computer.files`, read-only in `/work`, scripts.md). Learn to program (`prog_*`, with its bot Coach) has Coach plan
+  and write a course to the person's wishes in Python or JavaScript, and runs each lesson's solution against its tests
+  (and its starting code, which must fail one) on the computer before it opens, sending a failing one back to Coach at
+  most twice; a person's answer is checked there and a failure explained by Coach. Make your own LLM (`llm_*`, no bot)
+  is written in the template: 14 lessons with their checks and solutions (`course/`), each person's passed code their
+  library, and a model trained on their book on the computer, kept on their record, that answers in their chat. Their
+  attempts, progress, answers, work, learners and messages are each person's own.
 - An installed app remembers its template and version (`apps.template_key`, `template_version`:
   `templateVersionOf`, a hash of its screens and tables, and of its scripts when it has some). `templateStatus` lists the home's apps made from templates
   as up to date, "an update is ready" or "can't tell" (made before apps remembered: matched by name);
@@ -144,4 +152,6 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 - `tests/client/templateFilter.vitest.js`
 - `tests/server/appsBotTools.integration.js`
 - `tests/server/appsStudy.integration.js`
+- `tests/server/appsLearnToProgram.integration.js`
+- `tests/server/appsLlmCourse.integration.js`
 - `tests/server/teams.integration.js`

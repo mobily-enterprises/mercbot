@@ -187,7 +187,7 @@ async function chooseBuilder() {
             <div class="d-flex align-start ga-3">
               <AppTile :icon="app.icon" :color="app.color" :picture="app.picture" :size="44" />
               <v-spacer />
-              <v-menu>
+              <v-menu content-class="mb-popover">
                 <template #activator="{ props: menuProps }">
                   <v-btn v-bind="menuProps" icon="$moreVert" variant="text" size="small" :aria-label="app.kind === 'view' ? 'View menu' : 'App menu'" @click.prevent />
                 </template>
