@@ -25,6 +25,7 @@ home, with every change audited and nothing ever deleted (D-35).
 - `packages/apps/catalog/event_attendees.json`
 - `packages/apps/catalog/events.json`
 - `packages/apps/catalog/graphics.json`
+- `packages/apps/catalog/list_items.json`
 - `packages/apps/catalog/organisations.json`
 - `packages/apps/catalog/place_categories.json`
 - `packages/apps/catalog/places.json`
@@ -186,6 +187,13 @@ home, with every change audited and nothing ever deleted (D-35).
   number or money fields made of it, compiles to a `compareExpr` plan built from fixed SQL pieces (`sqlPlan.js`); such a
   calculated field also sorts in the database (`calculatedOrder`).
 
+- **List items (D-141):** the shared `list_items` table for simple lists: `kind` (required, the app's kind of list:
+  its namespace), `list_name`, `title`, `done`, `quantity`, `unit`, `group`, `amount`, `due`, `person`, `link`,
+  `notes`, `position`; apps filter on and preset their kind, so apps of one kind share the list. An app adds its own
+  field to it or an extension table.
+- Field and table names: `registry.js` refuses the formula language's reserved words and type names (`namespace`,
+  `list`, `map`, `for`, …) besides the names formulas read (`apps_key_reserved`).
+
 ## Proved by
 
 - `tests/server/appsRegistry.integration.js`
@@ -209,3 +217,5 @@ home, with every change audited and nothing ever deleted (D-35).
 - `tests/server/appsDates.test.js`
 - `tests/server/appsDates.integration.js`
 - `tests/server/appsFieldFilters.integration.js`
+- `tests/server/appsRegistry.integration.js`
+- `tests/server/tableCatalog.test.js`

@@ -22,10 +22,15 @@ Every home builds on a small set of shared tables, so there's one list of contac
 - **Events** and **Event attendees**: what happens when and where, and who's going
 - **Graphics**: posters, social posts and logos, with their pictures and source files
 - **Deals**, and **CRM contacts**: each contact's sales stage, value and next step
+- **List items**: the items of simple lists any app keeps, such as shopping, packing and wishes
 
 A bot adds a shared table the first time it needs one, with the tables it links to, and says so in a line. It asks you first before adding a field, or an extension: a table that holds more about each record of another, one row per record, such as a contact's sales details. A bot never makes a second table for something a shared table is for, and never keeps records in a spreadsheet unless you ask for one. The **Templates** tab lists the shared tables, what each is for, and whether your home has it yet.
 
 Every home starts with two apps on them, **Contacts** and **To-dos**, empty, ready to use.
+
+### List items: one table for every simple list
+
+Shopping lists, packing lists, wish lists and the like keep their items in the shared **List items** table, so a home doesn't grow a new table for each list. Each item says which **kind of list** it's on, such as "shopping" or "packing", and every app shows only its own kind: apps of the same kind share the list, so an item Meal planner adds is on the Shopping list too. An item can also say which named list it's on (a **List**, such as "Weekly shop"), and has general fields each app names its own way: quantity and unit, a group (an aisle, a category, who it's for), an amount, a due date, a person, a link, notes and a position. An app that needs more adds its own field to the table (Meal planner's meal), or a table of its own beside it.
 
 You can also reach an app's tables from inside the app: open its details and choose the **Data** tab there.
 

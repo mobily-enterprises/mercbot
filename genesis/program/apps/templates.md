@@ -5,25 +5,92 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 ## Sources
 
 - Main: `packages/apps/src/server/templates.js`
+- `packages/apps/templates/appointments.json`
+- `packages/apps/templates/assets.json`
 - `packages/apps/templates/bookings.json`
-- `packages/apps/templates/contacts.json`
-- `packages/apps/templates/todos.json`
+- `packages/apps/templates/budget.json`
+- `packages/apps/templates/canary.json`
+- `packages/apps/templates/car_log.json`
+- `packages/apps/templates/chores.json`
 - `packages/apps/templates/contact_form.json`
+- `packages/apps/templates/contacts.json`
+- `packages/apps/templates/content_calendar.json`
+- `packages/apps/templates/contracts.json`
 - `packages/apps/templates/crm.json`
+- `packages/apps/templates/event_signups.json`
+- `packages/apps/templates/expenses.json`
+- `packages/apps/templates/family_calendar.json`
+- `packages/apps/templates/family_health.json`
+- `packages/apps/templates/feedback.json`
+- `packages/apps/templates/gift_ideas.json`
+- `packages/apps/templates/habits.json`
+- `packages/apps/templates/helpdesk.json`
 - `packages/apps/templates/hiring.json`
+- `packages/apps/templates/home_maintenance.json`
+- `packages/apps/templates/household_bills.json`
+- `packages/apps/templates/incidents.json`
+- `packages/apps/templates/invoices.json`
+- `packages/apps/templates/job_applications.json`
+- `packages/apps/templates/journal.json`
 - `packages/apps/templates/leave.json`
+- `packages/apps/templates/meal_planner.json`
+- `packages/apps/templates/meetings.json`
+- `packages/apps/templates/memberships.json`
+- `packages/apps/templates/okrs.json`
+- `packages/apps/templates/onboarding.json`
+- `packages/apps/templates/orders.json`
+- `packages/apps/templates/packing_list.json`
+- `packages/apps/templates/pet_care.json`
+- `packages/apps/templates/plants.json`
+- `packages/apps/templates/pocket_money.json`
+- `packages/apps/templates/policies.json`
+- `packages/apps/templates/projects.json`
+- `packages/apps/templates/purchase_requests.json`
+- `packages/apps/templates/quotes.json`
+- `packages/apps/templates/reading_list.json`
+- `packages/apps/templates/recipes.json`
+- `packages/apps/templates/room_bookings.json`
+- `packages/apps/templates/school.json`
+- `packages/apps/templates/shifts.json`
+- `packages/apps/templates/shopping_list.json`
+- `packages/apps/templates/staff.json`
 - `packages/apps/templates/stock.json`
+- `packages/apps/templates/subscriptions.json`
+- `packages/apps/templates/supplier_orders.json`
+- `packages/apps/templates/takings.json`
+- `packages/apps/templates/timesheets.json`
+- `packages/apps/templates/todos.json`
+- `packages/apps/templates/training.json`
+- `packages/apps/templates/trips.json`
+- `packages/apps/templates/visitor_log.json`
+- `packages/apps/templates/watchlist.json`
+- `packages/apps/templates/wish_list.json`
+- `packages/apps/templates/work_orders.json`
+- `packages/apps/templates/workouts.json`
+- `packages/apps/catalog/list_items.json`
+- `src/components/apps/templateFilter.js`
 - `src/components/apps/AppsTemplates.vue`
 
 ## Public contract
 
-- Eight templates (Contacts, To-dos, CRM, Stock, Leave requests, Hiring pipeline, Contact form,
-  Bookings), each passing the app check against its own tables and the shared tables it `uses`
-  (D-130), which installing makes with `ensureTable`. Contacts, To-dos and CRM are built on the
-  shared tables: the CRM keeps each contact's pipeline in the `crm_contacts` extension. Contacts
-  and To-dos are every home's starter apps (data.md).
+- 62 templates (D-141), each passing the app check against its own tables and the shared tables it `uses` (D-130),
+  which installing makes with `ensureTable`; a table of its own with a shared table's key adds its fields to that
+  table (Meal planner's `meal` on `list_items`). Each has `glyph` (its picture, `APP_ICON_NAMES`) and `audiences`
+  (`corporate`, `business`, `family`, `personal`), optionally `needs` (what an owner or admin must switch on: its
+  words in the install notice and the Builder's answer) and `scripts`. Contacts, To-dos and CRM are built on the
+  shared tables; Shopping list, Packing list, Wish list and Meal planner on `list_items` (data.md), each filtering on
+  its `kind`. Contacts and To-dos are every home's starter apps (data.md).
+- `templateSummaries` answers each template's `icon` (its glyph), `audiences`, `abilities` (lines, board, calendar,
+  timeline, public, sends, from its definition) and `needs`; the Templates tab filters by kind of use and searches
+  (`templateFilter.js`), both kept in the address; the Builder's `template_list` filters by `audience` and `search`
+  and answers `{ key, name, description, audiences, needs }`.
+- A template's `scripts` are saved into the new app's draft before its definition, as the person installing it, their
+  tests run (D-139), errors under `scripts.<key>`; on update too. Roll-up fields are added once every table exists.
+  Invoices, quotes, orders, supplier orders and work orders bring a rule keeping each line's amount (quantity ×
+  price) and a `total` roll-up summing it; expenses, trips, car log, pet care and habits bring roll-ups over stored
+  fields.
 - An installed app remembers its template and version (`apps.template_key`, `template_version`:
-  `templateVersionOf`, a hash of its screens and tables). `templateStatus` lists the home's apps made from templates
+  `templateVersionOf`, a hash of its screens and tables, and of its scripts when it has some). `templateStatus` lists the home's apps made from templates
   as up to date, "an update is ready" or "can't tell" (made before apps remembered: matched by name);
   `updateFromTemplate` makes or completes its tables and saves the template's screens as the app's draft, answering
   the screens it had (D-130). The Builder's `template_check` and `template_update` call them.
@@ -41,3 +108,5 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 - `tests/server/appsTemplates.test.js`
 - `tests/server/appsTemplates.integration.js`
 - `tests/server/appsStarter.integration.js`
+- `tests/client/templateFilter.vitest.js`
+- `tests/server/appsBotTools.integration.js`

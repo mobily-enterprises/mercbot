@@ -14,6 +14,12 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `packages/apps/src/server/registerRoutes.js`
 - `packages/apps/src/server/types.js`
 - `packages/apps/src/server/appsRepository.js`
+- `packages/apps/src/server/appIcon.js`
+- `packages/apps/src/shared/appIcons.js`
+- `migrations/20261206120000_apps_picture.cjs`
+- `src/components/apps/AppTile.vue`
+- `src/components/apps/AppIconPicker.vue`
+- `src/components/apps/appIconChoices.js`
 - `migrations/20261114090000_apps_made_by_user.cjs`
 - `src/components/apps/AppsHome.vue`
 - `src/components/apps/AppDetailsPanel.vue`
@@ -58,6 +64,15 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `kind` is `app`, or `view` for the read-only ones any bot saves at once (views.md); `saveDraft`, `publish`
   and `setPublic` refuse a view. `saveDraft` turns a view part's `copy` into the app's own screen.
 
+- An app's or a view's picture (D-141): `apps.icon`, one of `APP_ICON_NAMES` (135 Material Symbols pictures, the 15
+  older names among them; `createApp` draws an unknown one as `apps`), and `apps.color`, set by anyone in the home
+  (`appIcon.js` `set`, `PUT …/apps/:slug/icon`: 400 `apps_icon_unknown`, `apps_color_invalid`, `apps_icon_nothing`;
+  audited as `changes.icon`); or `apps.picture`, a bot's picture kept with the home's Database files
+  (`putPicture`: a PNG, JPEG, GIF or WebP by its bytes, else 400 `apps_icon_not_picture`; the one it replaces
+  removed), set by the Builder's `app_set_icon` and taken away when a set picture is chosen. `AppTile.vue` draws
+  every tile; `AppIconPicker.vue` (16 `APP_COLOURS`, pictures by group with search, Ask the Builder to draw one)
+  opens from the app's details and each tile's menu.
+
 ## Proved by
 
 - `tests/server/appsRules.test.js`
@@ -65,3 +80,5 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `tests/server/appsVersions.integration.js`
 - `tests/server/appsRemoval.test.js`
 - `tests/server/appsRemoval.integration.js`
+- `tests/server/appsIcons.integration.js`
+- `tests/client/appIconChoices.vitest.js`

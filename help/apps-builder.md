@@ -118,6 +118,7 @@ You never edit an app's screens, formulas or scripts by hand. You can:
 - publish a draft, and restore an earlier version
 - remove a field, after seeing what uses it (see [Your data](/help/apps-data))
 - pin apps to your sidebar
+- change an app's picture and colour (below)
 - pause or remove a bot's watches, on that bot's card
 
 Everyone in the home can do all of this in every app and table: apps and their data belong to the whole home. The home's owners and admins also choose its settings:
@@ -126,6 +127,12 @@ Everyone in the home can do all of this in every app and table: apps and their d
 - set an app's own colour and spacing in **Overview**, then **Save look**
 - set the look of every app in the home in **Apps → Look**: colour, light or dark, font, corners, spacing and a logo. Colours that would make text hard to read are refused.
 - install templates, switch scripts off and on, and choose which web addresses scripts may call
+
+### An app's picture
+
+Every app and view has a picture on its tile, drawn white on its colour: on the Apps home, in its own bar, in the sidebar and in its details. To change it, open the app's **⋮** menu on the Apps home and choose **Change picture**, or press **Change** beside **Picture** in the app's details. Pick a colour and a picture (**Search pictures** finds one by name, such as "receipt" or "pets"), then **Save**. Anyone in the home can change it, and the change is in the activity trail.
+
+For a picture of the app's own, press **Ask the Builder to draw one**: the app's chat with the Builder opens with the request ready to send. The Builder draws it and puts it on the tile, where it replaces the set picture until you choose one again. Drawing a picture is a bot's work like any other picture it makes.
 
 For anything about structure or appearance beyond that, ask the Builder. It can restyle an app completely, from layout and fonts to backgrounds and animation, so apps can look nothing like each other or like Mercbot.
 

@@ -105,6 +105,10 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   to members (`showsPictures`); a visitor sees its name.
 - A create form's `onSubmit` sends (D-137) are sending.md's.
 
+- A form names a field its own way (`{ field, label }`: plain words, 1 to 60 characters, checked; shown by
+  `AppForm.vue`), as an app does a shared table's general field; a `lines` part takes `preset`, given to every new
+  line besides its link (D-141).
+
 ## Proved by
 
 - `tests/server/appsRuntime.integration.js`
@@ -119,3 +123,4 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `tests/server/appsBoards.test.js`
 - `tests/server/appsBoards.integration.js`
 - `tests/server/appsForms.integration.js`
+- `tests/client/appForm.vitest.js`

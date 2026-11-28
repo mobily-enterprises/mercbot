@@ -4706,3 +4706,39 @@ Proved by the tests of each: `appsScriptValues`, `appsLinkChoices`, `appsLists`,
 `appsWhoActed`, `appsLines`, `appsRollups`, `appsBoards`, `appsForms`, `appsDocs` and `appsWholeRuns` (database, in
 `tests/server`), with `appsDates.test.js`, `appsLines.test.js`, `appsBoards.test.js`, `appsForms.test.js`,
 `appsDocs.test.js`, `appsSandbox.test.js`, `appsWhere.test.js` and `builderInstructions.test.js`.
+
+## D-141 — A big template catalogue, pictures that fit, and one shared list table (2026-11-28)
+
+The owner: every app tile showed the same person or star, there were only eight templates, and they asked for a
+catalogue for four kinds of use (corporate, small business, family, personal) with a filter, pictures that fit each
+app which people can set themselves, apps a bot draws a picture for on request, the useful development apps as
+templates, and "a GENERIC table called list that every app can use, with a namespace per item".
+
+- **Templates:** 62 (`packages/apps/templates/`), each with `glyph` (its picture) and `audiences` (`corporate`,
+  `business`, `family`, `personal`, one or more, in that order), optionally `needs` (what an owner or admin must switch
+  on, said when it's installed and never switched on by installing) and `scripts`, saved into the new app's draft as
+  the person installing it, their tests run (D-139). Canary (urgent email) is one. Roll-ups are added once every table
+  exists. The Templates tab filters by kind of use and searches; the Builder's `template_list` does the same, short.
+- **Totals in templates:** the record store adds up stored columns only, so a roll-up can't add up a calculated
+  quantity × price; the templates whose line amount is that (invoices, quotes, orders, supplier orders, work orders)
+  keep it as a stored field filled by a rule script they bring, and their parent's `total` roll-up sums it.
+- **Pictures:** one set of 135 Material Symbols pictures (`shared/appIcons.js`; the 15 older names kept, so no stored
+  icon changed), drawn white on the app's colour by `AppTile.vue` everywhere a tile shows; 16 tile colours
+  (`APP_COLOURS`, each at least 4.9:1 against white). Anyone in the home sets an app's or a view's picture and colour,
+  as they change its screens (`PUT …/apps/:slug/icon`, audited); an unknown name draws `apps`. A bot can put a picture
+  it drew on an app's tile (`app_set_icon`'s `picture`, `apps.picture`, kept with the home's Database files at
+  `app-pictures/<app>/tile`); choosing a set picture again takes it away. In a private chat only the bot's own pictures
+  go on a tile, which is the whole home's.
+- **List items** (`catalog/list_items.json`): one shared table for simple lists. `kind` is each item's kind of list
+  (the namespace: `namespace` and `list` are names the formula language reserves); every app filters on its kind and
+  presets it, so apps of one kind share the list (Shopping list and Meal planner). General fields (`list_name`,
+  `title`, `done`, `quantity`, `unit`, `group`, `amount`, `due`, `person`, `link`, `notes`, `position`) are named each
+  app's way on its forms (`{ field, label }`); an app adds its own field to it, or an extension table. A lines part
+  takes `preset`.
+- **Field names:** the registry refuses the formula language's reserved words and type names (`namespace`, `list`,
+  `map`, `for`…) as field and table names, which made every formula over their table fail to check.
+
+Proved by `appsTemplates.test.js`, `appsTemplates.integration.js` (every template installs with its sample data; list
+apps share by kind; Canary's scripts; an invoice's total), `appsIcons.integration.js`, `appsRegistry.integration.js`,
+`appsBotTools.integration.js`, `appsLines.test.js`, `appsCheck.test.js`, `tableCatalog.test.js`, and the client tests
+`templateFilter.vitest.js`, `appIconChoices.vitest.js` and `appForm.vitest.js`.
